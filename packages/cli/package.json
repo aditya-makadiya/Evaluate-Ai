@@ -19,6 +19,7 @@
     "chalk": "^5.4.1",
     "cli-table3": "^0.6.5",
     "commander": "^13.1.0",
+    "dotenv": "^17.4.0",
     "drizzle-orm": "^0.45.2",
     "ulid": "^2.4.0"
   },

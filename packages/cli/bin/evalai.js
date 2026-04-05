@@ -1,5 +1,13 @@
 #!/usr/bin/env node
 
+// Load .env from project root and ~/.evaluateai-v2/
+import { config as dotenvConfig } from 'dotenv';
+import { join } from 'node:path';
+import { homedir } from 'node:os';
+dotenvConfig({ path: join(homedir(), '.evaluateai-v2', '.env') });
+dotenvConfig({ path: join(process.cwd(), '.env') });
+dotenvConfig(); // also check CWD
+
 import { Command } from 'commander';
 import {
   initCommand,
