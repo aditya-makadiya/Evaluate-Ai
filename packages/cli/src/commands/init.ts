@@ -24,10 +24,13 @@ const HOOK_EVENTS = [
 function buildHooksConfig(): Record<string, unknown> {
   const hooks: Record<string, unknown> = {};
   for (const event of HOOK_EVENTS) {
-    hooks[event] = {
-      command: `evalai hook ${event}`,
-      timeout: 10000,
-    };
+    hooks[event] = [
+      {
+        type: 'command',
+        command: `evalai hook ${event}`,
+        timeout: 10000,
+      },
+    ];
   }
   return hooks;
 }
@@ -71,9 +74,21 @@ function checkHooks(settings: Record<string, unknown>): Map<string, boolean> {
   const result = new Map<string, boolean>();
   const hooks = (settings.hooks ?? {}) as Record<string, unknown>;
   for (const event of HOOK_EVENTS) {
-    const hook = hooks[event] as Record<string, unknown> | undefined;
-    const installed = typeof hook?.command === 'string'
-      && (hook.command as string).includes(`evalai hook ${event}`);
+    const hookEntry = hooks[event];
+    let installed = false;
+
+    if (Array.isArray(hookEntry)) {
+      // Correct format: [{ type: "command", command: "evalai hook ..." }]
+      installed = hookEntry.some(
+        (h: Record<string, unknown>) =>
+          typeof h.command === 'string' && (h.command as string).includes(`evalai hook`)
+      );
+    } else if (hookEntry && typeof hookEntry === 'object') {
+      // Legacy format: { command: "evalai hook ..." }
+      const h = hookEntry as Record<string, unknown>;
+      installed = typeof h.command === 'string' && (h.command as string).includes(`evalai hook`);
+    }
+
     result.set(event, installed);
   }
   return result;
@@ -85,10 +100,24 @@ function checkHooks(settings: Record<string, unknown>): Map<string, boolean> {
 function removeHooks(settings: Record<string, unknown>): Record<string, unknown> {
   const hooks = (settings.hooks ?? {}) as Record<string, unknown>;
   for (const event of HOOK_EVENTS) {
-    const hook = hooks[event] as Record<string, unknown> | undefined;
-    if (hook && typeof hook.command === 'string'
-      && (hook.command as string).includes('evalai hook')) {
-      delete hooks[event];
+    const hookEntry = hooks[event];
+
+    if (Array.isArray(hookEntry)) {
+      // Filter out our hooks, keep other handlers
+      const remaining = hookEntry.filter(
+        (h: Record<string, unknown>) =>
+          !(typeof h.command === 'string' && (h.command as string).includes('evalai hook'))
+      );
+      if (remaining.length === 0) {
+        delete hooks[event];
+      } else {
+        hooks[event] = remaining;
+      }
+    } else if (hookEntry && typeof hookEntry === 'object') {
+      const h = hookEntry as Record<string, unknown>;
+      if (typeof h.command === 'string' && (h.command as string).includes('evalai hook')) {
+        delete hooks[event];
+      }
     }
   }
   if (Object.keys(hooks).length === 0) {
