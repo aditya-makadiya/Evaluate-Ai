@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { createInterface } from 'node:readline';
-import { initDb, saveSupabaseConfig } from '@evaluateai/core';
+import { initDb } from '@evaluateai/core';
 import { getClaudeSettingsPath, ensureDataDir } from '../utils/paths.js';
 import { printHeader } from '../utils/display.js';
 
@@ -137,20 +137,18 @@ export const initCommand = new Command('init')
       return;
     }
 
-    // --- --supabase: configure cloud sync ---
+    // --- --supabase: show env var instructions ---
     if (opts.supabase) {
       printHeader('Supabase Configuration');
-      const url = await prompt('  Supabase URL: ');
-      const anonKey = await prompt('  Supabase Anon Key: ');
-      if (!url || !anonKey) {
-        console.log(chalk.red('  Both URL and anon key are required.'));
-        process.exit(1);
-      }
-      // Ensure DB exists first
-      ensureDataDir();
-      initDb();
-      saveSupabaseConfig({ url, anonKey });
-      console.log(chalk.green('  Supabase credentials saved.'));
+      console.log('  Supabase is configured via environment variables.');
+      console.log('');
+      console.log('  Add these to your shell profile or ~/.evaluateai-v2/.env:');
+      console.log('');
+      console.log(chalk.cyan('    export SUPABASE_URL=https://your-project.supabase.co'));
+      console.log(chalk.cyan('    export SUPABASE_ANON_KEY=your-anon-key-here'));
+      console.log('');
+      console.log(`  Then run ${chalk.cyan('evalai sync')} to push data to Supabase.`);
+      console.log('');
       return;
     }
 

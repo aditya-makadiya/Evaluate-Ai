@@ -1,7 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { getDb } from './client.js';
-import { sessions, turns, toolEvents, config } from './schema.js';
-import { eq, isNull } from 'drizzle-orm';
+import { sessions, turns, toolEvents } from './schema.js';
 
 let _supabase: SupabaseClient | null = null;
 
@@ -11,10 +10,18 @@ export interface SupabaseConfig {
 }
 
 /**
- * Initialize Supabase client. Call once during setup.
+ * Initialize Supabase client from environment variables.
+ * Reads SUPABASE_URL and SUPABASE_ANON_KEY from process.env.
  */
-export function initSupabase(cfg: SupabaseConfig): SupabaseClient {
-  _supabase = createClient(cfg.url, cfg.anonKey, {
+export function initSupabase(cfg?: SupabaseConfig): SupabaseClient | null {
+  const url = cfg?.url ?? process.env.SUPABASE_URL;
+  const anonKey = cfg?.anonKey ?? process.env.SUPABASE_ANON_KEY;
+
+  if (!url || !anonKey) {
+    return null;
+  }
+
+  _supabase = createClient(url, anonKey, {
     auth: { persistSession: false },
   });
   return _supabase;
@@ -22,80 +29,41 @@ export function initSupabase(cfg: SupabaseConfig): SupabaseClient {
 
 /**
  * Get the Supabase client. Returns null if not configured.
+ * Auto-initializes from env vars on first call.
  */
 export function getSupabase(): SupabaseClient | null {
   if (_supabase) return _supabase;
-
-  // Try to load from local config
-  try {
-    const db = getDb();
-    const urlRow = db.select().from(config).where(eq(config.key, 'supabase_url')).get();
-    const keyRow = db.select().from(config).where(eq(config.key, 'supabase_anon_key')).get();
-
-    if (urlRow?.value && keyRow?.value) {
-      return initSupabase({ url: urlRow.value, anonKey: keyRow.value });
-    }
-  } catch {
-    // Not configured yet
-  }
-
-  return null;
+  return initSupabase();
 }
 
 /**
- * Save Supabase credentials to local config.
+ * Check if Supabase is configured (env vars present).
  */
-export function saveSupabaseConfig(cfg: SupabaseConfig): void {
-  const db = getDb();
-  const now = new Date().toISOString();
-
-  db.insert(config)
-    .values({ key: 'supabase_url', value: cfg.url, updatedAt: now })
-    .onConflictDoUpdate({ target: config.key, set: { value: cfg.url, updatedAt: now } })
-    .run();
-
-  db.insert(config)
-    .values({ key: 'supabase_anon_key', value: cfg.anonKey, updatedAt: now })
-    .onConflictDoUpdate({ target: config.key, set: { value: cfg.anonKey, updatedAt: now } })
-    .run();
-
-  // Initialize the client
-  initSupabase(cfg);
+export function isSupabaseConfigured(): boolean {
+  return !!(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY);
 }
 
 /**
- * Sync unsynced local data to Supabase.
- * Called periodically (every 60s) or manually via `evalai sync`.
- *
- * Strategy: SQLite is source of truth locally.
- * Sessions/turns are pushed to Supabase with synced_at tracking.
+ * Sync local SQLite data to Supabase.
+ * Pushes completed sessions, their turns, and tool events.
  */
 export async function syncToSupabase(): Promise<SyncResult> {
   const supabase = getSupabase();
   if (!supabase) {
-    return { success: false, error: 'Supabase not configured', synced: 0 };
+    return { success: false, error: 'Supabase not configured. Set SUPABASE_URL and SUPABASE_ANON_KEY env vars.', synced: 0 };
   }
 
   const db = getDb();
   let synced = 0;
 
   try {
-    // 1. Sync completed sessions that haven't been synced
-    const unsyncedSessions = db.select()
-      .from(sessions)
-      .where(isNull(sessions.analyzedAt))
-      .all()
-      .filter(s => s.endedAt !== null); // Only sync completed sessions
-
-    // Actually, we need a synced_at column. For now, sync all completed sessions.
-    // We'll use upsert to handle duplicates.
+    // 1. Sync completed sessions
     const completedSessions = db.select()
       .from(sessions)
       .all()
       .filter(s => s.endedAt !== null);
 
     if (completedSessions.length > 0) {
-      // Batch upsert sessions
       const { error: sessErr } = await supabase
         .from('sessions')
         .upsert(
@@ -137,40 +105,37 @@ export async function syncToSupabase(): Promise<SyncResult> {
         .all()
         .filter(t => sessionIds.includes(t.sessionId));
 
-      if (allTurns.length > 0) {
-        // Batch in chunks of 100
-        for (let i = 0; i < allTurns.length; i += 100) {
-          const chunk = allTurns.slice(i, i + 100);
-          const { error: turnErr } = await supabase
-            .from('turns')
-            .upsert(
-              chunk.map(t => ({
-                id: t.id,
-                session_id: t.sessionId,
-                turn_number: t.turnNumber,
-                prompt_text: t.promptText,
-                prompt_hash: t.promptHash,
-                prompt_tokens_est: t.promptTokensEst,
-                heuristic_score: t.heuristicScore,
-                anti_patterns: t.antiPatterns,
-                llm_score: t.llmScore,
-                score_breakdown: t.scoreBreakdown,
-                suggestion_text: t.suggestionText,
-                suggestion_accepted: t.suggestionAccepted,
-                tokens_saved_est: t.tokensSavedEst,
-                response_tokens_est: t.responseTokensEst,
-                tool_calls: t.toolCalls,
-                latency_ms: t.latencyMs,
-                was_retry: t.wasRetry,
-                context_used_pct: t.contextUsedPct,
-                created_at: t.createdAt,
-              })),
-              { onConflict: 'id' }
-            );
+      for (let i = 0; i < allTurns.length; i += 100) {
+        const chunk = allTurns.slice(i, i + 100);
+        const { error: turnErr } = await supabase
+          .from('turns')
+          .upsert(
+            chunk.map(t => ({
+              id: t.id,
+              session_id: t.sessionId,
+              turn_number: t.turnNumber,
+              prompt_text: t.promptText,
+              prompt_hash: t.promptHash,
+              prompt_tokens_est: t.promptTokensEst,
+              heuristic_score: t.heuristicScore,
+              anti_patterns: t.antiPatterns,
+              llm_score: t.llmScore,
+              score_breakdown: t.scoreBreakdown,
+              suggestion_text: t.suggestionText,
+              suggestion_accepted: t.suggestionAccepted,
+              tokens_saved_est: t.tokensSavedEst,
+              response_tokens_est: t.responseTokensEst,
+              tool_calls: t.toolCalls,
+              latency_ms: t.latencyMs,
+              was_retry: t.wasRetry,
+              context_used_pct: t.contextUsedPct,
+              created_at: t.createdAt,
+            })),
+            { onConflict: 'id' }
+          );
 
-          if (turnErr) throw turnErr;
-          synced += chunk.length;
-        }
+        if (turnErr) throw turnErr;
+        synced += chunk.length;
       }
 
       // 3. Sync tool events
@@ -179,28 +144,26 @@ export async function syncToSupabase(): Promise<SyncResult> {
         .all()
         .filter(te => sessionIds.includes(te.sessionId));
 
-      if (allToolEvents.length > 0) {
-        for (let i = 0; i < allToolEvents.length; i += 100) {
-          const chunk = allToolEvents.slice(i, i + 100);
-          const { error: teErr } = await supabase
-            .from('tool_events')
-            .upsert(
-              chunk.map(te => ({
-                id: te.id,
-                session_id: te.sessionId,
-                turn_id: te.turnId,
-                tool_name: te.toolName,
-                tool_input_summary: te.toolInputSummary,
-                success: te.success,
-                execution_ms: te.executionMs,
-                created_at: te.createdAt,
-              })),
-              { onConflict: 'id' }
-            );
+      for (let i = 0; i < allToolEvents.length; i += 100) {
+        const chunk = allToolEvents.slice(i, i + 100);
+        const { error: teErr } = await supabase
+          .from('tool_events')
+          .upsert(
+            chunk.map(te => ({
+              id: te.id,
+              session_id: te.sessionId,
+              turn_id: te.turnId,
+              tool_name: te.toolName,
+              tool_input_summary: te.toolInputSummary,
+              success: te.success,
+              execution_ms: te.executionMs,
+              created_at: te.createdAt,
+            })),
+            { onConflict: 'id' }
+          );
 
-          if (teErr) throw teErr;
-          synced += chunk.length;
-        }
+        if (teErr) throw teErr;
+        synced += chunk.length;
       }
     }
 
@@ -218,7 +181,7 @@ export interface SyncResult {
 }
 
 /**
- * Check if Supabase is configured and reachable.
+ * Check if Supabase is reachable.
  */
 export async function checkSupabaseConnection(): Promise<boolean> {
   const supabase = getSupabase();

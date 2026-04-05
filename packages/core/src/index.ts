@@ -12,7 +12,7 @@ export { analyzeSession } from './analysis/session-analyzer.js';
 export {
   initSupabase,
   getSupabase,
-  saveSupabaseConfig,
+  isSupabaseConfigured,
   syncToSupabase,
   checkSupabaseConnection,
 } from './db/supabase.js';

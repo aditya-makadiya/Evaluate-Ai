@@ -26,8 +26,6 @@ interface Config {
   scoring: ScoringMode;
   threshold: number;
   dashboardPort: number;
-  supabaseUrl?: string;
-  supabaseKey?: string;
 }
 
 // --------------- Sub-components ---------------
@@ -96,8 +94,6 @@ export default function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [testingConnection, setTestingConnection] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState<'idle' | 'ok' | 'fail'>('idle');
 
   useEffect(() => {
     fetch('/api/config')
@@ -117,8 +113,6 @@ export default function SettingsPage() {
           scoring: getValue('scoring', 'llm') as ScoringMode,
           threshold: parseInt(getValue('threshold', '50'), 10),
           dashboardPort: parseInt(getValue('dashboard_port', '3456'), 10),
-          supabaseUrl: getValue('supabase_url', '') || undefined,
-          supabaseKey: getValue('supabase_anon_key', '') || undefined,
         };
         setConfig(config);
       })
@@ -145,9 +139,6 @@ export default function SettingsPage() {
         ['threshold', String(config!.threshold)],
         ['dashboard_port', String(config!.dashboardPort)],
       ];
-      if (config!.supabaseUrl) entries.push(['supabase_url', config!.supabaseUrl]);
-      if (config!.supabaseKey) entries.push(['supabase_anon_key', config!.supabaseKey]);
-
       for (const [key, value] of entries) {
         const res = await fetch('/api/config', {
           method: 'PUT',
@@ -162,26 +153,6 @@ export default function SettingsPage() {
       showToast('error', `Failed to save: ${msg}`);
     } finally {
       setSaving(false);
-    }
-  }
-
-  async function handleTestConnection() {
-    setTestingConnection(true);
-    setConnectionStatus('idle');
-    try {
-      const res = await fetch('/api/config/test-connection', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          supabaseUrl: config?.supabaseUrl,
-          supabaseKey: config?.supabaseKey,
-        }),
-      });
-      setConnectionStatus(res.ok ? 'ok' : 'fail');
-    } catch {
-      setConnectionStatus('fail');
-    } finally {
-      setTestingConnection(false);
     }
   }
 
@@ -378,57 +349,21 @@ export default function SettingsPage() {
             </div>
           </SectionCard>
 
-          {/* Supabase */}
+          {/* Supabase — configured via environment variables */}
           <SectionCard
-            title="Supabase Connection"
+            title="Supabase Cloud Sync"
             icon={<Database className="w-4 h-4 text-emerald-400" />}
           >
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm text-[#737373] mb-1">Supabase URL</label>
-                <input
-                  type="text"
-                  value={config.supabaseUrl ?? ''}
-                  onChange={(e) => updateConfig('supabaseUrl', e.target.value)}
-                  placeholder="https://your-project.supabase.co"
-                  className="w-full bg-[#0a0a0a] border border-[#262626] rounded-lg px-3 py-2 text-sm text-[#ededed] placeholder-[#737373] focus:outline-none focus:border-[#404040] transition-colors"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-[#737373] mb-1">Supabase Anon Key</label>
-                <input
-                  type="password"
-                  value={config.supabaseKey ?? ''}
-                  onChange={(e) => updateConfig('supabaseKey', e.target.value)}
-                  placeholder="eyJhbGciOi..."
-                  className="w-full bg-[#0a0a0a] border border-[#262626] rounded-lg px-3 py-2 text-sm text-[#ededed] placeholder-[#737373] focus:outline-none focus:border-[#404040] transition-colors"
-                />
-              </div>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={handleTestConnection}
-                  disabled={testingConnection}
-                  className="inline-flex items-center gap-2 px-3 py-1.5 text-sm border border-[#262626] rounded-lg text-[#ededed] hover:bg-[#1a1a1a] disabled:opacity-50 transition-colors"
-                >
-                  {testingConnection ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Database className="w-3.5 h-3.5" />
-                  )}
-                  Test Connection
-                </button>
-                {connectionStatus === 'ok' && (
-                  <span className="text-sm text-emerald-400 flex items-center gap-1">
-                    <CheckCircle2 className="w-4 h-4" /> Connected
-                  </span>
-                )}
-                {connectionStatus === 'fail' && (
-                  <span className="text-sm text-red-400 flex items-center gap-1">
-                    <XCircle className="w-4 h-4" /> Connection failed
-                  </span>
-                )}
-              </div>
+            <p className="text-sm text-[#737373] mb-2">
+              Supabase is configured via environment variables. Set these in your shell or <code className="text-[#ededed] bg-[#262626] px-1.5 py-0.5 rounded text-xs">~/.evaluateai-v2/.env</code>:
+            </p>
+            <div className="bg-[#0a0a0a] border border-[#262626] rounded-lg p-3 font-mono text-xs text-[#ededed]">
+              <div>SUPABASE_URL=https://your-project.supabase.co</div>
+              <div>SUPABASE_ANON_KEY=your-anon-key</div>
             </div>
+            <p className="text-sm text-[#737373] mt-2">
+              Then run <code className="text-[#ededed] bg-[#262626] px-1.5 py-0.5 rounded text-xs">evalai sync</code> to push data to the cloud.
+            </p>
           </SectionCard>
 
           {/* Hook Status */}
