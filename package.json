@@ -6,7 +6,8 @@
     "dev": "turbo run dev",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
-    "clean": "turbo run clean"
+    "clean": "turbo run clean",
+    "setup": "pnpm install && pnpm run build && cd packages/cli && npm link && cd ../.. && echo '✓ evalai installed globally. Run: evalai init'"
   },
   "devDependencies": {
     "turbo": "^2.4.0",
