@@ -8,8 +8,8 @@ import {
   sessions,
   turns,
   calculateCost,
-} from '@evaluateai/core';
-import type { StopEvent } from '@evaluateai/core';
+} from 'evaluateai-core';
+import type { StopEvent } from 'evaluateai-core';
 import { eq, desc, sql } from 'drizzle-orm';
 import { readStdinJSON, safeExit } from './handler.js';
 

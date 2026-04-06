@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { createInterface } from 'node:readline';
-import { initDb } from '@evaluateai/core';
+import { initDb } from 'evaluateai-core';
 import { getClaudeSettingsPath, ensureDataDir } from '../utils/paths.js';
 import { printHeader } from '../utils/display.js';
 

@@ -3,8 +3,8 @@
 // Fires after a tool completes in Claude Code.
 // ============================================================
 
-import { getDb, sessions, toolEvents } from '@evaluateai/core';
-import type { PostToolUseEvent } from '@evaluateai/core';
+import { getDb, sessions, toolEvents } from 'evaluateai-core';
+import type { PostToolUseEvent } from 'evaluateai-core';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { readStdinJSON, safeExit } from './handler.js';
 

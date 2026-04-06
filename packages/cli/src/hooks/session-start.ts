@@ -4,8 +4,8 @@
 // ============================================================
 
 import { ulid } from 'ulid';
-import { getDb, sessions } from '@evaluateai/core';
-import type { SessionStartEvent } from '@evaluateai/core';
+import { getDb, sessions } from 'evaluateai-core';
+import type { SessionStartEvent } from 'evaluateai-core';
 import { readStdinJSON, getGitInfo, safeExit } from './handler.js';
 
 export async function handleSessionStart(): Promise<void> {

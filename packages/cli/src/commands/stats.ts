@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { getDb, sessions, turns } from '@evaluateai/core';
+import { getDb, sessions, turns } from 'evaluateai-core';
 import { gte } from 'drizzle-orm';
 import { printHeader, formatCost, formatTokens, formatScore, formatTrend } from '../utils/display.js';
 

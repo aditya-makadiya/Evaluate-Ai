@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { getDb, config } from '@evaluateai/core';
-import type { PrivacyMode, ScoringMode } from '@evaluateai/core';
+import { getDb, config } from 'evaluateai-core';
+import type { PrivacyMode, ScoringMode } from 'evaluateai-core';
 import { eq } from 'drizzle-orm';
 import { printHeader } from '../utils/display.js';
 

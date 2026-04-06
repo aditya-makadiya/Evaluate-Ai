@@ -1,8 +1,8 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import Table from 'cli-table3';
-import { getDb, sessions, turns, toolEvents } from '@evaluateai/core';
-import type { Session, SessionAnalysis } from '@evaluateai/core';
+import { getDb, sessions, turns, toolEvents } from 'evaluateai-core';
+import type { Session, SessionAnalysis } from 'evaluateai-core';
 import { desc, eq } from 'drizzle-orm';
 import {
   formatCost,

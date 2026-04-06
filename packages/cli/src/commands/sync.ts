@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { isSupabaseConfigured, syncToSupabase, checkSupabaseConnection } from '@evaluateai/core';
+import { isSupabaseConfigured, syncToSupabase, checkSupabaseConnection } from 'evaluateai-core';
 import { printHeader } from '../utils/display.js';
 
 export const syncCommand = new Command('sync')

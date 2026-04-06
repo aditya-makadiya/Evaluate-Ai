@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { writeFileSync } from 'node:fs';
-import { getDb, sessions, turns } from '@evaluateai/core';
+import { getDb, sessions, turns } from 'evaluateai-core';
 import { desc } from 'drizzle-orm';
 import { printHeader } from '../utils/display.js';
 

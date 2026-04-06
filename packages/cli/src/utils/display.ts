@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import type { Session } from '@evaluateai/core';
+import type { Session } from 'evaluateai-core';
 
 /**
  * Format a USD cost value for display.

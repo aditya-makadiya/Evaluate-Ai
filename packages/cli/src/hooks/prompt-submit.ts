@@ -12,15 +12,15 @@ import {
   config,
   scoreHeuristic,
   estimateTokens,
-} from '@evaluateai/core';
-import type { PromptSubmitEvent } from '@evaluateai/core';
+} from 'evaluateai-core';
+import type { PromptSubmitEvent } from 'evaluateai-core';
 import { eq, desc, sql } from 'drizzle-orm';
 import { readStdinJSON, hashText, safeExit } from './handler.js';
 
 // Dynamic import for LLM scorer (fire-and-forget)
 async function fireLLMScoring(turnId: string, promptText: string, context?: { projectDir?: string; gitBranch?: string }): Promise<void> {
   try {
-    const { scoreLLMAndUpdate } = await import('@evaluateai/core');
+    const { scoreLLMAndUpdate } = await import('evaluateai-core');
     await scoreLLMAndUpdate(turnId, promptText, context);
   } catch {
     // Non-critical — silently ignore

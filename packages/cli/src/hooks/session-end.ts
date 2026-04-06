@@ -10,8 +10,8 @@ import {
   turns,
   calculateEfficiency,
   analyzeSession,
-} from '@evaluateai/core';
-import type { SessionEndEvent, Session, Turn } from '@evaluateai/core';
+} from 'evaluateai-core';
+import type { SessionEndEvent, Session, Turn } from 'evaluateai-core';
 import { eq, desc } from 'drizzle-orm';
 import { readStdinJSON, safeExit } from './handler.js';
 

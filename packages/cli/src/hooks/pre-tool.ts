@@ -4,8 +4,8 @@
 // ============================================================
 
 import { ulid } from 'ulid';
-import { getDb, sessions, toolEvents } from '@evaluateai/core';
-import type { PreToolUseEvent } from '@evaluateai/core';
+import { getDb, sessions, toolEvents } from 'evaluateai-core';
+import type { PreToolUseEvent } from 'evaluateai-core';
 import { eq, sql } from 'drizzle-orm';
 import { readStdinJSON, safeExit } from './handler.js';
 

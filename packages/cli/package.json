@@ -1,5 +1,5 @@
 {
-  "name": "@evaluateai/cli",
+  "name": "evaluateai",
   "version": "1.0.0",
   "type": "module",
   "bin": {
@@ -15,7 +15,7 @@
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
-    "@evaluateai/core": "workspace:*",
+    "evaluateai-core": "workspace:*",
     "chalk": "^5.4.1",
     "cli-table3": "^0.6.5",
     "commander": "^13.1.0",

@@ -150,7 +150,7 @@ export async function handleHookEvent(payload: Record<string, unknown>): Promise
 
 async function handleSessionStartWithPayload(payload: Record<string, unknown>): Promise<void> {
   try {
-    const { initDb, sessions } = await import('@evaluateai/core');
+    const { initDb, sessions } = await import('evaluateai-core');
     const db = initDb();
     const { getGitInfo } = await import('./handler.js');
     const cwd = String(payload.cwd || process.cwd());
@@ -179,7 +179,7 @@ async function handleSessionStartWithPayload(payload: Record<string, unknown>): 
 
 async function handlePromptSubmitWithPayload(payload: Record<string, unknown>): Promise<void> {
   try {
-    const { initDb, sessions, turns, scoreHeuristic, estimateTokens, scoreLLMAndUpdate } = await import('@evaluateai/core');
+    const { initDb, sessions, turns, scoreHeuristic, estimateTokens, scoreLLMAndUpdate } = await import('evaluateai-core');
     const { hashText } = await import('./handler.js');
     const { ulid } = await import('ulid');
     const { eq, sql, desc } = await import('drizzle-orm');
@@ -241,8 +241,8 @@ async function handlePromptSubmitWithPayload(payload: Record<string, unknown>): 
       .run();
 
     // Show suggestion if score is low
-    const configRow = db.select().from((await import('@evaluateai/core')).config)
-      .where(eq((await import('@evaluateai/core')).config.key, 'threshold')).get();
+    const configRow = db.select().from((await import('evaluateai-core')).config)
+      .where(eq((await import('evaluateai-core')).config.key, 'threshold')).get();
     const threshold = parseInt(configRow?.value ?? '50', 10);
 
     if (heuristic.score < threshold && heuristic.quickTip) {
@@ -259,7 +259,7 @@ async function handlePromptSubmitWithPayload(payload: Record<string, unknown>): 
 
 async function handlePreToolWithPayload(payload: Record<string, unknown>): Promise<void> {
   try {
-    const { initDb, sessions, toolEvents } = await import('@evaluateai/core');
+    const { initDb, sessions, toolEvents } = await import('evaluateai-core');
     const { ulid } = await import('ulid');
     const { eq, sql } = await import('drizzle-orm');
 
@@ -286,7 +286,7 @@ async function handlePreToolWithPayload(payload: Record<string, unknown>): Promi
 
 async function handlePostToolWithPayload(payload: Record<string, unknown>): Promise<void> {
   try {
-    const { initDb, sessions, toolEvents } = await import('@evaluateai/core');
+    const { initDb, sessions, toolEvents } = await import('evaluateai-core');
     const { eq, desc, sql } = await import('drizzle-orm');
 
     const db = initDb();
@@ -326,7 +326,7 @@ async function handlePostToolWithPayload(payload: Record<string, unknown>): Prom
 
 async function handleStopWithPayload(payload: Record<string, unknown>): Promise<void> {
   try {
-    const { initDb, turns, sessions, calculateCost } = await import('@evaluateai/core');
+    const { initDb, turns, sessions, calculateCost } = await import('evaluateai-core');
     const { eq, desc, sql } = await import('drizzle-orm');
 
     const db = initDb();
@@ -371,7 +371,7 @@ async function handleStopWithPayload(payload: Record<string, unknown>): Promise<
 
 async function handleSessionEndWithPayload(payload: Record<string, unknown>): Promise<void> {
   try {
-    const { initDb, sessions, turns, calculateEfficiency, analyzeSession } = await import('@evaluateai/core');
+    const { initDb, sessions, turns, calculateEfficiency, analyzeSession } = await import('evaluateai-core');
     const { eq } = await import('drizzle-orm');
 
     const db = initDb();

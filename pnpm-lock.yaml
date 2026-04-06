@@ -17,9 +17,6 @@ importers:
 
   packages/cli:
     dependencies:
-      '@evaluateai/core':
-        specifier: workspace:*
-        version: link:../core
       chalk:
         specifier: ^5.4.1
         version: 5.6.2
@@ -35,6 +32,9 @@ importers:
       drizzle-orm:
         specifier: ^0.45.2
         version: 0.45.2(@types/better-sqlite3@7.6.13)(better-sqlite3@12.8.0)
+      evaluateai-core:
+        specifier: workspace:*
+        version: link:../core
       ulid:
         specifier: ^2.4.0
         version: 2.4.0
@@ -82,12 +82,12 @@ importers:
 
   packages/dashboard:
     dependencies:
-      '@evaluateai/core':
-        specifier: workspace:*
-        version: link:../core
       better-sqlite3:
         specifier: ^12.8.0
         version: 12.8.0
+      evaluateai-core:
+        specifier: workspace:*
+        version: link:../core
       lucide-react:
         specifier: ^0.500.0
         version: 0.500.0(react@19.2.4)
@@ -134,12 +134,12 @@ importers:
 
   packages/mcp-server:
     dependencies:
-      '@evaluateai/core':
-        specifier: workspace:*
-        version: link:../core
       '@modelcontextprotocol/sdk':
         specifier: ^1.11.0
         version: 1.29.0(zod@4.3.6)
+      evaluateai-core:
+        specifier: workspace:*
+        version: link:../core
     devDependencies:
       typescript:
         specifier: ^5.8.0
@@ -150,7 +150,7 @@ importers:
 
   packages/proxy:
     dependencies:
-      '@evaluateai/core':
+      evaluateai-core:
         specifier: workspace:*
         version: link:../core
       fastify:
