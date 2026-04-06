@@ -151,13 +151,27 @@ function parseTranscriptForTurn(transcriptPath: string, turnNumber: number): {
 
         userTurnCount++;
         if (userTurnCount === turnNumber) {
-          // Find the next assistant message with usage data (may be several entries later due to tool calls)
+          // Collect ALL assistant responses until the next user prompt
+          // (a single turn may involve multiple assistant messages with tool calls)
+          const assistantIndices: number[] = [];
           for (let j = i + 1; j < entries.length; j++) {
-            if (entries[j].message.role === 'assistant' && entries[j].message.usage?.output_tokens) {
-              targetAssistantIndex = j;
-              break;
+            const e = entries[j];
+            if (e.message.role === 'user') {
+              // Check if this is a tool_result (part of current turn) or new prompt
+              const c = e.message.content;
+              const isTool = Array.isArray(c) && c.length > 0 && c[0]?.type === 'tool_result';
+              if (!isTool) break; // New user prompt = end of this turn
+            }
+            if (e.message.role === 'assistant') {
+              assistantIndices.push(j);
             }
           }
+          if (assistantIndices.length > 0) {
+            targetAssistantIndex = assistantIndices[0]; // Primary for usage data
+          }
+
+          // Store all assistant indices for full response collection
+          (entries as unknown as { _allAssistant?: number[] })._allAssistant = assistantIndices;
           break;
         }
       }
@@ -165,22 +179,48 @@ function parseTranscriptForTurn(transcriptPath: string, turnNumber: number): {
 
     if (targetAssistantIndex === -1) return null;
 
-    const msg = entries[targetAssistantIndex].message;
-    const responseText = (msg.content ?? [])
-      .filter(c => c.type === 'text' && c.text)
-      .map(c => c.text!)
-      .join('\n');
+    // Collect response text and tool calls from ALL assistant messages in this turn
+    const allAssistantIndices = ((entries as unknown as { _allAssistant?: number[] })._allAssistant) ?? [targetAssistantIndex];
+    const allTextParts: string[] = [];
+    const allToolCalls: string[] = [];
+    let totalInput = 0, totalOutput = 0, totalCacheRead = 0, totalCacheWrite = 0;
+    let model = 'unknown';
 
-    const toolCalls = (msg.content ?? [])
-      .filter(c => c.type === 'tool_use' && c.name)
-      .map(c => c.name!);
+    for (const idx of allAssistantIndices) {
+      const msg = entries[idx].message;
+      if (msg.model) model = msg.model;
+
+      // Collect text content
+      for (const c of (msg.content ?? [])) {
+        if (c.type === 'text' && c.text) {
+          allTextParts.push(c.text);
+        } else if (c.type === 'tool_use' && c.name) {
+          allToolCalls.push(c.name);
+          // Include tool call details in response text
+          const inputStr = c.input ? JSON.stringify(c.input, null, 2) : '';
+          const summary = inputStr.length > 500 ? inputStr.slice(0, 500) + '...' : inputStr;
+          allTextParts.push(`**Tool: ${c.name}**\n\`\`\`json\n${summary}\n\`\`\``);
+        }
+      }
+
+      // Accumulate usage
+      if (msg.usage) {
+        totalInput += msg.usage.input_tokens ?? 0;
+        totalOutput += msg.usage.output_tokens ?? 0;
+        totalCacheRead += msg.usage.cache_read_input_tokens ?? 0;
+        totalCacheWrite += msg.usage.cache_creation_input_tokens ?? 0;
+      }
+    }
+
+    const responseText = allTextParts.join('\n\n');
+    const toolCalls = [...new Set(allToolCalls)]; // dedupe
 
     const usage = {
-      inputTokens: msg.usage?.input_tokens ?? 0,
-      outputTokens: msg.usage?.output_tokens ?? 0,
-      cacheReadTokens: msg.usage?.cache_read_input_tokens ?? 0,
-      cacheWriteTokens: msg.usage?.cache_creation_input_tokens ?? 0,
-      model: msg.model ?? 'unknown',
+      inputTokens: totalInput,
+      outputTokens: totalOutput,
+      cacheReadTokens: totalCacheRead,
+      cacheWriteTokens: totalCacheWrite,
+      model,
     };
 
     const pricing = PRICING[usage.model] ?? PRICING['claude-sonnet-4-6'];
