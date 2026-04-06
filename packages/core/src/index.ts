@@ -17,3 +17,5 @@ export {
   checkSupabaseConnection,
 } from './db/supabase.js';
 export type { SupabaseConfig, SyncResult } from './db/supabase.js';
+export { getLatestResponse, getSessionSummary } from './transcript/parser.js';
+export type { TranscriptEntry, TranscriptUsage, TranscriptResponse, TranscriptSummary } from './transcript/parser.js';

@@ -326,7 +326,7 @@ async function handlePostToolWithPayload(payload: Record<string, unknown>): Prom
 
 async function handleStopWithPayload(payload: Record<string, unknown>): Promise<void> {
   try {
-    const { initDb, turns, sessions, calculateCost } = await import('evaluateai-core');
+    const { initDb, turns, sessions, getLatestResponse } = await import('evaluateai-core');
     const { eq, desc, sql } = await import('drizzle-orm');
 
     const db = initDb();
@@ -340,32 +340,77 @@ async function handleStopWithPayload(payload: Record<string, unknown>): Promise<
       .limit(1)
       .get();
 
-    if (latestTurn) {
-      const responseTokens = typeof payload.response_tokens === 'number' ? payload.response_tokens : null;
-      const latencyMs = typeof payload.latency_ms === 'number' ? payload.latency_ms : null;
+    if (!latestTurn) return;
 
-      db.update(turns)
-        .set({ responseTokensEst: responseTokens, latencyMs })
-        .where(eq(turns.id, latestTurn.id))
-        .run();
+    // Try to read EXACT data from transcript file
+    const transcriptPath = payload.transcript_path ? String(payload.transcript_path) : null;
+    let responseTokens: number | null = null;
+    let inputTokens: number | null = null;
+    let cacheReadTokens = 0;
+    let cacheWriteTokens = 0;
+    let turnCost = 0;
+    let model = 'claude-sonnet-4-6';
 
-      // Update session cost
-      if (responseTokens) {
-        const session = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
-        const model = session?.model || 'claude-sonnet-4-6';
-        const turnCost = calculateCost(latestTurn.promptTokensEst || 0, responseTokens, model);
+    if (transcriptPath) {
+      const response = getLatestResponse(transcriptPath);
+      if (response) {
+        responseTokens = response.usage.outputTokens;
+        inputTokens = response.usage.inputTokens;
+        cacheReadTokens = response.usage.cacheReadTokens;
+        cacheWriteTokens = response.usage.cacheWriteTokens;
+        model = response.usage.model;
 
-        db.update(sessions)
-          .set({
-            totalOutputTokens: sql`${sessions.totalOutputTokens} + ${responseTokens}`,
-            totalCostUsd: sql`${sessions.totalCostUsd} + ${turnCost}`,
-          })
-          .where(eq(sessions.id, sessionId))
-          .run();
+        // Calculate EXACT cost from real token counts
+        const pricing: Record<string, { i: number; o: number; cr: number; cw: number }> = {
+          'claude-opus-4-6': { i: 15, o: 75, cr: 1.5, cw: 18.75 },
+          'claude-sonnet-4-6': { i: 3, o: 15, cr: 0.3, cw: 3.75 },
+          'claude-haiku-4-5-20251001': { i: 0.8, o: 4, cr: 0.08, cw: 1 },
+        };
+        const p = pricing[model] ?? pricing['claude-sonnet-4-6'];
+        turnCost = (
+          inputTokens * p.i +
+          responseTokens * p.o +
+          cacheReadTokens * p.cr +
+          cacheWriteTokens * p.cw
+        ) / 1_000_000;
       }
     }
 
-    // Fire-and-forget: sync to Supabase after each turn completes
+    // Fallback to payload data if transcript not available
+    if (responseTokens === null) {
+      responseTokens = typeof payload.response_tokens === 'number' ? payload.response_tokens : null;
+      if (responseTokens) {
+        const session = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
+        model = session?.model || 'claude-sonnet-4-6';
+        const { calculateCost } = await import('evaluateai-core');
+        turnCost = calculateCost(latestTurn.promptTokensEst || 0, responseTokens, model);
+      }
+    }
+
+    const latencyMs = typeof payload.latency_ms === 'number' ? payload.latency_ms : null;
+
+    // Update turn with exact data
+    db.update(turns)
+      .set({
+        responseTokensEst: responseTokens,
+        latencyMs,
+      })
+      .where(eq(turns.id, latestTurn.id))
+      .run();
+
+    // Update session with exact cost
+    if (responseTokens) {
+      db.update(sessions)
+        .set({
+          model: model,
+          totalOutputTokens: sql`${sessions.totalOutputTokens} + ${responseTokens}`,
+          totalCostUsd: sql`${sessions.totalCostUsd} + ${turnCost}`,
+        })
+        .where(eq(sessions.id, sessionId))
+        .run();
+    }
+
+    // Fire-and-forget: sync to Supabase
     const { syncToSupabase, isSupabaseConfigured } = await import('evaluateai-core');
     if (isSupabaseConfigured()) {
       syncToSupabase().catch(() => {});
@@ -377,7 +422,7 @@ async function handleStopWithPayload(payload: Record<string, unknown>): Promise<
 
 async function handleSessionEndWithPayload(payload: Record<string, unknown>): Promise<void> {
   try {
-    const { initDb, sessions, turns, calculateEfficiency, analyzeSession } = await import('evaluateai-core');
+    const { initDb, sessions, turns, calculateEfficiency, analyzeSession, getSessionSummary } = await import('evaluateai-core');
     const { eq } = await import('drizzle-orm');
 
     const db = initDb();
@@ -386,7 +431,25 @@ async function handleSessionEndWithPayload(payload: Record<string, unknown>): Pr
 
     const now = payload.timestamp ? String(payload.timestamp) : new Date().toISOString();
 
-    // Get session and turns
+    // Get EXACT session totals from transcript (if available)
+    const transcriptPath = payload.transcript_path ? String(payload.transcript_path) : null;
+    if (transcriptPath) {
+      const summary = getSessionSummary(transcriptPath);
+      if (summary) {
+        // Override estimated data with exact transcript data
+        db.update(sessions)
+          .set({
+            model: summary.model,
+            totalInputTokens: summary.totalInputTokens,
+            totalOutputTokens: summary.totalOutputTokens,
+            totalCostUsd: summary.totalCostUsd,
+          })
+          .where(eq(sessions.id, sessionId))
+          .run();
+      }
+    }
+
+    // Re-read session with updated data
     const session = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
     if (!session) return;
 
