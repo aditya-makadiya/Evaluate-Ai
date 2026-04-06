@@ -242,8 +242,9 @@ function HeuristicAnalysis({ turns, session }: { turns: TurnData[]; session: Ses
 
 // --------------- Sub-components ---------------
 
-function TurnCard({ turn }: { turn: TurnData }) {
+function TurnCard({ turn, sessionId }: { turn: TurnData; sessionId: string }) {
   const [expanded, setExpanded] = useState(false);
+  const router = useRouter();
   const score = turn.llmScore ?? turn.heuristicScore;
   const antiPatterns = parseJsonSafe<Array<{ id: string; severity: string; hint: string }>>(
     turn.antiPatterns,
@@ -253,7 +254,10 @@ function TurnCard({ turn }: { turn: TurnData }) {
   const promptLong = (turn.promptText?.length ?? 0) > 200;
 
   return (
-    <div className="bg-[#141414] border border-[#262626] rounded-lg p-4">
+    <div
+      className="bg-[#141414] border border-[#262626] rounded-lg p-4 cursor-pointer hover:border-[#404040] transition-colors"
+      onClick={() => router.push(`/sessions/${sessionId}/turns/${turn.turnNumber}`)}
+    >
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
@@ -278,7 +282,7 @@ function TurnCard({ turn }: { turn: TurnData }) {
           </p>
           {promptLong && (
             <button
-              onClick={() => setExpanded(!expanded)}
+              onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
               className="mt-1 text-xs text-blue-400 hover:text-blue-300 inline-flex items-center gap-1"
             >
               {expanded ? (
@@ -340,7 +344,7 @@ function TurnCard({ turn }: { turn: TurnData }) {
 
       {/* Tool calls */}
       {toolCalls.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-1.5 mb-3">
           {toolCalls.map((tc, i) => (
             <span key={i} className="text-xs bg-[#262626] text-[#737373] px-2 py-0.5 rounded">
               {tc}
@@ -348,6 +352,13 @@ function TurnCard({ turn }: { turn: TurnData }) {
           ))}
         </div>
       )}
+
+      {/* View details link */}
+      <div className="flex justify-end pt-2 border-t border-[#262626]/50">
+        <span className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
+          View details &rarr;
+        </span>
+      </div>
     </div>
   );
 }
@@ -471,7 +482,7 @@ export default function SessionDetailPage() {
             {turns.length === 0 ? (
               <p className="text-[#737373]">No turns recorded.</p>
             ) : (
-              turns.map((turn) => <TurnCard key={turn.id} turn={turn} />)
+              turns.map((turn) => <TurnCard key={turn.id} turn={turn} sessionId={sessionId} />)
             )}
           </div>
 
