@@ -531,9 +531,9 @@ export default function SessionDetailPage() {
               </div>
             </div>
           ) : (
-            <div className="flex items-center gap-2 text-[#737373]">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              <span className="text-sm">Analysis pending...</span>
+            <div className="text-[#737373]">
+              <p className="text-sm">No analysis available.</p>
+              <p className="text-xs mt-1">LLM analysis requires scoring mode set to &quot;llm&quot; and Anthropic API credits. Run: <code className="text-[#ededed] bg-[#262626] px-1.5 py-0.5 rounded">evalai config set scoring llm</code></p>
             </div>
           )}
         </div>
