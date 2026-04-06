@@ -26,9 +26,13 @@ function buildHooksConfig(): Record<string, unknown> {
   for (const event of HOOK_EVENTS) {
     hooks[event] = [
       {
-        type: 'command',
-        command: `evalai hook ${event}`,
-        timeout: 10000,
+        hooks: [
+          {
+            type: 'command',
+            command: `evalai hook ${event}`,
+            timeout: 10000,
+          },
+        ],
       },
     ];
   }
@@ -78,15 +82,18 @@ function checkHooks(settings: Record<string, unknown>): Map<string, boolean> {
     let installed = false;
 
     if (Array.isArray(hookEntry)) {
-      // Correct format: [{ type: "command", command: "evalai hook ..." }]
-      installed = hookEntry.some(
-        (h: Record<string, unknown>) =>
-          typeof h.command === 'string' && (h.command as string).includes(`evalai hook`)
-      );
-    } else if (hookEntry && typeof hookEntry === 'object') {
-      // Legacy format: { command: "evalai hook ..." }
-      const h = hookEntry as Record<string, unknown>;
-      installed = typeof h.command === 'string' && (h.command as string).includes(`evalai hook`);
+      // Correct format: [{ hooks: [{ type: "command", command: "evalai hook ..." }] }]
+      installed = hookEntry.some((entry: Record<string, unknown>) => {
+        const innerHooks = entry.hooks;
+        if (Array.isArray(innerHooks)) {
+          return innerHooks.some(
+            (h: Record<string, unknown>) =>
+              typeof h.command === 'string' && (h.command as string).includes('evalai hook')
+          );
+        }
+        // Also check flat format: { type: "command", command: "..." }
+        return typeof entry.command === 'string' && (entry.command as string).includes('evalai hook');
+      });
     }
 
     result.set(event, installed);
@@ -103,20 +110,22 @@ function removeHooks(settings: Record<string, unknown>): Record<string, unknown>
     const hookEntry = hooks[event];
 
     if (Array.isArray(hookEntry)) {
-      // Filter out our hooks, keep other handlers
-      const remaining = hookEntry.filter(
-        (h: Record<string, unknown>) =>
-          !(typeof h.command === 'string' && (h.command as string).includes('evalai hook'))
-      );
+      // Filter out entries that contain our evalai hooks
+      const remaining = hookEntry.filter((entry: Record<string, unknown>) => {
+        const innerHooks = entry.hooks;
+        if (Array.isArray(innerHooks)) {
+          return !innerHooks.some(
+            (h: Record<string, unknown>) =>
+              typeof h.command === 'string' && (h.command as string).includes('evalai hook')
+          );
+        }
+        // Also handle flat format
+        return !(typeof entry.command === 'string' && (entry.command as string).includes('evalai hook'));
+      });
       if (remaining.length === 0) {
         delete hooks[event];
       } else {
         hooks[event] = remaining;
-      }
-    } else if (hookEntry && typeof hookEntry === 'object') {
-      const h = hookEntry as Record<string, unknown>;
-      if (typeof h.command === 'string' && (h.command as string).includes('evalai hook')) {
-        delete hooks[event];
       }
     }
   }
