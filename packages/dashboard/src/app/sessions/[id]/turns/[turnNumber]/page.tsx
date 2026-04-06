@@ -373,16 +373,44 @@ export default function TurnDetailPage() {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    setLoading(true);
-    setError(null);
-    fetch(`/api/sessions/${sessionId}/turns/${turnNumber}`)
-      .then(async (r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then((d) => setData(d))
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
+    let cancelled = false;
+    let refreshTimer: ReturnType<typeof setInterval> | null = null;
+
+    const fetchData = () => {
+      fetch(`/api/sessions/${sessionId}/turns/${turnNumber}`)
+        .then(async (r) => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.json();
+        })
+        .then((d) => {
+          if (!cancelled) {
+            setData(d);
+            // Stop polling once we have response data
+            if (d.response && refreshTimer) {
+              clearInterval(refreshTimer);
+              refreshTimer = null;
+            }
+          }
+        })
+        .catch((e) => { if (!cancelled) setError(e.message); })
+        .finally(() => { if (!cancelled) setLoading(false); });
+    };
+
+    fetchData();
+
+    // Auto-refresh every 3 seconds if response is not yet available
+    refreshTimer = setInterval(() => {
+      if (data?.response) {
+        if (refreshTimer) clearInterval(refreshTimer);
+        return;
+      }
+      fetchData();
+    }, 3000);
+
+    return () => {
+      cancelled = true;
+      if (refreshTimer) clearInterval(refreshTimer);
+    };
   }, [sessionId, turnNumber]);
 
   const handleCopy = useCallback((text: string) => {
@@ -621,11 +649,18 @@ export default function TurnDetailPage() {
                     </>
                   ) : (
                     <div className="flex flex-col items-center justify-center py-16 text-center">
-                      <Eye className="w-10 h-10 text-[#333] mb-3" />
-                      <p className="text-sm text-[#737373] mb-1">Response not available</p>
+                      <div className="relative mb-3">
+                        <Brain className="w-10 h-10 text-blue-400 animate-pulse" />
+                      </div>
+                      <p className="text-sm text-[#ededed] mb-1">AI is generating response...</p>
                       <p className="text-xs text-[#525252]">
-                        Start a new session to capture AI responses via transcript
+                        Response will appear here automatically once complete
                       </p>
+                      <div className="flex gap-1 mt-3">
+                        <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                        <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                      </div>
                     </div>
                   )}
                 </div>
@@ -695,9 +730,9 @@ export default function TurnDetailPage() {
                     </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center py-16 text-center">
-                      <Layers className="w-10 h-10 text-[#333] mb-3" />
-                      <p className="text-sm text-[#737373]">Token data not available</p>
-                      <p className="text-xs text-[#525252]">Transcript required for detailed token breakdown</p>
+                      <Layers className="w-10 h-10 text-blue-400 animate-pulse mb-3" />
+                      <p className="text-sm text-[#ededed]">Waiting for response to complete...</p>
+                      <p className="text-xs text-[#525252]">Token breakdown will appear after AI finishes responding</p>
                     </div>
                   )}
                 </div>
