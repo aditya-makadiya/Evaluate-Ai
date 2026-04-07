@@ -204,7 +204,7 @@ export default function DashboardPage() {
       {/* Header */}
       <header className="mb-8 animate-section">
         <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
-          {data?.greeting ?? 'Good morning'}{userName ? `, ${userName}` : ''}
+          {data?.greeting ?? (userName ? `Good morning, ${userName}` : 'Good morning')}
         </h1>
         <p className="mt-1 text-sm text-[var(--text-muted)]">
           {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
