@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     // Fetch all team members for this team
     const { data: members } = await supabase
       .from('team_members')
-      .select('id, user_id, display_name, role, github_username, evaluateai_installed, avatar_url')
+      .select('id, user_id, name, email, role, github_username, evaluateai_installed')
       .eq('team_id', teamId);
 
     if (!members || members.length === 0) {
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
     // Fetch code changes this week for this team
     const { data: codeChanges } = await supabase
       .from('code_changes')
-      .select('developer_id, change_type')
+      .select('developer_id, type')
       .eq('team_id', teamId)
       .gte('created_at', weekStartStr)
       .lt('created_at', tomorrowStr);
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
 
     // Aggregate per developer
     const developers = members.map(m => {
-      const devId = m.user_id ?? m.id;
+      const devId = m.id;
 
       const devSessions = (aiSessions ?? []).filter(s => s.developer_id === devId);
       const aiCost = devSessions.reduce((sum, s) => sum + (s.total_cost_usd ?? 0), 0);
@@ -73,9 +73,9 @@ export async function GET(request: NextRequest) {
       const avgPromptScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
 
       const devChanges = (codeChanges ?? []).filter(c => c.developer_id === devId);
-      const commitsCount = devChanges.filter(c => c.change_type === 'commit').length;
-      const prsCount = devChanges.filter(c => c.change_type === 'pr_opened' || c.change_type === 'pr_merged').length;
-      const reviewsCount = devChanges.filter(c => c.change_type === 'review').length;
+      const commitsCount = devChanges.filter(c => c.type === 'commit').length;
+      const prsCount = devChanges.filter(c => c.type === 'pr_opened' || c.type === 'pr_merged').length;
+      const reviewsCount = devChanges.filter(c => c.type === 'review').length;
 
       const devTasks = (tasks ?? []).filter(t => t.assignee_id === devId);
       const tasksCompleted = devTasks.filter(t => t.status === 'completed').length;
@@ -97,11 +97,11 @@ export async function GET(request: NextRequest) {
       return {
         id: m.id,
         userId: devId,
-        name: m.display_name,
+        name: m.name,
+        email: m.email,
         role: m.role,
         githubUsername: m.github_username,
         evaluateaiInstalled: m.evaluateai_installed ?? false,
-        avatarUrl: m.avatar_url,
         alignmentScore: Math.min(alignmentScore, 100),
         commits: commitsCount,
         prs: prsCount,
