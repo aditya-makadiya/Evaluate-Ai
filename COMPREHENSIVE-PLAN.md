@@ -139,8 +139,84 @@ MANAGER DASHBOARD
 │   └── Sort by: score, cost, activity, name
 │
 ├── /developers/:id (Developer Deep Dive)
+│   │
+│   ├── ACTIVITY TIMELINE TAB (default view)
+│   │   A real-time chronological feed of EVERYTHING the developer did:
+│   │
+│   │   ┌─────────────────────────────────────────────────────────────┐
+│   │   │ ACTIVITY TIMELINE — Adi (Today)                  [Filter ▾]│
+│   │   │                                                             │
+│   │   │ 4:32 PM ── 🤖 AI Prompt (Score: 82)                       │
+│   │   │            "Add error handling to the payment webhook       │
+│   │   │             in src/payments/webhook.ts for timeout cases"   │
+│   │   │            Model: Sonnet · Cost: $0.008 · 2 turns          │
+│   │   │            [View full session →]                            │
+│   │   │                                                             │
+│   │   │ 4:28 PM ── 🤖 AI Response Completed                       │
+│   │   │            Generated: try/catch block with retry logic      │
+│   │   │            Tokens: 1,200 in · 3,400 out · $0.008           │
+│   │   │            Files modified: src/payments/webhook.ts          │
+│   │   │                                                             │
+│   │   │ 4:15 PM ── 💻 Commit: "feat: add webhook error handling"  │
+│   │   │            src/payments/webhook.ts (+45 -8)                 │
+│   │   │            Branch: feature/payment-webhooks                 │
+│   │   │            Matched task: "Handle payment webhook errors" ✅ │
+│   │   │                                                             │
+│   │   │ 3:50 PM ── 🔀 PR #241 Opened: "Payment webhook handling"  │
+│   │   │            3 files changed · +89 -12                        │
+│   │   │            Reviewers: Priya, Sara                           │
+│   │   │            Status: Review requested                        │
+│   │   │                                                             │
+│   │   │ 3:20 PM ── 🤖 AI Prompt (Score: 35) ⚠️                    │
+│   │   │            "fix the webhook"                                │
+│   │   │            Tip shown: "Add file path and error message"     │
+│   │   │            Model: Opus · Cost: $0.12 ⚠️ (expensive)        │
+│   │   │                                                             │
+│   │   │ 2:45 PM ── 👀 Review Given on PR #238 (Jake's PR)         │
+│   │   │            "Looks good, but add null check on line 47"      │
+│   │   │                                                             │
+│   │   │ 2:00 PM ── ✅ Task Completed: "Fix auth middleware"        │
+│   │   │            From: Monday standup meeting                     │
+│   │   │            PR #234 merged · 2.3 hours to merge              │
+│   │   │                                                             │
+│   │   │ 1:30 PM ── 💻 Commit: "fix: null check in auth middleware"│
+│   │   │            src/auth/middleware.ts (+12 -3)                   │
+│   │   │            AI-assisted: Yes (session abc123)                │
+│   │   │                                                             │
+│   │   │ 1:15 PM ── 🤖 AI Session Started                          │
+│   │   │            Project: /Users/adi/myapp                        │
+│   │   │            Model: Claude Sonnet 4.6                         │
+│   │   │                                                             │
+│   │   │ 11:00 AM ── 🗓️ Meeting: "Monday Standup"                  │
+│   │   │            Tasks assigned to Adi:                            │
+│   │   │            1. "Fix auth middleware" → ✅ Done                │
+│   │   │            2. "Handle payment webhook errors" → 🔄 In Progress
+│   │   │                                                             │
+│   │   │ 10:30 AM ── 🔀 PR #234 Merged: "Auth middleware fix"      │
+│   │   │            Merged by: Priya · Review time: 2.3h             │
+│   │   │                                                             │
+│   │   │ 9:15 AM ── 💻 Commit: "test: add JWT expiry test"         │
+│   │   │            tests/auth.test.ts (+34 -0)                      │
+│   │   │            AI-assisted: Yes                                  │
+│   │   └─────────────────────────────────────────────────────────────┘
+│   │
+│   │   Timeline event types:
+│   │   🤖 AI Prompt      — prompt text, score, cost, model (from npm package)
+│   │   🤖 AI Response    — response summary, tokens, files modified
+│   │   💻 Commit         — message, files, lines, branch, matched task
+│   │   🔀 PR Opened      — title, files, reviewers
+│   │   🔀 PR Merged      — merged by, review time
+│   │   👀 Review Given   — on which PR, comment summary
+│   │   ✅ Task Completed — which task, from which meeting
+│   │   🗓️ Meeting        — tasks assigned, participants
+│   │   ⚠️ Alert          — stale task, high cost, low score
+│   │
+│   │   Filters:
+│   │   [All] [AI Only] [Code Only] [Meetings] [Tasks]
+│   │   Date range: [Today] [This Week] [Custom]
+│   │
 │   ├── WORK TAB
-│   │   ├── Commits timeline
+│   │   ├── Commits list (grouped by day)
 │   │   ├── PRs opened/merged
 │   │   ├── Reviews given
 │   │   ├── Tasks: assigned vs completed
@@ -579,6 +655,51 @@ CREATE TABLE alerts (
 );
 
 -- ================================================================
+-- ACTIVITY TIMELINE (unified chronological feed)
+-- Populated by triggers/cron from all other tables
+-- ================================================================
+
+CREATE TABLE activity_timeline (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  team_id UUID REFERENCES teams(id) ON DELETE CASCADE,
+  developer_id UUID REFERENCES team_members(id),
+  event_type TEXT NOT NULL,
+  -- Event types:
+  --   'ai_prompt'         — developer sent AI prompt (from npm package)
+  --   'ai_response'       — AI responded (from npm package)
+  --   'ai_session_start'  — AI session started
+  --   'ai_session_end'    — AI session ended with summary
+  --   'commit'            — git commit (from GitHub)
+  --   'pr_opened'         — PR opened
+  --   'pr_merged'         — PR merged
+  --   'pr_closed'         — PR closed without merge
+  --   'review_given'      — code review submitted
+  --   'task_assigned'     — task assigned from meeting/Jira
+  --   'task_completed'    — task marked done
+  --   'task_dropped'      — task not started after deadline
+  --   'meeting'           — meeting occurred, tasks extracted
+  --   'alert'             — system alert generated
+  title TEXT NOT NULL,              -- short display text
+  description TEXT,                 -- detail text (prompt text, commit msg, etc.)
+  metadata JSONB DEFAULT '{}',     -- type-specific data:
+  -- ai_prompt:    { session_id, score, model, cost, intent, anti_patterns }
+  -- ai_response:  { session_id, tokens_in, tokens_out, cost, files_modified }
+  -- commit:       { sha, repo, branch, files_changed, additions, deletions, matched_task_id }
+  -- pr_opened:    { pr_number, repo, title, reviewers, files_changed }
+  -- pr_merged:    { pr_number, repo, merged_by, review_time_hours }
+  -- review_given: { pr_number, repo, state, body_preview }
+  -- task_assigned:{ task_id, meeting_id, deadline, priority }
+  -- task_completed:{ task_id, meeting_title, pr_number, time_to_complete }
+  -- meeting:      { meeting_id, title, tasks_assigned_count, participants }
+  -- alert:        { alert_id, severity, type }
+  source_id TEXT,                   -- ID of the source record (commit SHA, session ID, etc.)
+  source_table TEXT,                -- which table it came from
+  is_ai_assisted BOOLEAN DEFAULT FALSE,  -- was AI involved in this activity?
+  occurred_at TIMESTAMPTZ NOT NULL, -- when it actually happened
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ================================================================
 -- INDEXES
 -- ================================================================
 
@@ -589,6 +710,9 @@ CREATE INDEX idx_ai_sessions_dev ON ai_sessions(developer_id, started_at);
 CREATE INDEX idx_ai_turns_session ON ai_turns(session_id);
 CREATE INDEX idx_ai_turns_dev ON ai_turns(developer_id, created_at);
 CREATE INDEX idx_daily_reports_dev ON daily_reports(developer_id, date);
+CREATE INDEX idx_timeline_dev ON activity_timeline(developer_id, occurred_at DESC);
+CREATE INDEX idx_timeline_team ON activity_timeline(team_id, occurred_at DESC);
+CREATE INDEX idx_timeline_type ON activity_timeline(team_id, event_type, occurred_at DESC);
 CREATE INDEX idx_alerts_team ON alerts(team_id, is_read);
 CREATE INDEX idx_meetings_team ON meetings(team_id, date);
 ```
