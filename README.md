@@ -1,29 +1,115 @@
-# EvaluateAI v2
+# EvaluateAI
 
-AI-powered developer intelligence platform that hooks into Claude Code to track, score, and optimize how developers use AI.
+**Developer Productivity Intelligence Platform**
 
-## What It Does
+EvaluateAI connects the dots between meetings, tasks, code output, and AI usage to give engineering teams full visibility into how developers work with AI tools.
 
-- **Scores** every prompt in real-time (0ms heuristic + async LLM)
-- **Suggests** improvements for weak prompts before they're sent
-- **Tracks** sessions, tokens, cost, tool calls automatically
-- **Analyzes** full sessions post-completion with AI
-- **Displays** insights in a local web dashboard
-- **Syncs** to Supabase for cloud storage
+## Two Products, One Platform
 
-## How It Works
+### 1. CLI Tool (`evaluateai` on npm)
 
-EvaluateAI uses Claude Code's native hook system. After setup, it runs automatically — you change nothing about your workflow.
+Hooks into Claude Code to automatically capture every AI interaction:
+
+- Scores prompts in real-time with intent-aware heuristic engine
+- Suggests improvements for low-quality prompts before they are sent
+- Tracks sessions, tokens, costs, and tool usage
+- Syncs all data to Supabase for team-wide visibility
+
+```bash
+npm install -g evaluateai
+evalai init
+```
+
+### 2. Web Dashboard
+
+Manager-facing platform for team productivity insights:
+
+- Developer activity timelines
+- AI usage analytics and cost tracking
+- Prompt quality trends across the team
+- Daily auto-generated reports and alerts
+
+```bash
+cd packages/dashboard
+pnpm install && pnpm dev
+# Opens at http://localhost:3000
+```
+
+## Key Features
+
+### Meeting-to-Code Tracking
+Track how meeting decisions flow into assigned tasks and code output. See which discussions led to which commits.
+
+### GitHub Integration
+Connect repositories to see commit activity, pull requests, and code review patterns alongside AI usage data.
+
+### AI Prompt and Response Capture
+Every Claude Code interaction is captured automatically via hooks -- prompts, responses, token counts, costs, tool calls, and file changes.
+
+### Developer Activity Timeline
+A unified timeline showing meetings, tasks, AI sessions, commits, and code reviews for each developer.
+
+### Daily Auto-Reports and Alerts
+Automated daily summaries sent via Slack or email. Alerts for unusual patterns like cost spikes or declining prompt quality.
+
+### Team Management
+Managers create teams, developers link their CLI with `evalai init --team <id>`, and all data flows to the shared dashboard.
+
+## Architecture
 
 ```
-You type a prompt in Claude Code
-    → EvaluateAI scores it instantly
-    → Shows tip if score is low
-    → Saves everything to local DB
-    → You see stats in CLI or dashboard
+┌──────────────────────────────────────────────────────────┐
+│                    Developer Machine                      │
+│                                                          │
+│   Claude Code ──hooks──> evalai CLI ──writes──> Supabase │
+│                                                          │
+└──────────────────────────────────────────────────────────┘
+                                                    │
+                                                    ▼
+┌──────────────────────────────────────────────────────────┐
+│                    Supabase Cloud                         │
+│                                                          │
+│   PostgreSQL: sessions, turns, tool_events, timeline     │
+│   Auth: developer and manager accounts                   │
+│   RLS: row-level security per team                       │
+│                                                          │
+└──────────────────────────────────────────────────────────┘
+                                                    │
+                                                    ▼
+┌──────────────────────────────────────────────────────────┐
+│                    Web Dashboard                          │
+│                                                          │
+│   Next.js 15 ──reads──> Supabase                         │
+│                                                          │
+│   Pages:                                                 │
+│     Overview    — team stats, trends, alerts             │
+│     Developers  — per-developer timelines                │
+│     Sessions    — browse AI sessions, turn-by-turn       │
+│     Analytics   — cost charts, score distribution        │
+│     Reports     — daily/weekly auto-generated reports    │
+│     Settings    — team config, notifications             │
+│                                                          │
+└──────────────────────────────────────────────────────────┘
 ```
 
 ## Install
+
+### CLI (for developers)
+
+```bash
+npm install -g evaluateai
+```
+
+### Dashboard (for managers)
+
+```bash
+git clone https://github.com/adityamakadiya/Evaluate-Ai.git
+cd Evaluate-Ai
+pnpm install
+pnpm run build
+```
+
+### From Source (full monorepo)
 
 ```bash
 git clone https://github.com/adityamakadiya/Evaluate-Ai.git
@@ -33,112 +119,103 @@ pnpm run build
 cd packages/cli && npm link && cd ../..
 ```
 
-Or one command:
+## Setup Flow
+
+### 1. Create a Supabase Project
+
+Create a project at [supabase.com](https://supabase.com) and run the schema SQL:
 
 ```bash
-git clone https://github.com/adityamakadiya/Evaluate-Ai.git
-cd Evaluate-Ai && pnpm run setup
+# In the Supabase SQL Editor, run:
+packages/core/src/db/supabase-schema.sql
+packages/core/src/db/fix-rls.sql
 ```
 
-## Setup
+### 2. Configure Environment
 
-```bash
-# Install hooks into Claude Code
-evalai init
-
-# Verify hooks are installed
-evalai init --check
-```
-
-That's it. Now use Claude Code normally — EvaluateAI captures everything automatically.
-
-## Usage
-
-```bash
-# View your stats
-evalai stats              # today
-evalai stats --week       # this week
-evalai stats --compare    # vs previous period
-
-# Browse sessions
-evalai sessions           # list all
-evalai sessions <id>      # detail view
-
-# Open web dashboard
-evalai dashboard          # http://localhost:3456
-
-# Configuration
-evalai config             # show settings
-evalai config set threshold 60   # adjust suggestion threshold
-
-# Cloud sync (optional)
-evalai sync               # push to Supabase
-```
-
-## Dashboard
-
-Start the dashboard:
-
-```bash
-cd Evaluate-Ai
-pnpm --filter @evaluateai/dashboard dev
-# Opens at http://localhost:3456
-```
-
-Pages:
-- **Overview** — stat cards, cost/score trends, anti-patterns, model usage
-- **Sessions** — browse all sessions, click for turn-by-turn detail
-- **Analytics** — cost charts, score distribution, efficiency trends
-- **Settings** — privacy, scoring mode, suggestion threshold
-
-## Supabase Cloud Sync (Optional)
-
-1. Create a Supabase project at https://supabase.com
-2. Run the SQL schema: `packages/core/src/db/supabase-schema.sql`
-3. Run the RLS fix: `packages/core/src/db/fix-rls.sql`
-4. Add credentials to `~/.evaluateai-v2/.env`:
+Add credentials to `~/.evaluateai-v2/.env`:
 
 ```
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=your-anon-key
 ```
 
-5. Sync: `evalai sync`
+### 3. Install Hooks
 
-## Scoring Guide
+```bash
+evalai init
+evalai init --check    # verify hooks are installed
+```
 
-| Score | Meaning |
-|-------|---------|
-| 80-100 | Excellent — file paths, error messages, constraints |
-| 60-79 | Good — minor improvements possible |
-| 40-59 | Needs work — missing context |
-| 0-39 | Poor — vague, too short, or retry |
+### 4. Link to a Team (Optional)
 
-**How to improve:**
-- Include file paths: `src/auth/login.ts`
-- Paste exact errors in backticks
-- State expected behavior
-- Add constraints: "don't change the API"
-- Avoid: "fix it", "help", "make it work"
+```bash
+evalai init --team <team-id>
+# or
+evalai team link <team-id>
+```
+
+### 5. Start Using Claude Code
+
+```bash
+claude    # EvaluateAI captures everything automatically
+```
+
+### 6. View Results
+
+```bash
+evalai stats              # CLI stats
+evalai stats --week       # weekly summary
+evalai sessions           # browse sessions
+
+# Or start the dashboard
+cd packages/dashboard
+pnpm dev                  # http://localhost:3000
+```
+
+## Screenshots
+
+<!-- Overview Dashboard: team-wide stats, cost trends, score trends, active developer count -->
+<!-- Developer Timeline: unified view of meetings, AI sessions, commits, and code reviews -->
+<!-- Session Detail: turn-by-turn prompt scores with improvement suggestions -->
+<!-- Analytics: cost charts, token usage breakdown, model distribution -->
+<!-- Daily Report: auto-generated summary with key metrics and alerts -->
 
 ## Tech Stack
 
-- **Core**: TypeScript, SQLite (better-sqlite3), Drizzle ORM
-- **CLI**: Commander.js, chalk
-- **Scoring**: Heuristic (10 patterns) + Claude Haiku (async)
-- **Dashboard**: Next.js 15, Tailwind CSS, Recharts
-- **Cloud**: Supabase (PostgreSQL)
+| Layer | Technology |
+|-------|-----------|
+| Runtime | Node.js 20+, TypeScript 5.x, ESM modules |
+| Monorepo | pnpm workspaces + Turborepo |
+| Database | Supabase PostgreSQL (no local SQLite) |
+| Auth | Supabase Auth |
+| Frontend | Next.js 15, Tailwind CSS 4, Recharts, lucide-react |
+| CLI | Commander.js, chalk, cli-table3 |
+| Scoring | Heuristic engine (10 anti-patterns, intent-aware) + Claude Haiku (async) |
+| AI | @anthropic-ai/sdk (session analysis) |
+| Tokens | tiktoken (cl100k_base) |
+| Notifications | Slack API, Resend (email) |
 
 ## Project Structure
 
 ```
 packages/
-  core/        — DB, scoring engine, token estimation, analysis
+  core/        — Scoring engine, Supabase data layer, transcript parser, types
   cli/         — CLI commands + Claude Code hook handlers
-  dashboard/   — Next.js web dashboard
-  proxy/       — API proxy for non-Claude tools (planned)
+  dashboard/   — Next.js 15 web dashboard (manager-facing)
+  proxy/       — API proxy for non-Claude AI tools (planned)
   mcp-server/  — MCP server for IDE integration (planned)
 ```
+
+## Contributing
+
+1. Fork the repo
+2. Create a feature branch: `git checkout -b feat/my-feature`
+3. Install dependencies: `pnpm install`
+4. Build: `pnpm run build`
+5. Run tests: `pnpm --filter evaluateai-core test`
+6. Commit with conventional format: `feat: add new feature`
+7. Open a pull request
 
 ## License
 

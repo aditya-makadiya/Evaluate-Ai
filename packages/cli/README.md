@@ -1,8 +1,8 @@
-# EvaluateAI
+# EvaluateAI CLI
 
-> AI-powered prompt scoring and usage intelligence for Claude Code developers.
+> Developer productivity intelligence for Claude Code. Scores prompts, tracks usage, and syncs to your team dashboard -- all automatically.
 
-EvaluateAI hooks into Claude Code to **score every prompt**, **track costs**, **suggest improvements**, and **visualize your AI usage** — all automatically.
+EvaluateAI hooks into Claude Code to **score every prompt**, **track costs and tokens**, **suggest improvements**, and **sync data to Supabase** for team-wide visibility.
 
 ## Install
 
@@ -13,17 +13,20 @@ npm install -g evaluateai
 ## Quick Start
 
 ```bash
-# 1. Install hooks into Claude Code (one-time)
+# 1. Install hooks into Claude Code
 evalai init
 
-# 2. Use Claude Code normally — EvaluateAI runs automatically
+# 2. (Optional) Link to your team
+evalai init --team <team-id>
+
+# 3. Use Claude Code normally -- EvaluateAI runs automatically
 claude
 
-# 3. Check your stats
+# 4. Check your stats
 evalai stats
 ```
 
-That's it. After `evalai init`, every Claude Code session is tracked automatically.
+After `evalai init`, every Claude Code session is tracked automatically. Data flows directly to Supabase.
 
 ## What It Does
 
@@ -36,7 +39,7 @@ You: "fix the bug"
   Tip: Add: which file, what specific behavior, what error
 ```
 
-Good prompts pass silently. Bad prompts get a quick tip.
+Good prompts pass silently. Low-scoring prompts get a quick tip on stderr.
 
 After your session, check results:
 
@@ -56,17 +59,38 @@ evalai stats
   Tip: Adding file paths to prompts would save ~1,200 tokens today.
 ```
 
-## How Scoring Works
+## How It Works
+
+EvaluateAI uses Claude Code's native **hook system**. After `evalai init`, hooks are registered in `~/.claude/settings.json`. Claude Code calls them automatically on every event:
+
+```
+SessionStart      -> Create session in Supabase
+UserPromptSubmit  -> Score prompt, show suggestion if low, write turn to Supabase
+PreToolUse        -> Log tool usage to Supabase
+PostToolUse       -> Track file changes
+Stop              -> Record response tokens (from transcript)
+SessionEnd        -> Calculate efficiency, finalize session in Supabase
+```
+
+All data goes directly to Supabase. There is no local SQLite database.
+
+**Zero overhead.** Hooks run in <50ms. Your Claude Code workflow is unchanged.
+
+## Scoring Guide
 
 Prompts are classified by **intent** and scored with tailored rules:
 
 | Intent | Baseline | Example |
 |--------|----------|---------|
-| Research | 75 | "how does JWT auth work?" → **85** |
-| Debug | 65 | "Fix null ref in src/auth.ts:47" → **75** |
-| Feature | 70 | "Add pagination to /api/users" → **80** |
-| Refactor | 70 | "Refactor src/auth — reduce duplication" → **90** |
-| Review | 75 | "Review src/payments.ts for security" → **95** |
+| Research | 75 | "how does JWT auth work?" -> **85** |
+| Debug | 65 | "Fix null ref in src/auth.ts:47" -> **75** |
+| Feature | 70 | "Add pagination to /api/users" -> **80** |
+| Refactor | 70 | "Refactor src/auth -- reduce duplication" -> **90** |
+| Review | 75 | "Review src/payments.ts for security" -> **95** |
+| Generate | 70 | "Write tests for src/utils.ts" -> **80** |
+| Config | 70 | "Set up ESLint with Airbnb rules" -> **75** |
+
+**7 intent types**: research, debug, feature, refactor, review, generate, config. Each has its own baseline and relevant rules.
 
 **What makes a good prompt:**
 - Include file paths: `src/auth/login.ts`
@@ -82,98 +106,107 @@ Prompts are classified by **intent** and scored with tailored rules:
 
 ## Commands
 
+### Setup
+
 ```bash
-# Setup
-evalai init              # Install hooks into Claude Code
-evalai init --check      # Verify hooks are installed
-evalai init --uninstall  # Remove hooks
+evalai init                  # Install hooks into Claude Code
+evalai init --check          # Verify hooks are installed
+evalai init --uninstall      # Remove hooks
+evalai init --team <id>      # Link to a team for manager dashboard
+```
 
-# Stats
-evalai stats             # Today's summary
-evalai stats --week      # This week
-evalai stats --month     # This month
-evalai stats --compare   # Compare vs previous period
+### Team
 
-# Sessions
-evalai sessions          # List recent sessions
-evalai sessions <id>     # Detailed session view
+```bash
+evalai team                  # Show current team info
+evalai team members          # List team members
+evalai team link <team-id>   # Link this CLI to a team
+```
 
-# Dashboard (local web UI)
-evalai dashboard         # Open at http://localhost:3456
+### Stats
 
-# Config
-evalai config            # Show current settings
+```bash
+evalai stats                 # Today's summary
+evalai stats --week          # This week
+evalai stats --month         # This month
+evalai stats --compare       # Compare vs previous period
+```
+
+### Sessions
+
+```bash
+evalai sessions              # List recent sessions
+evalai sessions <id>         # Detailed session view
+```
+
+### Dashboard
+
+```bash
+evalai dashboard             # Open local web dashboard at http://localhost:3456
+```
+
+### Configuration
+
+```bash
+evalai config                # Show current settings
 evalai config set scoring heuristic   # Scoring mode: heuristic | llm
 evalai config set threshold 60        # Suggestion threshold (0-100)
-evalai config set privacy local       # Privacy: off | local | hash
-
-# Data
-evalai export --csv      # Export sessions to CSV
-evalai export --json     # Export as JSON
-evalai sync              # Sync to Supabase (if configured)
 ```
 
-## Dashboard
-
-Start the local web dashboard:
+### Data
 
 ```bash
-evalai dashboard
-# Opens http://localhost:3456
+evalai export --csv          # Export sessions to CSV
+evalai export --json         # Export as JSON
 ```
 
-**Pages:**
-- **Overview** — cost trends, score trends, anti-patterns, model usage
-- **Sessions** — browse all sessions, click for detail
-- **Session Detail** — turn-by-turn scores, AI responses, token breakdown
-- **Turn Detail** — full prompt analysis with improvement coaching
-- **Analytics** — cost charts, score distribution, efficiency trends
-- **Settings** — privacy, scoring mode, threshold
+## Team Features
 
-## Cloud Sync (Optional)
+When linked to a team, EvaluateAI sends your session data to the team's Supabase project. This powers the **manager dashboard** where leads can see:
 
-Sync data to Supabase for backup or team features:
+- Developer activity timelines
+- Prompt quality trends across the team
+- Cost and token usage per developer
+- Daily auto-generated reports and alerts
+
+To link your CLI to a team:
 
 ```bash
-# Set environment variables
-export SUPABASE_URL=https://your-project.supabase.co
-export SUPABASE_ANON_KEY=your-anon-key
-
-# Sync
-evalai sync
+evalai init --team <team-id>
+# or
+evalai team link <team-id>
 ```
 
-## How It Works
-
-EvaluateAI uses Claude Code's native **hook system**. After `evalai init`, hooks are registered in `~/.claude/settings.json`. Claude Code calls them automatically:
-
-```
-SessionStart      → Create session record
-UserPromptSubmit  → Score prompt, show suggestion if low
-PreToolUse        → Log tool usage
-PostToolUse       → Track file changes
-Stop              → Record response tokens (from transcript)
-SessionEnd        → Calculate efficiency, sync to cloud
-```
-
-**Zero overhead.** Hooks run in <50ms. Your Claude Code workflow is unchanged.
+Your data flows to the team's Supabase instance. The manager dashboard reads from the same database to show team-wide analytics.
 
 ## Privacy
 
-All data stays local by default (`~/.evaluateai-v2/db.sqlite`).
+All data is stored in Supabase (your team's cloud database). There is no local SQLite storage.
 
-| Mode | What's Stored |
-|------|--------------|
-| `local` (default) | Full prompt text in local SQLite |
+| Setting | What's Stored |
+|---------|--------------|
+| `default` | Full prompt text in Supabase |
 | `hash` | Only SHA256 hashes (no readable text) |
 | `off` | Only scores and metadata (no prompts) |
 
-Cloud sync is opt-in and requires explicit Supabase setup.
+Configure with `evalai config set privacy <mode>`.
+
+## Environment Setup
+
+Add credentials to `~/.evaluateai-v2/.env`:
+
+```
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-anon-key
+```
+
+These are required for EvaluateAI to function. All data is stored in Supabase.
 
 ## Requirements
 
 - Node.js 18+
 - Claude Code CLI installed
+- Supabase project with EvaluateAI schema applied
 - Anthropic API key (only if using LLM scoring mode)
 
 ## Links
