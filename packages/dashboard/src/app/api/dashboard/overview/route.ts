@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
     // Active developers (those with any activity this week)
     const { data: teamMembers } = await supabase
       .from('team_members')
-      .select('id, user_id, display_name, role')
+      .select('id, name, email, role')
       .eq('team_id', teamId);
 
     const activeDeveloperIds = new Set(

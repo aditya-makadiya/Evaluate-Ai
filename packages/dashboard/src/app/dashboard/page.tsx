@@ -197,7 +197,14 @@ export default function DashboardPage() {
   }, [teamId, userName]);
 
   const noTeam = !teamId && !loading;
-  const isEmpty = data && data.timeline.length === 0 && data.stats.totalDevs === 0;
+  const hasAnyData = data && (
+    data.stats.activeDevs > 0 ||
+    data.stats.aiSpend > 0 ||
+    (data.alerts && data.alerts.length > 0) ||
+    data.stats.totalDevs > 0 ||
+    data.healthScore > 0
+  );
+  const isEmpty = data && !hasAnyData;
 
   return (
     <div className="min-h-screen">
