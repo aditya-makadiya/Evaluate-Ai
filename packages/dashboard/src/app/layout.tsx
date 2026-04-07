@@ -3,16 +3,15 @@
 import { useState, useEffect } from "react";
 import { Inter } from "next/font/google";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
   Calendar,
   CheckSquare,
   Plug,
-  FileBarChart,
-  MessageSquare,
-  BarChart3,
+  FileText,
+  Bell,
   Settings,
   RefreshCw,
   Sun,
@@ -33,9 +32,8 @@ const navItems = [
   { href: "/dashboard/meetings", label: "Meetings", icon: Calendar },
   { href: "/dashboard/tasks", label: "Tasks", icon: CheckSquare },
   { href: "/dashboard/integrations", label: "Integrations", icon: Plug },
-  { href: "/dashboard/reports", label: "Reports", icon: FileBarChart },
-  { href: "/sessions", label: "Sessions", icon: MessageSquare },
-  { href: "/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/dashboard/reports", label: "Reports", icon: FileText },
+  { href: "/dashboard/alerts", label: "Alerts", icon: Bell },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -45,6 +43,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const pathname = usePathname();
+  const router = useRouter();
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [currentUser, setCurrentUser] = useState<{ name: string; email: string } | null>(null);
 
@@ -61,11 +60,17 @@ export default function RootLayout({
       const stored = localStorage.getItem('evaluateai-user');
       if (stored) {
         setCurrentUser(JSON.parse(stored));
+      } else if (!isAuthPage) {
+        // Redirect to login if not authenticated and not already on auth page
+        router.push('/auth/login');
       }
     } catch {
-      // ignore parse errors
+      // Parse error — redirect to login
+      if (!isAuthPage) {
+        router.push('/auth/login');
+      }
     }
-  }, [pathname]);
+  }, [pathname, isAuthPage, router]);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);

@@ -1,9 +1,12 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, appendFileSync } from 'node:fs';
+import { execSync } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { createClient } from '@supabase/supabase-js';
-import { getClaudeSettingsPath, ensureDataDir } from '../utils/paths.js';
+import { join } from 'node:path';
+import { homedir } from 'node:os';
+import { getClaudeSettingsPath, ensureDataDir, DATA_DIR } from '../utils/paths.js';
 import { printHeader } from '../utils/display.js';
 
 /**
@@ -154,12 +157,206 @@ async function checkSupabaseConnection(): Promise<boolean> {
   }
 }
 
+/**
+ * Get Supabase client (requires env vars to be set).
+ */
+function getSupabase() {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_ANON_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key, { auth: { persistSession: false } });
+}
+
+/**
+ * Read git user email from git config.
+ */
+function getGitEmail(): string | null {
+  try {
+    return execSync('git config user.email', { encoding: 'utf-8', timeout: 2000 }).trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Read git username from git config.
+ */
+function getGitUsername(): string | null {
+  try {
+    return execSync('git config user.name', { encoding: 'utf-8', timeout: 2000 }).trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Save a key=value to ~/.evaluateai-v2/.env (update if exists, append if not).
+ */
+function saveToEnvFile(key: string, value: string): void {
+  ensureDataDir();
+  const envPath = join(DATA_DIR, '.env');
+
+  if (existsSync(envPath)) {
+    const content = readFileSync(envPath, 'utf-8');
+    const lines = content.split('\n');
+    const idx = lines.findIndex(l => l.startsWith(`${key}=`));
+    if (idx >= 0) {
+      lines[idx] = `${key}=${value}`;
+      writeFileSync(envPath, lines.join('\n'), 'utf-8');
+    } else {
+      appendFileSync(envPath, `\n${key}=${value}\n`, 'utf-8');
+    }
+  } else {
+    writeFileSync(envPath, `${key}=${value}\n`, 'utf-8');
+  }
+
+  // Also set in current process
+  process.env[key] = value;
+}
+
+/**
+ * Read current team ID from env.
+ */
+function getCurrentTeamId(): string | null {
+  // Check process env first (loaded by dotenv)
+  if (process.env.EVALUATEAI_TEAM_ID) return process.env.EVALUATEAI_TEAM_ID;
+
+  // Fallback: read .env file directly
+  const envPath = join(DATA_DIR, '.env');
+  if (!existsSync(envPath)) return null;
+
+  try {
+    const content = readFileSync(envPath, 'utf-8');
+    const match = content.match(/^EVALUATEAI_TEAM_ID=(.+)$/m);
+    return match ? match[1].trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Link the CLI to a team:
+ * 1. Verify team exists in Supabase
+ * 2. Find or create team_member record
+ * 3. Mark evaluateai_installed = true
+ * 4. Save team_id to .env
+ */
+async function linkTeam(teamId: string): Promise<boolean> {
+  const supabase = getSupabase();
+  if (!supabase) {
+    console.log(chalk.red('  ✗ Supabase not configured. Run `evalai init --supabase` first.'));
+    return false;
+  }
+
+  // 1. Verify team exists
+  console.log('  Verifying team...');
+  const { data: team, error: teamError } = await supabase
+    .from('teams')
+    .select('id, name')
+    .eq('id', teamId)
+    .single();
+
+  if (teamError || !team) {
+    console.log(chalk.red(`  ✗ Team not found: ${teamId}`));
+    console.log(chalk.gray('    Check the team ID and try again.'));
+    return false;
+  }
+
+  // 2. Get developer email
+  let email = getGitEmail();
+  if (!email) {
+    email = await prompt('  Enter your email: ');
+  } else {
+    console.log(chalk.gray(`  Using git email: ${email}`));
+  }
+
+  if (!email) {
+    console.log(chalk.red('  ✗ Email is required to link to a team.'));
+    return false;
+  }
+
+  // 3. Find or create team_member
+  console.log('  Linking developer...');
+  const { data: existingMember } = await supabase
+    .from('team_members')
+    .select('id, name, role')
+    .eq('team_id', teamId)
+    .eq('email', email)
+    .maybeSingle();
+
+  if (existingMember) {
+    // Update existing member
+    await supabase
+      .from('team_members')
+      .update({ evaluateai_installed: true })
+      .eq('id', existingMember.id);
+  } else {
+    // Create new member
+    const gitName = getGitUsername() || email.split('@')[0];
+    const { error: insertError } = await supabase
+      .from('team_members')
+      .insert({
+        team_id: teamId,
+        name: gitName,
+        email: email,
+        role: 'developer',
+        evaluateai_installed: true,
+        status: 'active',
+      });
+
+    if (insertError) {
+      console.log(chalk.red(`  ✗ Failed to create team member: ${insertError.message}`));
+      return false;
+    }
+  }
+
+  // 4. Save team_id to .env
+  saveToEnvFile('EVALUATEAI_TEAM_ID', teamId);
+
+  console.log(chalk.green(`  ✓ Linked to team: ${team.name}`));
+  if (existingMember) {
+    console.log(chalk.gray(`    Role: ${existingMember.role}`));
+  }
+
+  return true;
+}
+
+/**
+ * Show current team status.
+ */
+async function showTeamStatus(): Promise<void> {
+  const teamId = getCurrentTeamId();
+  if (!teamId) {
+    console.log(chalk.gray('  No team linked. Run `evalai init --team <team-id>` to link.'));
+    return;
+  }
+
+  const supabase = getSupabase();
+  if (!supabase) {
+    console.log(chalk.gray(`  Team ID: ${teamId} (Supabase not configured)`));
+    return;
+  }
+
+  const { data: team } = await supabase
+    .from('teams')
+    .select('name')
+    .eq('id', teamId)
+    .single();
+
+  if (team) {
+    console.log(chalk.green(`  ✓ Team: ${team.name}`));
+  } else {
+    console.log(chalk.yellow(`  ⚠ Team ID set (${teamId}) but team not found in Supabase`));
+  }
+}
+
 export const initCommand = new Command('init')
-  .description('Initialize EvaluateAI: install hooks, verify Supabase connection')
+  .description('Initialize EvaluateAI: install hooks, verify Supabase connection, link team')
   .option('--check', 'Verify that all hooks are installed')
   .option('--uninstall', 'Remove all EvaluateAI hooks')
   .option('--supabase', 'Configure Supabase cloud connection')
-  .action(async (opts: { check?: boolean; uninstall?: boolean; supabase?: boolean }) => {
+  .option('--team <team-id>', 'Link this CLI to a team')
+  .action(async (opts: { check?: boolean; uninstall?: boolean; supabase?: boolean; team?: string }) => {
     const settingsPath = getClaudeSettingsPath();
 
     // --- --check: verify installation ---
@@ -193,6 +390,12 @@ export const initCommand = new Command('init')
           console.log(chalk.red('  ✗ Cannot reach Supabase. Check your URL and key.'));
         }
       }
+
+      // Show team status
+      console.log('');
+      printHeader('Team Status');
+      await showTeamStatus();
+
       console.log('');
       return;
     }
@@ -244,7 +447,22 @@ export const initCommand = new Command('init')
       }
     }
 
-    // 3. Install hooks into Claude Code settings
+    // 3. Link team if --team flag provided
+    if (opts.team) {
+      console.log('');
+      printHeader('Team Linking');
+      await linkTeam(opts.team);
+    } else {
+      // Show existing team status
+      const teamId = getCurrentTeamId();
+      if (teamId) {
+        console.log('');
+        printHeader('Team Status');
+        await showTeamStatus();
+      }
+    }
+
+    // 4. Install hooks into Claude Code settings
     console.log('  Installing hooks into Claude Code...');
     const settings = readSettings(settingsPath);
     const existingHooks = (settings.hooks ?? {}) as Record<string, unknown>;
@@ -255,10 +473,16 @@ export const initCommand = new Command('init')
     writeSettings(settingsPath, settings);
     console.log(chalk.green('  ✓ 6 hooks installed'));
 
-    // 4. Summary
+    // 5. Summary
     console.log('');
     console.log(chalk.bold('  Setup complete!'));
     console.log(chalk.dim('  Run `evalai init --check` to verify.'));
     console.log(chalk.dim('  Run `evalai init --supabase` to configure cloud connection.'));
+    if (!opts.team && !getCurrentTeamId()) {
+      console.log(chalk.dim('  Run `evalai init --team <team-id>` to link to a team.'));
+    }
     console.log('');
   });
+
+// Export linkTeam for reuse in team command
+export { linkTeam, getCurrentTeamId, getGitEmail, getGitUsername, getSupabase };

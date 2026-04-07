@@ -1,6 +1,7 @@
 // @evaluateai/cli — public API
 
 export { initCommand } from './commands/init.js';
+export { teamCommand } from './commands/team.js';
 export { statsCommand } from './commands/stats.js';
 export { sessionsCommand } from './commands/sessions.js';
 export { configCommand } from './commands/config.js';

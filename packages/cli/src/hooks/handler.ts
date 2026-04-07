@@ -16,6 +16,52 @@ function getSupabase(): SupabaseClient | null {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
+// ── Team context (cached per process) ────────────────────────
+
+let _teamId: string | null = null;
+let _developerId: string | null = null;
+let _teamContextResolved = false;
+
+async function getTeamContext(supabase: SupabaseClient): Promise<{ teamId: string | null; developerId: string | null }> {
+  if (_teamContextResolved) return { teamId: _teamId, developerId: _developerId };
+  _teamContextResolved = true;
+
+  _teamId = process.env.EVALUATEAI_TEAM_ID || null;
+  if (!_teamId) return { teamId: null, developerId: null };
+
+  // Try to find developer by git email
+  try {
+    const email = execSync('git config user.email', { encoding: 'utf-8', timeout: 2000 }).trim();
+    if (email) {
+      const { data } = await supabase
+        .from('team_members')
+        .select('id')
+        .eq('team_id', _teamId)
+        .eq('email', email)
+        .single();
+      _developerId = data?.id || null;
+    }
+
+    // Fallback: try by git username
+    if (!_developerId) {
+      const username = execSync('git config user.name', { encoding: 'utf-8', timeout: 2000 }).trim();
+      if (username) {
+        const { data } = await supabase
+          .from('team_members')
+          .select('id')
+          .eq('team_id', _teamId)
+          .eq('github_username', username)
+          .single();
+        _developerId = data?.id || null;
+      }
+    }
+  } catch {
+    // Graceful fallback — team context is optional
+  }
+
+  return { teamId: _teamId, developerId: _developerId };
+}
+
 // ── Shared utilities ─────────────────────────────────────────
 
 /**
@@ -163,6 +209,8 @@ async function handleSessionStartWithPayload(payload: Record<string, unknown>): 
     const supabase = getSupabase();
     if (!supabase) return;
 
+    const { teamId, developerId } = await getTeamContext(supabase);
+
     const cwd = String(payload.cwd || process.cwd());
     const { gitRepo, gitBranch } = getGitInfo(cwd);
 
@@ -183,6 +231,8 @@ async function handleSessionStartWithPayload(payload: Record<string, unknown>): 
       total_cost_usd: 0,
       total_tool_calls: 0,
       files_changed: 0,
+      ...(teamId ? { team_id: teamId } : {}),
+      ...(developerId ? { developer_id: developerId } : {}),
     }, { onConflict: 'id' });
 
     // Insert activity timeline event (fire-and-forget)
@@ -195,6 +245,8 @@ async function handleSessionStartWithPayload(payload: Record<string, unknown>): 
       source_table: 'ai_sessions',
       is_ai_assisted: true,
       occurred_at: now,
+      ...(teamId ? { team_id: teamId } : {}),
+      ...(developerId ? { developer_id: developerId } : {}),
     }).then(() => {}, () => {});
   } catch {
     // Never fail
@@ -205,6 +257,8 @@ async function handlePromptSubmitWithPayload(payload: Record<string, unknown>): 
   try {
     const supabase = getSupabase();
     if (!supabase) return;
+
+    const { teamId, developerId } = await getTeamContext(supabase);
 
     const { scoreHeuristic, estimateTokens, scoreLLMAndUpdate } = await import('evaluateai-core');
     const { ulid } = await import('ulid');
@@ -256,6 +310,8 @@ async function handlePromptSubmitWithPayload(payload: Record<string, unknown>): 
       intent: heuristic.intent ?? null,
       was_retry: wasRetry,
       created_at: new Date().toISOString(),
+      ...(teamId ? { team_id: teamId } : {}),
+      ...(developerId ? { developer_id: developerId } : {}),
     });
 
     // Update session turn count and tokens
@@ -302,6 +358,8 @@ async function handlePromptSubmitWithPayload(payload: Record<string, unknown>): 
       source_table: 'ai_turns',
       is_ai_assisted: true,
       occurred_at: new Date().toISOString(),
+      ...(teamId ? { team_id: teamId } : {}),
+      ...(developerId ? { developer_id: developerId } : {}),
     }).then(() => {}, () => {});
 
     // Show suggestion if score is low
@@ -508,6 +566,8 @@ async function handleSessionEndWithPayload(payload: Record<string, unknown>): Pr
     const supabase = getSupabase();
     if (!supabase) return;
 
+    const { teamId, developerId } = await getTeamContext(supabase);
+
     const { calculateEfficiency, getSessionSummary, analyzeSession } = await import('evaluateai-core');
 
     const sessionId = String(payload.session_id || '');
@@ -632,6 +692,8 @@ async function handleSessionEndWithPayload(payload: Record<string, unknown>): Pr
       source_table: 'ai_sessions',
       is_ai_assisted: true,
       occurred_at: now,
+      ...(teamId ? { team_id: teamId } : {}),
+      ...(developerId ? { developer_id: developerId } : {}),
     }).then(() => {}, () => {});
 
     // Fire-and-forget: analyze session with LLM

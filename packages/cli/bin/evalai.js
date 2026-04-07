@@ -11,6 +11,7 @@ dotenvConfig(); // also check CWD
 import { Command } from 'commander';
 import {
   initCommand,
+  teamCommand,
   statsCommand,
   sessionsCommand,
   configCommand,
@@ -28,6 +29,7 @@ program
 
 // Register commands
 program.addCommand(initCommand);
+program.addCommand(teamCommand);
 program.addCommand(statsCommand);
 program.addCommand(sessionsCommand);
 program.addCommand(configCommand);
