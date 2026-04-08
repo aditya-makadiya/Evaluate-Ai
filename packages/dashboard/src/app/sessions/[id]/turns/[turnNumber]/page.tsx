@@ -544,8 +544,10 @@ export default function TurnDetailPage() {
 
   const { turn, session, response, improvement } = data;
   const score = turn.heuristicScore ?? turn.llmScore ?? improvement.score;
-  const antiPatterns = (turn.antiPatterns ?? []).map(normalizeAntiPattern);
-  const breakdown = turn.scoreBreakdown;
+  const rawAP = turn.antiPatterns ?? [];
+  const parsedAP = typeof rawAP === 'string' ? (() => { try { return JSON.parse(rawAP); } catch { return []; } })() : Array.isArray(rawAP) ? rawAP : [];
+  const antiPatterns = parsedAP.map(normalizeAntiPattern);
+  const breakdown = typeof turn.scoreBreakdown === 'string' ? (() => { try { return JSON.parse(turn.scoreBreakdown); } catch { return null; } })() : turn.scoreBreakdown;
 
   // Estimate rewrite score
   const rewriteScore = Math.min(100, score + improvement.issues.reduce((s, i) => {
