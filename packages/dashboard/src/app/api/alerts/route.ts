@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabase } from '@/lib/supabase';
+import { getAuthContext, requireRole } from '@/lib/auth';
+import { getSupabaseAdmin } from '@/lib/supabase-server';
 
 export async function GET(req: NextRequest) {
   try {
-    const supabase = getSupabase();
+    const ctx = await getAuthContext();
+    if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const supabase = getSupabaseAdmin();
     const { searchParams } = new URL(req.url);
-    const teamId = searchParams.get('team_id');
+    const teamId = ctx.teamId;
     const unreadOnly = searchParams.get('unread_only') === 'true';
     const limit = parseInt(searchParams.get('limit') ?? '20', 10);
-
-    if (!teamId) {
-      return NextResponse.json({ error: 'team_id is required' }, { status: 400 });
-    }
 
     let query = supabase
       .from('alerts')
@@ -72,7 +72,15 @@ export async function GET(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
-    const supabase = getSupabase();
+    const ctx = await getAuthContext();
+    if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    // RBAC: Only owners and managers can update alerts
+    if (!requireRole(ctx, 'owner', 'manager')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const supabase = getSupabaseAdmin();
     const body = await req.json();
     const { alertId, action } = body;
 

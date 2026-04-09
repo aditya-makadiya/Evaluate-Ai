@@ -3,14 +3,14 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { UserPlus, Mail, Lock, User, Building2, AlertCircle } from 'lucide-react';
+import { UserPlus, Mail, Lock, User, AlertCircle } from 'lucide-react';
+import { getSupabaseBrowser } from '@/lib/supabase-browser';
 
 export default function SignupPage() {
   const router = useRouter();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [teamName, setTeamName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -20,24 +20,22 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, name, teamName }),
+      const supabase = getSupabaseBrowser();
+
+      const { error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { name } },
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || 'Signup failed');
+      if (authError) {
+        setError(authError.message);
         return;
       }
 
-      // Store user data in localStorage for MVP
-      localStorage.setItem('evaluateai-user', JSON.stringify(data.user));
-      localStorage.setItem('evaluateai-team', JSON.stringify(data.team));
-
-      router.push('/');
+      // Account created — redirect to onboarding to create/join team
+      router.push('/onboarding');
+      router.refresh();
     } catch {
       setError('Network error. Please try again.');
     } finally {
@@ -67,7 +65,7 @@ export default function SignupPage() {
           Create your account
         </h1>
         <p className="text-sm text-[var(--text-secondary)] mt-1">
-          Set up your team on EvaluateAI
+          Get started with EvaluateAI
         </p>
       </div>
 
@@ -131,24 +129,6 @@ export default function SignupPage() {
                 placeholder="At least 6 characters"
                 required
                 minLength={6}
-                className={inputClasses}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="teamName" className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
-              Team name
-            </label>
-            <div className="relative">
-              <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-muted)]" />
-              <input
-                id="teamName"
-                type="text"
-                value={teamName}
-                onChange={(e) => setTeamName(e.target.value)}
-                placeholder="Acme Engineering"
-                required
                 className={inputClasses}
               />
             </div>

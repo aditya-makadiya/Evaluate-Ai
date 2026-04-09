@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabase } from '@/lib/supabase';
+import { getAuthContext } from '@/lib/auth';
+import { getSupabaseAdmin } from '@/lib/supabase-server';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
@@ -339,29 +340,67 @@ export async function GET(
   }
 
   try {
-    const supabase = getSupabase();
+    const ctx = await getAuthContext();
+    if (!ctx) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-    // Fetch turn data
-    const { data: turn, error: turnErr } = await supabase
+    const supabase = getSupabaseAdmin();
+
+    // Fetch turn data — use limit(1) + order to handle duplicate turn_numbers
+    const { data: turns, error: turnErr } = await supabase
       .from('ai_turns')
       .select('*')
       .eq('session_id', id)
       .eq('turn_number', turnNumber)
-      .single();
+      .order('created_at', { ascending: false })
+      .limit(1);
 
-    if (turnErr || !turn) {
+    // Fetch all turns for this session ordered by created_at and pick by position.
+    // We use position-based lookup because turn_number values can be duplicated
+    // or inconsistent in the database.
+    const { data: allTurns, error: allTurnsErr } = await supabase
+      .from('ai_turns')
+      .select('*')
+      .eq('session_id', id)
+      .order('created_at', { ascending: true });
+
+    if (allTurnsErr || !allTurns || allTurns.length === 0) {
       return NextResponse.json({ error: 'Turn not found' }, { status: 404 });
     }
+
+    // Pick the nth turn by position (1-indexed)
+    const idx = turnNumber - 1;
+    if (idx < 0 || idx >= allTurns.length) {
+      return NextResponse.json({ error: 'Turn not found' }, { status: 404 });
+    }
+    const turn = allTurns[idx];
 
     // Fetch session data
     const { data: session, error: sessionErr } = await supabase
       .from('ai_sessions')
-      .select('id, model, project_dir, git_branch, started_at, total_turns')
+      .select('id, model, project_dir, git_branch, started_at, total_turns, developer_id')
       .eq('id', id)
       .single();
 
     if (sessionErr || !session) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+    }
+
+    // RBAC: Developers can only view turns from their own sessions
+    if (ctx.role === 'developer' && (session as Record<string, unknown>).developer_id !== ctx.memberId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // Fetch developer name for breadcrumb navigation
+    let developerName: string | null = null;
+    if (session.developer_id) {
+      const { data: memberRow } = await supabase
+        .from('team_members')
+        .select('name')
+        .eq('id', session.developer_id)
+        .single();
+      developerName = memberRow?.name ?? null;
     }
 
     // JSONB fields are already parsed from Supabase
@@ -394,7 +433,7 @@ export async function GET(
     return NextResponse.json({
       turn: {
         id: turn.id,
-        turnNumber: turn.turn_number,
+        turnNumber: turnNumber, // Use position-based number, not DB value
         promptText: turn.prompt_text,
         promptHash: turn.prompt_hash,
         promptTokensEst: turn.prompt_tokens_est,
@@ -417,7 +456,9 @@ export async function GET(
         projectDir: session.project_dir,
         gitBranch: session.git_branch,
         startedAt: session.started_at,
-        totalTurns: session.total_turns,
+        totalTurns: allTurns.length || session.total_turns,
+        developerId: session.developer_id,
+        developerName,
       },
       response,
       improvement,

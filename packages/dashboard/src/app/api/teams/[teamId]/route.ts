@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getAuthContext } from '@/lib/auth';
 import { getSupabaseAdmin } from '@/lib/supabase-server';
 
 interface RouteContext {
@@ -8,9 +9,12 @@ interface RouteContext {
 export async function GET(_request: Request, context: RouteContext) {
   try {
     const { teamId } = await context.params;
-    const admin = getSupabaseAdmin();
+    const ctx = await getAuthContext(teamId);
+    if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { data: team, error } = await admin
+    const supabase = getSupabaseAdmin();
+
+    const { data: team, error } = await supabase
       .from('teams')
       .select('*')
       .eq('id', teamId)
@@ -21,7 +25,7 @@ export async function GET(_request: Request, context: RouteContext) {
     }
 
     // Get member count
-    const { count } = await admin
+    const { count } = await supabase
       .from('team_members')
       .select('*', { count: 'exact', head: true })
       .eq('team_id', teamId);
@@ -45,8 +49,11 @@ export async function GET(_request: Request, context: RouteContext) {
 export async function PUT(request: Request, context: RouteContext) {
   try {
     const { teamId } = await context.params;
+    const ctx = await getAuthContext(teamId);
+    if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const body = await request.json();
-    const admin = getSupabaseAdmin();
+    const supabase = getSupabaseAdmin();
 
     const updates: Record<string, unknown> = {};
     if (body.name !== undefined) updates.name = body.name;
@@ -59,7 +66,7 @@ export async function PUT(request: Request, context: RouteContext) {
       );
     }
 
-    const { data: team, error } = await admin
+    const { data: team, error } = await supabase
       .from('teams')
       .update(updates)
       .eq('id', teamId)

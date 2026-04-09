@@ -1,14 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { apiRequest } from '../utils/api.js';
 import { printHeader } from '../utils/display.js';
-
-function getSupabase(): SupabaseClient | null {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_ANON_KEY;
-  if (!url || !key) return null;
-  return createClient(url, key, { auth: { persistSession: false } });
-}
 
 const VALID_KEYS: Record<string, { validate: (v: string) => boolean; description: string }> = {
   privacy: {
@@ -35,38 +28,30 @@ const VALID_KEYS: Record<string, { validate: (v: string) => boolean; description
   },
 };
 
-/**
- * Map CLI key names to DB key names (underscores).
- */
-function toDbKey(key: string): string {
-  return key.replace(/-/g, '_');
-}
-
-async function showConfig(supabase: SupabaseClient): Promise<void> {
-  const { data: rows, error } = await supabase
-    .from('config')
-    .select('key, value');
+async function showConfig(): Promise<void> {
+  const { ok, data } = await apiRequest<Record<string, { value: string; updatedAt: string }>>('/api/config');
 
   printHeader('Configuration');
 
-  if (error) {
-    console.log(chalk.red(`  Error: ${error.message}`));
+  if (!ok || !data) {
+    console.log(chalk.red('  Error: Failed to fetch configuration from API.'));
     return;
   }
 
-  if (!rows || rows.length === 0) {
+  const entries = Object.entries(data);
+  if (entries.length === 0) {
     console.log(chalk.gray('  No configuration found. Run `evalai config set <key> <value>` to add.'));
     return;
   }
 
-  for (const row of rows) {
-    const displayKey = row.key.replace(/_/g, '-');
-    console.log(`  ${chalk.cyan(displayKey.padEnd(20))} ${chalk.white(row.value)}`);
+  for (const [key, info] of entries) {
+    const displayKey = key.replace(/_/g, '-');
+    console.log(`  ${chalk.cyan(displayKey.padEnd(20))} ${chalk.white(info.value)}`);
   }
   console.log('');
 }
 
-async function setConfig(supabase: SupabaseClient, key: string, value: string): Promise<void> {
+async function setConfig(key: string, value: string): Promise<void> {
   const validator = VALID_KEYS[key];
   if (!validator) {
     console.log(chalk.red(`  Unknown config key: ${key}`));
@@ -80,18 +65,13 @@ async function setConfig(supabase: SupabaseClient, key: string, value: string): 
     return;
   }
 
-  const dbKey = toDbKey(key);
-  const now = new Date().toISOString();
+  const { ok } = await apiRequest('/api/config', {
+    method: 'PUT',
+    body: { key, value },
+  });
 
-  const { error } = await supabase
-    .from('config')
-    .upsert(
-      { key: dbKey, value, updated_at: now },
-      { onConflict: 'key' }
-    );
-
-  if (error) {
-    console.log(chalk.red(`  Error: ${error.message}`));
+  if (!ok) {
+    console.log(chalk.red('  Error: Failed to update configuration via API.'));
     return;
   }
 
@@ -104,15 +84,8 @@ export const configCommand = new Command('config')
   .argument('[key]', 'Config key to set')
   .argument('[value]', 'Config value')
   .action(async (action?: string, key?: string, value?: string) => {
-    const supabase = getSupabase();
-    if (!supabase) {
-      console.log(chalk.red('  Supabase not configured.'));
-      console.log(chalk.gray('  Set SUPABASE_URL and SUPABASE_ANON_KEY environment variables.'));
-      return;
-    }
-
     if (!action) {
-      await showConfig(supabase);
+      await showConfig();
       return;
     }
 
@@ -126,7 +99,7 @@ export const configCommand = new Command('config')
         }
         return;
       }
-      await setConfig(supabase, key, value);
+      await setConfig(key, value);
       return;
     }
 

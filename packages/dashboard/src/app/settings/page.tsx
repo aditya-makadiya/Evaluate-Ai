@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useAuth } from '@/components/auth-provider';
 import {
   Loader2,
   Save,
@@ -9,12 +10,14 @@ import {
   Shield,
   Brain,
   Sliders,
-  Monitor,
-  Database,
   CheckCircle2,
   XCircle,
   AlertTriangle,
   Settings,
+  Key,
+  Copy,
+  Check,
+  Plus,
 } from 'lucide-react';
 
 // --------------- Types ---------------
@@ -26,7 +29,6 @@ interface Config {
   privacy: PrivacyMode;
   scoring: ScoringMode;
   threshold: number;
-  dashboardPort: number;
 }
 
 // --------------- Sub-components ---------------
@@ -115,52 +117,79 @@ function RadioOption({
 // --------------- Main ---------------
 
 export default function SettingsPage() {
+  const { user: authUser } = useAuth();
   const [config, setConfig] = useState<Config | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [teamId, setTeamId] = useState<string>('');
-  const [userName, setUserName] = useState<string>('');
+
+  // CLI tokens state
+  const [cliTokens, setCliTokens] = useState<Array<{ id: string; prefix: string; name: string; lastUsedAt: string | null; createdAt: string; isRevoked: boolean }>>([]);
+  const [newToken, setNewToken] = useState<string | null>(null);
+  const [copiedToken, setCopiedToken] = useState(false);
+  const [generatingToken, setGeneratingToken] = useState(false);
 
   useEffect(() => {
-    try {
-      const team = JSON.parse(localStorage.getItem('evaluateai-team') || '{}');
-      const user = JSON.parse(localStorage.getItem('evaluateai-user') || '{}');
-      if (team.id) setTeamId(team.id);
-      if (user.name) setUserName(user.name);
-    } catch {}
-  }, []);
-
-  useEffect(() => {
-    if (!teamId) return;
+    if (!authUser) return;
     setLoading(true);
-    fetch(`/api/config?team_id=${teamId}`, {
-      headers: { 'x-user-name': userName },
-    })
-      .then(async (r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then((raw) => {
-        // API returns { key: { value, updatedAt } } -- extract just values
+
+    Promise.all([
+      fetch('/api/config').then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))),
+      fetch('/api/cli/tokens').then(r => r.ok ? r.json() : { tokens: [] }),
+    ])
+      .then(([raw, tokensData]) => {
         const getValue = (key: string, fallback: string) => {
           const entry = raw[key];
           if (!entry) return fallback;
           return typeof entry === 'object' && entry.value !== undefined ? entry.value : String(entry);
         };
-        const config: Config = {
+        setConfig({
           privacy: getValue('privacy', 'local') as PrivacyMode,
           scoring: getValue('scoring', 'llm') as ScoringMode,
           threshold: parseInt(getValue('threshold', '50'), 10),
-          dashboardPort: parseInt(getValue('dashboard_port', '3456'), 10),
-        };
-        setConfig(config);
+        });
+        setCliTokens(tokensData.tokens ?? []);
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [teamId, userName]);
+  }, [authUser]);
+
+  async function handleGenerateToken() {
+    setGeneratingToken(true);
+    try {
+      const res = await fetch('/api/cli/tokens', { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to generate token');
+      const data = await res.json();
+      setNewToken(data.token);
+      // Refresh token list
+      const listRes = await fetch('/api/cli/tokens');
+      if (listRes.ok) {
+        const listData = await listRes.json();
+        setCliTokens(listData.tokens ?? []);
+      }
+    } catch {
+      showToast('error', 'Failed to generate API key');
+    } finally {
+      setGeneratingToken(false);
+    }
+  }
+
+  async function handleRevokeToken(tokenId: string) {
+    try {
+      const res = await fetch('/api/cli/tokens', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tokenId }),
+      });
+      if (!res.ok) throw new Error('Failed to revoke token');
+      setCliTokens(prev => prev.map(t => t.id === tokenId ? { ...t, isRevoked: true } : t));
+      showToast('success', 'API key revoked');
+    } catch {
+      showToast('error', 'Failed to revoke API key');
+    }
+  }
 
   const showToast = useCallback(
     (type: 'success' | 'error', message: string) => {
@@ -179,12 +208,11 @@ export default function SettingsPage() {
         ['privacy', config!.privacy],
         ['scoring', config!.scoring],
         ['threshold', String(config!.threshold)],
-        ['dashboard_port', String(config!.dashboardPort)],
       ];
       for (const [key, value] of entries) {
-        const res = await fetch(`/api/config?team_id=${teamId}`, {
+        const res = await fetch('/api/config', {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json', 'x-user-name': userName },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ key, value }),
         });
         if (!res.ok) throw new Error(`Failed to save ${key}`);
@@ -200,9 +228,7 @@ export default function SettingsPage() {
 
   async function handleExport() {
     try {
-      const res = await fetch(`/api/config/export?team_id=${teamId}`, {
-        headers: { 'x-user-name': userName },
-      });
+      const res = await fetch('/api/config/export');
       if (!res.ok) throw new Error('Export failed');
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -219,9 +245,8 @@ export default function SettingsPage() {
 
   async function handleReset() {
     try {
-      const res = await fetch(`/api/config/reset?team_id=${teamId}`, {
+      const res = await fetch('/api/config/reset', {
         method: 'POST',
-        headers: { 'x-user-name': userName },
       });
       if (!res.ok) throw new Error('Reset failed');
       showToast('success', 'Data reset successfully');
@@ -258,15 +283,6 @@ export default function SettingsPage() {
       </div>
     );
   }
-
-  const hooks = [
-    { name: 'SessionStart', status: true },
-    { name: 'UserPromptSubmit', status: true },
-    { name: 'PreToolUse', status: true },
-    { name: 'PostToolUse', status: true },
-    { name: 'Stop', status: true },
-    { name: 'SessionEnd', status: true },
-  ];
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] p-6 lg:p-8 relative">
@@ -412,62 +428,79 @@ export default function SettingsPage() {
             </div>
           </SectionCard>
 
-          {/* Dashboard Port */}
+          {/* CLI & API Keys */}
           <SectionCard
-            title="Dashboard Port"
-            icon={<Monitor className="w-4 h-4 text-cyan-400" />}
-            description="Port for the dashboard web server. Requires restart."
+            title="CLI & API Keys"
+            icon={<Key className="w-4 h-4 text-orange-400" />}
+            description="Manage API keys for the CLI and CI/CD integrations"
           >
-            <input
-              type="number"
-              min={1024}
-              max={65535}
-              value={config.dashboardPort}
-              onChange={(e) => updateConfig('dashboardPort', Number(e.target.value))}
-              className="w-40 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg px-3.5 py-2.5 text-sm text-[var(--text-primary)] font-mono focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/20 transition-all"
-            />
-          </SectionCard>
-
-          {/* Supabase */}
-          <SectionCard
-            title="Supabase Cloud Sync"
-            icon={<Database className="w-4 h-4 text-emerald-400" />}
-            description="Configured via environment variables"
-          >
-            <div>
-              <p className="text-xs text-[var(--text-muted)] mb-3">
-                Set these in your shell or <code className="text-[var(--text-secondary)] bg-[var(--bg-elevated)] px-1.5 py-0.5 rounded text-[11px] font-mono">~/.evaluateai-v2/.env</code>
-              </p>
-              <div className="bg-[var(--bg-primary)] border border-[var(--bg-elevated)] rounded-lg p-4 font-mono text-xs text-[var(--text-muted)] space-y-1">
-                <div><span className="text-purple-400">SUPABASE_URL</span>=<span className="text-[var(--text-muted)]">https://your-project.supabase.co</span></div>
-                <div><span className="text-purple-400">SUPABASE_ANON_KEY</span>=<span className="text-[var(--text-muted)]">your-anon-key</span></div>
-              </div>
-              <p className="text-xs text-[var(--text-muted)] mt-3">
-                Then run <code className="text-[var(--text-secondary)] bg-[var(--bg-elevated)] px-1.5 py-0.5 rounded text-[11px] font-mono">evalai sync</code> to push data to the cloud.
-              </p>
-            </div>
-          </SectionCard>
-
-          {/* Hook Status */}
-          <SectionCard
-            title="Hook Status"
-            icon={<CheckCircle2 className="w-4 h-4 text-emerald-400" />}
-            description="All Claude Code hooks are active and monitoring"
-          >
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {hooks.map((hook) => (
-                <div
-                  key={hook.name}
-                  className="flex items-center gap-2.5 py-2.5 px-3.5 bg-[var(--bg-primary)] border border-[var(--bg-elevated)] rounded-lg"
-                >
-                  {hook.status ? (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                  ) : (
-                    <XCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
-                  )}
-                  <span className="text-xs text-[var(--text-secondary)] font-mono truncate">{hook.name}</span>
+            <div className="space-y-4">
+              {/* Newly generated token (show once) */}
+              {newToken && (
+                <div className="bg-yellow-900/10 border border-yellow-800/30 rounded-lg p-4">
+                  <p className="text-xs font-medium text-yellow-400 mb-2">
+                    Copy this token now — it won&apos;t be shown again
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 text-xs font-mono text-[var(--text-primary)] bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded px-3 py-2 break-all">
+                      {newToken}
+                    </code>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(newToken);
+                        setCopiedToken(true);
+                        setTimeout(() => setCopiedToken(false), 2000);
+                      }}
+                      className="h-9 w-9 shrink-0 flex items-center justify-center rounded-lg border border-[var(--border-primary)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors"
+                    >
+                      {copiedToken ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
                 </div>
-              ))}
+              )}
+
+              {/* Token list */}
+              {cliTokens.length > 0 && (
+                <div className="divide-y divide-[var(--border-primary)]">
+                  {cliTokens.map(token => (
+                    <div key={token.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
+                      <Key className="h-3.5 w-3.5 text-[var(--text-muted)] shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-mono text-[var(--text-primary)]">
+                          {token.prefix}...
+                          {token.isRevoked && <span className="ml-2 text-red-400 font-sans">(revoked)</span>}
+                        </p>
+                        <p className="text-[10px] text-[var(--text-muted)]">
+                          Created {new Date(token.createdAt).toLocaleDateString()}
+                          {token.lastUsedAt && ` · Last used ${new Date(token.lastUsedAt).toLocaleDateString()}`}
+                        </p>
+                      </div>
+                      {!token.isRevoked && (
+                        <button
+                          onClick={() => handleRevokeToken(token.id)}
+                          className="text-[10px] px-2 py-1 rounded border border-red-900/40 text-red-400/80 hover:text-red-400 hover:bg-red-900/10 transition-colors"
+                        >
+                          Revoke
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Generate button */}
+              <button
+                onClick={handleGenerateToken}
+                disabled={generatingToken}
+                className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium border border-[var(--border-primary)] rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-hover)] transition-all disabled:opacity-50"
+              >
+                {generatingToken ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                Generate New API Key
+              </button>
+
+              <p className="text-xs text-[var(--text-muted)]">
+                Use API keys with <code className="text-[var(--text-secondary)] bg-[var(--bg-elevated)] px-1.5 py-0.5 rounded text-[11px] font-mono">evalai login --token &lt;key&gt;</code> for CI/CD environments.
+              </p>
             </div>
           </SectionCard>
 

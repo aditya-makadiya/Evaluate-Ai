@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabase } from '@/lib/supabase';
+import { getAuthContext } from '@/lib/auth';
+import { getSupabaseAdmin } from '@/lib/supabase-server';
 
 export async function GET(req: NextRequest) {
   try {
-    const supabase = getSupabase();
+    const ctx = await getAuthContext();
+    if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const supabase = getSupabaseAdmin();
     const { searchParams } = new URL(req.url);
-    const teamId = searchParams.get('team_id');
+    const teamId = ctx.teamId;
     const date = searchParams.get('date');
     const developerId = searchParams.get('developer_id');
-
-    if (!teamId) {
-      return NextResponse.json({ error: 'team_id is required' }, { status: 400 });
-    }
 
     let query = supabase
       .from('daily_reports')

@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabase } from '@/lib/supabase';
-
-function getTeamId(request: NextRequest): string | null {
-  return request.nextUrl.searchParams.get('team_id')
-    || request.headers.get('x-team-id')
-    || null;
-}
+import { getAuthContext } from '@/lib/auth';
+import { getSupabaseAdmin } from '@/lib/supabase-server';
 
 const ALLOWED_SORT_COLUMNS = new Set([
   'started_at',
@@ -19,13 +14,18 @@ const ALLOWED_SORT_COLUMNS = new Set([
 ]);
 
 export async function GET(request: NextRequest) {
-  const teamId = getTeamId(request);
-  const developerId = request.nextUrl.searchParams.get('developer_id');
-  // team_id is optional — if not provided, returns all sessions (developer view)
-  // if developer_id provided, filters to that developer's sessions
-
   try {
-    const supabase = getSupabase();
+    const ctx = await getAuthContext();
+    if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const teamId = ctx.teamId;
+
+    // RBAC: Developers can only see their own sessions
+    const developerId = ctx.role === 'developer'
+      ? ctx.memberId
+      : request.nextUrl.searchParams.get('developer_id');
+
+    const supabase = getSupabaseAdmin();
     const { searchParams } = request.nextUrl;
 
     const limit = Math.min(Math.max(parseInt(searchParams.get('limit') ?? '20', 10), 1), 100);
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from('ai_sessions')
-      .select('id, tool, model, started_at, ended_at, total_turns, total_cost_usd, avg_prompt_score, efficiency_score, project_dir, git_branch, developer_id, team_id', { count: 'exact' });
+      .select('id, tool, model, started_at, ended_at, total_turns, total_input_tokens, total_output_tokens, total_cost_usd, avg_prompt_score, efficiency_score, project_dir, git_branch, developer_id, team_id', { count: 'exact' });
 
     if (teamId) query = query.eq('team_id', teamId);
     if (developerId) query = query.eq('developer_id', developerId);
@@ -46,6 +46,24 @@ export async function GET(request: NextRequest) {
       .order(sort, { ascending: order })
       .range(offset, offset + limit - 1);
 
+    // Fetch first turn prompt text for each session to use as title
+    const sessionIds = (data ?? []).map(s => s.id);
+    let firstPrompts: Record<string, string> = {};
+    if (sessionIds.length > 0) {
+      const { data: turnsData } = await supabase
+        .from('ai_turns')
+        .select('session_id, prompt_text')
+        .in('session_id', sessionIds)
+        .order('created_at', { ascending: true });
+
+      // Keep only the first turn per session
+      for (const t of turnsData ?? []) {
+        if (t.prompt_text && !firstPrompts[t.session_id]) {
+          firstPrompts[t.session_id] = t.prompt_text;
+        }
+      }
+    }
+
     const sessions = (data ?? []).map(s => ({
       id: s.id,
       tool: s.tool,
@@ -53,11 +71,14 @@ export async function GET(request: NextRequest) {
       startedAt: s.started_at,
       endedAt: s.ended_at,
       totalTurns: s.total_turns,
+      totalInputTokens: s.total_input_tokens,
+      totalOutputTokens: s.total_output_tokens,
       totalCostUsd: s.total_cost_usd,
       avgPromptScore: s.avg_prompt_score,
       efficiencyScore: s.efficiency_score,
       projectDir: s.project_dir,
       gitBranch: s.git_branch,
+      firstPrompt: firstPrompts[s.id] ?? null,
     }));
 
     return NextResponse.json({ sessions, total: count ?? 0 });

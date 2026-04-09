@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useAuth } from '@/components/auth-provider';
 import {
   FileBarChart,
   GitCommit,
@@ -138,31 +139,19 @@ export default function ReportsPage() {
     return monday.toISOString().slice(0, 10);
   });
 
+  const { user: authUser } = useAuth();
   const [dailyReports, setDailyReports] = useState<DailyReport[]>([]);
   const [weeklyData, setWeeklyData] = useState<WeeklyData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [teamId, setTeamId] = useState<string>('');
-  const [userName, setUserName] = useState<string>('');
 
   useEffect(() => {
-    try {
-      const team = JSON.parse(localStorage.getItem('evaluateai-team') || '{}');
-      const user = JSON.parse(localStorage.getItem('evaluateai-user') || '{}');
-      if (team.id) setTeamId(team.id);
-      if (user.name) setUserName(user.name);
-    } catch {}
-  }, []);
-
-  useEffect(() => {
-    if (!teamId) return;
+    if (!authUser) return;
     setLoading(true);
     setError(null);
 
-    const headers = { 'x-user-name': userName };
-
     if (tab === 'daily') {
-      fetch(`/api/reports/daily?team_id=${teamId}&date=${selectedDate}`, { headers })
+      fetch(`/api/reports/daily?date=${selectedDate}`)
         .then(res => {
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           return res.json();
@@ -173,7 +162,7 @@ export default function ReportsPage() {
         })
         .catch(err => { setError(err.message); setLoading(false); });
     } else if (tab === 'weekly') {
-      fetch(`/api/reports/weekly?team_id=${teamId}&week_start=${weekStart}`, { headers })
+      fetch(`/api/reports/weekly?week_start=${weekStart}`)
         .then(res => {
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           return res.json();
@@ -186,7 +175,7 @@ export default function ReportsPage() {
     } else {
       setLoading(false);
     }
-  }, [tab, selectedDate, weekStart, teamId, userName]);
+  }, [tab, selectedDate, weekStart, authUser]);
 
   const navigateDate = (direction: number) => {
     const d = new Date(selectedDate + 'T00:00:00');

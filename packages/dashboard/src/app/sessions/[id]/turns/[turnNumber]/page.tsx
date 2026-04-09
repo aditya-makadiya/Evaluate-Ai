@@ -67,6 +67,8 @@ interface SessionInfo {
   gitBranch: string | null;
   startedAt: string;
   totalTurns: number;
+  developerId: string | null;
+  developerName: string | null;
 }
 
 interface ResponseData {
@@ -433,15 +435,18 @@ function TabBar({
   ];
   const activeIndex = tabs.findIndex((t) => t.key === activeTab);
 
+  const tabRefs = tabs.map(() => ({ ref: null as HTMLButtonElement | null }));
+
   return (
     <div className="relative flex border-b border-[var(--border-primary)]">
-      {tabs.map((tab) => (
+      {tabs.map((tab, i) => (
         <button
           key={tab.key}
+          ref={(el) => { tabRefs[i].ref = el; }}
           onClick={() => setActiveTab(tab.key)}
           className={`relative px-5 py-3.5 text-sm font-medium transition-colors z-10 ${
             activeTab === tab.key
-              ? 'text-[var(--text-primary)]'
+              ? 'text-[#8b5cf6]'
               : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
           }`}
         >
@@ -450,7 +455,7 @@ function TabBar({
       ))}
       {/* Sliding purple underline */}
       <div
-        className="absolute bottom-0 h-[2px] bg-purple-500 transition-all duration-300 ease-out rounded-full"
+        className="absolute bottom-0 h-[2px] bg-[#8b5cf6] transition-all duration-300 ease-out rounded-full"
         style={{
           width: `${100 / tabs.length}%`,
           transform: `translateX(${activeIndex * 100}%)`,
@@ -545,7 +550,7 @@ export default function TurnDetailPage() {
   const { turn, session, response, improvement } = data;
   const score = turn.heuristicScore ?? turn.llmScore ?? improvement.score;
   const rawAP = turn.antiPatterns ?? [];
-  const parsedAP = typeof rawAP === 'string' ? (() => { try { return JSON.parse(rawAP); } catch { return []; } })() : Array.isArray(rawAP) ? rawAP : [];
+  const parsedAP: Array<string | { id: string; severity: string; hint: string; points?: number }> = typeof rawAP === 'string' ? (() => { try { return JSON.parse(rawAP); } catch { return []; } })() : Array.isArray(rawAP) ? rawAP : [];
   const antiPatterns = parsedAP.map(normalizeAntiPattern);
   const breakdown = typeof turn.scoreBreakdown === 'string' ? (() => { try { return JSON.parse(turn.scoreBreakdown); } catch { return null; } })() : turn.scoreBreakdown;
 
@@ -590,13 +595,24 @@ export default function TurnDetailPage() {
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
-        {/* =========== Back Navigation =========== */}
-        <button
-          onClick={() => router.push(`/sessions/${sessionId}`)}
-          className="inline-flex items-center gap-1.5 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] mb-8 transition-colors group"
-        >
-          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" /> Back to Session
-        </button>
+        {/* =========== Breadcrumb Navigation =========== */}
+        <nav className="flex items-center gap-1.5 text-sm mb-8">
+          <button
+            onClick={() => router.push(session.developerId ? `/dashboard/developers/${session.developerId}` : '/dashboard/developers')}
+            className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+          >
+            {session.developerName ?? 'Developer'}
+          </button>
+          <ChevronRight className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+          <button
+            onClick={() => router.push(`/sessions/${sessionId}`)}
+            className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+          >
+            Session
+          </button>
+          <ChevronRight className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+          <span className="text-[var(--text-primary)] font-medium">Turn {turnNumber}</span>
+        </nav>
 
         {/* =========== Hero Section =========== */}
         <div className="flex flex-col md:flex-row items-start justify-between gap-8 mb-10">
@@ -624,29 +640,29 @@ export default function TurnDetailPage() {
             {/* Metadata pills */}
             <div className="flex items-center gap-2 flex-wrap">
               {session.model && (
-                <span className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-[var(--bg-card)] border border-[var(--border-primary)] text-[var(--text-secondary)]">
+                <span className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-[var(--bg-card)] border border-[var(--border-primary)] text-[var(--text-secondary)]" title="AI model used for this session">
                   <Terminal className="w-3 h-3" />
                   {session.model}
                 </span>
               )}
-              <span className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-[var(--bg-card)] border border-[var(--border-primary)] text-[var(--text-secondary)]">
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-[var(--bg-card)] border border-[var(--border-primary)] text-[var(--text-secondary)]" title="When this turn was submitted">
                 <Clock className="w-3 h-3" />
                 {timeAgo(turn.createdAt)}
               </span>
               {turn.latencyMs !== null && (
-                <span className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-[var(--bg-card)] border border-[var(--border-primary)] text-[var(--text-secondary)]">
+                <span className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-[var(--bg-card)] border border-[var(--border-primary)] text-[var(--text-secondary)]" title="Time taken for the AI to respond">
                   <Zap className="w-3 h-3" />
                   {turn.latencyMs < 1000 ? `${turn.latencyMs}ms` : `${(turn.latencyMs / 1000).toFixed(1)}s`}
                 </span>
               )}
               {response && (
-                <span className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-[var(--bg-card)] border border-[var(--border-primary)] text-[var(--text-secondary)]">
+                <span className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-[var(--bg-card)] border border-[var(--border-primary)] text-[var(--text-secondary)]" title="API cost for this single turn (prompt + response tokens)">
                   <Coins className="w-3 h-3" />
                   {formatCost(response.costUsd)}
                 </span>
               )}
               {antiPatterns.length > 0 && (
-                <span className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-purple-900/30 border border-purple-800/40 text-purple-400">
+                <span className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-purple-900/30 border border-purple-800/40 text-purple-400" title="Prompt anti-patterns detected: common mistakes that reduce AI response quality">
                   <Tag className="w-3 h-3" />
                   {antiPatterns.length} issue{antiPatterns.length !== 1 ? 's' : ''}
                 </span>
@@ -660,6 +676,7 @@ export default function TurnDetailPage() {
             <p
               className="text-center text-sm mt-3 font-semibold tracking-wide uppercase"
               style={{ color: scoreColor(score) }}
+              title="Prompt Quality Score (0-100): Measures how specific, contextual, clear, and actionable your prompt is. Each dimension contributes up to 25 points."
             >
               {scoreLabel(score)}
             </p>
@@ -800,6 +817,8 @@ export default function TurnDetailPage() {
                                 color: 'var(--text-primary)',
                                 fontSize: 12,
                               }}
+                              labelStyle={{ color: 'var(--text-muted)' }}
+                              itemStyle={{ color: 'var(--text-primary)' }}
                               formatter={(value: number) => [formatTokens(value), 'Tokens']}
                             />
                             <Bar dataKey="tokens" radius={[0, 4, 4, 0]}>
@@ -862,10 +881,18 @@ export default function TurnDetailPage() {
                     {Math.round(score)}
                   </span>
                 </div>
-                <DimensionBar label="Specificity" value={breakdownData[0].value} max={25} icon={<Crosshair className="w-3 h-3" />} />
-                <DimensionBar label="Context" value={breakdownData[1].value} max={25} icon={<Layers className="w-3 h-3" />} />
-                <DimensionBar label="Clarity" value={breakdownData[2].value} max={25} icon={<Eye className="w-3 h-3" />} />
-                <DimensionBar label="Actionability" value={breakdownData[3].value} max={25} icon={<Target className="w-3 h-3" />} />
+                <div title="How specific is the prompt? Includes file paths, function names, line numbers, exact identifiers.">
+                  <DimensionBar label="Specificity" value={breakdownData[0].value} max={25} icon={<Crosshair className="w-3 h-3" />} />
+                </div>
+                <div title="Does the prompt provide context? Error messages, expected behavior, constraints, prior attempts.">
+                  <DimensionBar label="Context" value={breakdownData[1].value} max={25} icon={<Layers className="w-3 h-3" />} />
+                </div>
+                <div title="Is the prompt clear and focused? Single question, concise language, no ambiguity.">
+                  <DimensionBar label="Clarity" value={breakdownData[2].value} max={25} icon={<Eye className="w-3 h-3" />} />
+                </div>
+                <div title="Does the prompt lead to clear action? Expected output, success criteria, concrete next steps.">
+                  <DimensionBar label="Actionability" value={breakdownData[3].value} max={25} icon={<Target className="w-3 h-3" />} />
+                </div>
               </div>
             )}
 

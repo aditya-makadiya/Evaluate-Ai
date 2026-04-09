@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useAuth } from '@/components/auth-provider';
 import {
   Users,
   GitPullRequest,
@@ -167,36 +168,24 @@ function HealthScoreCircle({ score }: { score: number }) {
 }
 
 export default function DashboardPage() {
+  const { user: authUser } = useAuth();
   const [data, setData] = useState<OverviewData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [teamId, setTeamId] = useState<string>('');
-  const [userName, setUserName] = useState<string>('');
 
   useEffect(() => {
-    try {
-      const team = JSON.parse(localStorage.getItem('evaluateai-team') || '{}');
-      const user = JSON.parse(localStorage.getItem('evaluateai-user') || '{}');
-      if (team.id) setTeamId(team.id);
-      if (user.name) setUserName(user.name);
-    } catch {}
-  }, []);
-
-  useEffect(() => {
-    if (!teamId) return;
+    if (!authUser) return;
     setLoading(true);
-    fetch(`/api/dashboard/overview?team_id=${teamId}`, {
-      headers: { 'x-user-name': userName },
-    })
+    fetch('/api/dashboard/overview')
       .then(res => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
       })
       .then(json => { setData(json); setLoading(false); })
       .catch(err => { setError(err.message); setLoading(false); });
-  }, [teamId, userName]);
+  }, [authUser]);
 
-  const noTeam = !teamId && !loading;
+  const noTeam = !authUser && !loading;
   const hasAnyData = data && (
     data.stats.activeDevs > 0 ||
     data.stats.aiSpend > 0 ||
@@ -211,7 +200,7 @@ export default function DashboardPage() {
       {/* Header */}
       <header className="mb-8 animate-section">
         <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
-          {data?.greeting ?? (userName ? `Good morning, ${userName}` : 'Good morning')}
+          {data?.greeting ?? (authUser?.name ? `Good morning, ${authUser.name}` : 'Good morning')}
         </h1>
         <p className="mt-1 text-sm text-[var(--text-muted)]">
           {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
@@ -227,7 +216,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {loading && teamId && <LoadingSkeleton />}
+      {loading && authUser && <LoadingSkeleton />}
 
       {error && (
         <div className="animate-section rounded-lg border border-red-900/50 bg-red-950/20 p-5 text-sm text-red-400">

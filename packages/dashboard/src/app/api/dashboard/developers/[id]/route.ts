@@ -1,20 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabase } from '@/lib/supabase';
-
-function getTeamId(request: NextRequest): string | null {
-  return request.nextUrl.searchParams.get('team_id')
-    || request.headers.get('x-team-id')
-    || null;
-}
+import { getAuthContext } from '@/lib/auth';
+import { getSupabaseAdmin } from '@/lib/supabase-server';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const ctx = await getAuthContext();
+    if (!ctx) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const teamId = ctx.teamId;
     const { id } = await params;
-    const teamId = getTeamId(request);
-    const supabase = getSupabase();
+
+    // RBAC: Developers can only view their own detail
+    if (ctx.role === 'developer' && id !== ctx.memberId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const supabase = getSupabaseAdmin();
     const now = new Date();
     const tomorrowStr = new Date(now.getTime() + 86400000).toISOString().slice(0, 10);
 
@@ -50,9 +55,25 @@ export async function GET(
     if (teamId) weekQ = weekQ.eq('team_id', teamId);
     const { data: weekSessions } = await weekQ;
 
+    // Fetch first turn prompt text for week sessions
+    const weekSessionIds = (weekSessions ?? []).map(s => s.id);
+    const weekFirstPrompts: Record<string, string> = {};
+    if (weekSessionIds.length > 0) {
+      const { data: wTurns } = await supabase
+        .from('ai_turns')
+        .select('session_id, prompt_text')
+        .in('session_id', weekSessionIds)
+        .order('created_at', { ascending: true });
+      for (const t of wTurns ?? []) {
+        if (t.prompt_text && !weekFirstPrompts[t.session_id]) {
+          weekFirstPrompts[t.session_id] = t.prompt_text;
+        }
+      }
+    }
+
     // AI sessions last 30 days for trends
     let monthQ = supabase.from('ai_sessions')
-      .select('id, model, total_cost_usd, avg_prompt_score, started_at')
+      .select('id, model, total_cost_usd, avg_prompt_score, total_input_tokens, total_output_tokens, total_turns, started_at')
       .eq('developer_id', devId)
       .gte('started_at', thirtyDaysAgo)
       .order('started_at', { ascending: false });
@@ -206,6 +227,44 @@ export async function GET(
       insights.push(`Hasn't used AI tools this week — may not have evaluateai installed`);
     }
 
+    // Cost trend (daily cost over 30 days)
+    const costByDay: Record<string, number> = {};
+    for (const s of monthSessions ?? []) {
+      const d = (s.started_at as string).slice(0, 10);
+      costByDay[d] = (costByDay[d] ?? 0) + (s.total_cost_usd ?? 0);
+    }
+    const costTrend = Object.entries(costByDay)
+      .map(([date, cost]) => ({ date, cost: Math.round(cost * 1000) / 1000 }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    // Token stats (weekly + monthly totals)
+    const weekTokens = (weekSessions ?? []).reduce(
+      (acc, s) => ({
+        input: acc.input + (s.total_input_tokens ?? 0),
+        output: acc.output + (s.total_output_tokens ?? 0),
+        turns: acc.turns + (s.total_turns ?? 0),
+      }),
+      { input: 0, output: 0, turns: 0 },
+    );
+    const monthTokens = (monthSessions ?? []).reduce(
+      (acc, s) => ({
+        input: acc.input + (s.total_input_tokens ?? 0),
+        output: acc.output + (s.total_output_tokens ?? 0),
+        turns: acc.turns + (s.total_turns ?? 0),
+      }),
+      { input: 0, output: 0, turns: 0 },
+    );
+
+    // Sessions per day of week (usage pattern)
+    const dayOfWeekUsage: number[] = [0, 0, 0, 0, 0, 0, 0]; // Sun-Sat
+    for (const s of monthSessions ?? []) {
+      const d = new Date(s.started_at as string).getDay();
+      dayOfWeekUsage[d]++;
+    }
+    const usageByDayOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(
+      (day, i) => ({ day, sessions: dayOfWeekUsage[i] }),
+    );
+
     return NextResponse.json({
       developer: {
         id: member.id,
@@ -226,16 +285,20 @@ export async function GET(
         tasksAssigned,
         sessionsThisWeek: (weekSessions ?? []).length,
       },
-      sessions: (weekSessions ?? []).map(s => ({
-        id: s.id,
-        model: s.model,
-        cost: s.total_cost_usd,
-        score: s.avg_prompt_score,
-        turns: s.total_turns,
-        inputTokens: s.total_input_tokens,
-        outputTokens: s.total_output_tokens,
-        startedAt: s.started_at,
-      })),
+      sessions: (weekSessions ?? []).map(s => {
+        const fp = weekFirstPrompts[s.id] ?? null;
+        return {
+          id: s.id,
+          model: s.model,
+          cost: s.total_cost_usd,
+          score: s.avg_prompt_score,
+          turns: s.total_turns,
+          inputTokens: s.total_input_tokens,
+          outputTokens: s.total_output_tokens,
+          startedAt: s.started_at,
+          firstPrompt: fp,
+        };
+      }),
       codeChanges: (weekCode ?? []).map(c => ({
         id: c.id,
         type: c.type,
@@ -259,6 +322,9 @@ export async function GET(
       antiPatterns,
       commitsPerDay,
       scoreTrend,
+      costTrend,
+      tokenStats: { week: weekTokens, month: monthTokens },
+      usageByDayOfWeek,
       insights,
     });
   } catch (err) {

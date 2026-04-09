@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useAuth } from '@/components/auth-provider';
 import {
   Bot,
   GitCommit,
@@ -26,8 +27,6 @@ interface TimelineEvent {
 
 interface DeveloperTimelineProps {
   developerId: string;
-  teamId?: string;
-  userName?: string;
 }
 
 const FILTERS = [
@@ -87,7 +86,8 @@ function formatDate(dateStr: string): string {
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
-export default function DeveloperTimeline({ developerId, teamId = '', userName = '' }: DeveloperTimelineProps) {
+export default function DeveloperTimeline({ developerId }: DeveloperTimelineProps) {
+  const { user: authUser } = useAuth();
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -98,14 +98,14 @@ export default function DeveloperTimeline({ developerId, teamId = '', userName =
   const pageSize = 20;
 
   const fetchEvents = useCallback((filterType: string, startOffset: number, append: boolean) => {
-    if (!teamId) return;
+    if (!authUser) return;
     const filterParam = filterType === 'all' ? '' : `&type=${filterType}`;
-    const url = `/api/dashboard/developers/${developerId}/timeline?limit=${pageSize}&offset=${startOffset}${filterParam}&team_id=${teamId}`;
+    const url = `/api/dashboard/developers/${developerId}/timeline?limit=${pageSize}&offset=${startOffset}${filterParam}`;
 
     if (append) setLoadingMore(true);
     else setLoading(true);
 
-    fetch(url, { headers: { 'x-user-name': userName } })
+    fetch(url)
       .then(res => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
@@ -125,7 +125,7 @@ export default function DeveloperTimeline({ developerId, teamId = '', userName =
         setLoading(false);
         setLoadingMore(false);
       });
-  }, [developerId, teamId, userName]);
+  }, [developerId, authUser]);
 
   useEffect(() => {
     setOffset(0);

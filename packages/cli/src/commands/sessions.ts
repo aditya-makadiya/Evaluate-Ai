@@ -1,8 +1,8 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import Table from 'cli-table3';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import type { SessionAnalysis } from 'evaluateai-core';
+import { apiRequest } from '../utils/api.js';
 import {
   formatCost,
   formatTokens,
@@ -11,29 +11,89 @@ import {
   printHeader,
 } from '../utils/display.js';
 
-function getSupabase(): SupabaseClient | null {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_ANON_KEY;
-  if (!url || !key) return null;
-  return createClient(url, key, { auth: { persistSession: false } });
+interface SessionRow {
+  id: string;
+  projectDir?: string;
+  model?: string;
+  startedAt: string;
+  endedAt?: string;
+  totalTurns?: number;
+  totalInputTokens?: number;
+  totalOutputTokens?: number;
+  totalCostUsd?: number;
+  avgPromptScore?: number;
+  efficiencyScore?: number;
+  analysis?: string | SessionAnalysis;
+  // Also support snake_case from some endpoints
+  project_dir?: string;
+  started_at?: string;
+  ended_at?: string;
+  total_turns?: number;
+  total_input_tokens?: number;
+  total_output_tokens?: number;
+  total_cost_usd?: number;
+  avg_prompt_score?: number;
+  efficiency_score?: number;
+}
+
+interface TurnRow {
+  turnNumber?: number;
+  turn_number?: number;
+  heuristicScore?: number;
+  heuristic_score?: number;
+  responseTokensEst?: number;
+  response_tokens_est?: number;
+  toolCalls?: string | unknown[];
+  tool_calls?: string | unknown[];
+  suggestionText?: string;
+  suggestion_text?: string;
+}
+
+interface ToolEvent {
+  toolName?: string;
+  tool_name?: string;
+}
+
+interface SessionDetailResponse {
+  id: string;
+  projectDir?: string;
+  project_dir?: string;
+  model?: string;
+  startedAt?: string;
+  started_at?: string;
+  endedAt?: string;
+  ended_at?: string;
+  totalTurns?: number;
+  total_turns?: number;
+  totalInputTokens?: number;
+  total_input_tokens?: number;
+  totalOutputTokens?: number;
+  total_output_tokens?: number;
+  totalCostUsd?: number;
+  total_cost_usd?: number;
+  avgPromptScore?: number;
+  avg_prompt_score?: number;
+  efficiencyScore?: number;
+  efficiency_score?: number;
+  analysis?: string | SessionAnalysis;
+  turns?: TurnRow[];
+  toolEvents?: ToolEvent[];
 }
 
 /**
  * Print a table of recent sessions.
  */
-async function listSessions(supabase: SupabaseClient, limit: number): Promise<void> {
-  const { data: rows, error } = await supabase
-    .from('ai_sessions')
-    .select('*')
-    .order('started_at', { ascending: false })
-    .limit(limit);
+async function listSessions(limit: number): Promise<void> {
+  const { ok, data } = await apiRequest<{ sessions: SessionRow[] }>(`/api/sessions?limit=${limit}`);
 
-  if (error) {
-    console.log(chalk.red(`  Error: ${error.message}`));
+  if (!ok || !data) {
+    console.log(chalk.red('  Error: Failed to fetch sessions from API.'));
     return;
   }
 
-  if (!rows || rows.length === 0) {
+  const rows = data.sessions ?? [];
+
+  if (rows.length === 0) {
     console.log(chalk.gray('  No sessions found.'));
     return;
   }
@@ -49,23 +109,26 @@ async function listSessions(supabase: SupabaseClient, limit: number): Promise<vo
       chalk.cyan('When'),
     ],
     style: { head: [], border: ['gray'] },
-    colWidths: [12, 22, 8, 8, 10, 10, 14],
+    colWidths: [38, 22, 8, 8, 10, 10, 14],
   });
 
   for (const s of rows) {
-    const project = s.project_dir
-      ? (s.project_dir.split('/').pop() ?? s.project_dir)
-      : '--';
-    const score = s.avg_prompt_score != null ? formatScore(s.avg_prompt_score) : chalk.gray('--');
-    const tokens = formatTokens((s.total_input_tokens ?? 0) + (s.total_output_tokens ?? 0));
-    const cost = formatCost(s.total_cost_usd ?? 0);
-    const when = formatDuration(Date.now() - new Date(s.started_at).getTime());
+    const projectDir = s.projectDir || s.project_dir;
+    const project = projectDir ? (projectDir.split('/').pop() ?? projectDir) : '--';
+    const avgScore = s.avgPromptScore ?? s.avg_prompt_score;
+    const score = avgScore != null ? formatScore(avgScore) : chalk.gray('--');
+    const inputTokens = s.totalInputTokens ?? s.total_input_tokens ?? 0;
+    const outputTokens = s.totalOutputTokens ?? s.total_output_tokens ?? 0;
+    const tokens = formatTokens(inputTokens + outputTokens);
+    const cost = formatCost(s.totalCostUsd ?? s.total_cost_usd ?? 0);
+    const startedAt = s.startedAt || s.started_at;
+    const when = startedAt ? formatDuration(Date.now() - new Date(startedAt).getTime()) : '--';
 
     table.push([
-      chalk.dim(s.id.slice(0, 10)),
-      project.length > 20 ? project.slice(0, 19) + '…' : project,
+      chalk.dim(s.id),
+      project.length > 20 ? project.slice(0, 19) + '...' : project,
       score,
-      String(s.total_turns ?? 0),
+      String(s.totalTurns ?? s.total_turns ?? 0),
       tokens,
       cost,
       chalk.dim(when),
@@ -80,35 +143,52 @@ async function listSessions(supabase: SupabaseClient, limit: number): Promise<vo
 /**
  * Print a detailed view of a single session.
  */
-async function showSession(supabase: SupabaseClient, sessionId: string): Promise<void> {
-  // Find session (match by prefix using ilike)
-  const { data: matches } = await supabase
-    .from('ai_sessions')
-    .select('*')
-    .ilike('id', `${sessionId}%`)
-    .limit(1);
+async function showSession(sessionId: string): Promise<void> {
+  // Support prefix matching — if short ID, find the full ID first
+  let fullId = sessionId;
+  if (sessionId.length < 36) {
+    const { ok: listOk, data: listData } = await apiRequest<{ sessions: SessionRow[] }>('/api/sessions?limit=100');
+    if (listOk && listData?.sessions) {
+      const match = listData.sessions.find(s => s.id.startsWith(sessionId));
+      if (match) {
+        fullId = match.id;
+      }
+    }
+  }
 
-  const session = matches?.[0];
+  const { ok, data: response } = await apiRequest<{ session: SessionDetailResponse; turns: TurnRow[]; toolEvents: ToolEvent[] }>(`/api/sessions/${fullId}`);
 
-  if (!session) {
+  if (!ok || !response?.session) {
     console.log(chalk.red(`  Session not found: ${sessionId}`));
     return;
   }
 
+  const session = response.session;
+  session.turns = response.turns;
+  session.toolEvents = response.toolEvents;
+
   // Session header
   printHeader(`Session ${session.id.slice(0, 10)}`);
-  const project = session.project_dir
-    ? session.project_dir.split('/').pop() ?? session.project_dir
-    : '--';
+  const projectDir = session.projectDir || session.project_dir;
+  const project = projectDir ? (projectDir.split('/').pop() ?? projectDir) : '--';
+  const startedAt = session.startedAt || session.started_at || '--';
+  const endedAt = session.endedAt || session.ended_at;
+  const totalTurns = session.totalTurns ?? session.total_turns ?? 0;
+  const inputTokens = session.totalInputTokens ?? session.total_input_tokens ?? 0;
+  const outputTokens = session.totalOutputTokens ?? session.total_output_tokens ?? 0;
+  const costUsd = session.totalCostUsd ?? session.total_cost_usd ?? 0;
+  const avgScore = session.avgPromptScore ?? session.avg_prompt_score;
+  const effScore = session.efficiencyScore ?? session.efficiency_score;
+
   console.log(`  Project:     ${chalk.white(project)}`);
   console.log(`  Model:       ${chalk.white(session.model ?? '--')}`);
-  console.log(`  Started:     ${chalk.white(session.started_at)}`);
-  console.log(`  Ended:       ${chalk.white(session.ended_at ?? 'in progress')}`);
-  console.log(`  Turns:       ${chalk.white(String(session.total_turns ?? 0))}`);
-  console.log(`  Tokens:      ${chalk.white(formatTokens((session.total_input_tokens ?? 0) + (session.total_output_tokens ?? 0)))}`);
-  console.log(`  Cost:        ${chalk.white(formatCost(session.total_cost_usd ?? 0))}`);
-  console.log(`  Avg Score:   ${session.avg_prompt_score != null ? formatScore(session.avg_prompt_score) : chalk.gray('--')}`);
-  console.log(`  Efficiency:  ${session.efficiency_score != null ? formatScore(session.efficiency_score) : chalk.gray('--')}`);
+  console.log(`  Started:     ${chalk.white(startedAt)}`);
+  console.log(`  Ended:       ${chalk.white(endedAt ?? 'in progress')}`);
+  console.log(`  Turns:       ${chalk.white(String(totalTurns))}`);
+  console.log(`  Tokens:      ${chalk.white(formatTokens(inputTokens + outputTokens))}`);
+  console.log(`  Cost:        ${chalk.white(formatCost(costUsd))}`);
+  console.log(`  Avg Score:   ${avgScore != null ? formatScore(avgScore) : chalk.gray('--')}`);
+  console.log(`  Efficiency:  ${effScore != null ? formatScore(effScore) : chalk.gray('--')}`);
 
   // LLM analysis
   if (session.analysis) {
@@ -134,13 +214,9 @@ async function showSession(supabase: SupabaseClient, sessionId: string): Promise
   }
 
   // Turn-by-turn detail
-  const { data: turnRows } = await supabase
-    .from('ai_turns')
-    .select('*')
-    .eq('session_id', session.id)
-    .order('turn_number', { ascending: true });
+  const turnRows = session.turns ?? [];
 
-  if (turnRows && turnRows.length > 0) {
+  if (turnRows.length > 0) {
     console.log('');
     console.log(chalk.bold('  Turn-by-Turn'));
 
@@ -157,23 +233,28 @@ async function showSession(supabase: SupabaseClient, sessionId: string): Promise
     });
 
     for (const t of turnRows) {
-      const score = t.heuristic_score != null ? formatScore(t.heuristic_score) : chalk.gray('--');
-      const tokens = t.response_tokens_est != null ? formatTokens(t.response_tokens_est) : '--';
+      const hScore = t.heuristicScore ?? t.heuristic_score;
+      const score = hScore != null ? formatScore(hScore) : chalk.gray('--');
+      const respTokens = t.responseTokensEst ?? t.response_tokens_est;
+      const tokens = respTokens != null ? formatTokens(respTokens) : '--';
 
+      const tc = t.toolCalls ?? t.tool_calls;
       let toolCount = 0;
-      if (t.tool_calls) {
+      if (tc) {
         try {
-          const calls = typeof t.tool_calls === 'string' ? JSON.parse(t.tool_calls) : t.tool_calls;
+          const calls = typeof tc === 'string' ? JSON.parse(tc) : tc;
           toolCount = Array.isArray(calls) ? calls.length : 0;
         } catch { /* ignore */ }
       }
 
-      const suggestion = t.suggestion_text
-        ? (t.suggestion_text.length > 42 ? t.suggestion_text.slice(0, 39) + '...' : t.suggestion_text)
+      const sugText = t.suggestionText ?? t.suggestion_text;
+      const suggestion = sugText
+        ? (sugText.length > 42 ? sugText.slice(0, 39) + '...' : sugText)
         : chalk.gray('--');
 
+      const turnNum = t.turnNumber ?? t.turn_number ?? 0;
       table.push([
-        String(t.turn_number),
+        String(turnNum),
         score,
         tokens,
         String(toolCount),
@@ -185,17 +266,15 @@ async function showSession(supabase: SupabaseClient, sessionId: string): Promise
   }
 
   // Tool events
-  const { data: events } = await supabase
-    .from('ai_tool_events')
-    .select('*')
-    .eq('session_id', session.id);
+  const events = session.toolEvents ?? [];
 
-  if (events && events.length > 0) {
+  if (events.length > 0) {
     console.log('');
     console.log(chalk.bold(`  Tool Calls (${events.length})`));
     const toolCounts: Record<string, number> = {};
     for (const e of events) {
-      toolCounts[e.tool_name] = (toolCounts[e.tool_name] ?? 0) + 1;
+      const name = e.toolName ?? e.tool_name ?? 'unknown';
+      toolCounts[name] = (toolCounts[name] ?? 0) + 1;
     }
     const sorted = Object.entries(toolCounts).sort((a, b) => b[1] - a[1]);
     for (const [name, count] of sorted.slice(0, 10)) {
@@ -210,16 +289,9 @@ export const sessionsCommand = new Command('sessions')
   .description('List and inspect sessions')
   .argument('[id]', 'Session ID to show details for')
   .action(async (id?: string) => {
-    const supabase = getSupabase();
-    if (!supabase) {
-      console.log(chalk.red('  Supabase not configured.'));
-      console.log(chalk.gray('  Set SUPABASE_URL and SUPABASE_ANON_KEY environment variables.'));
-      return;
-    }
-
     if (id) {
-      await showSession(supabase, id);
+      await showSession(id);
     } else {
-      await listSessions(supabase, 20);
+      await listSessions(20);
     }
   });

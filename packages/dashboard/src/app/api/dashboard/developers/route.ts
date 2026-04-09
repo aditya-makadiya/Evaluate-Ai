@@ -1,24 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabase } from '@/lib/supabase';
-
-function getTeamId(request: NextRequest): string | null {
-  return request.nextUrl.searchParams.get('team_id')
-    || request.headers.get('x-team-id')
-    || null;
-}
+import { getAuthContext } from '@/lib/auth';
+import { getSupabaseAdmin } from '@/lib/supabase-server';
 
 export async function GET(request: NextRequest) {
-  const teamId = getTeamId(request);
-
-  if (!teamId) {
-    return NextResponse.json(
-      { error: 'team_id is required (pass as query param or x-team-id header)', developers: [] },
-      { status: 400 }
-    );
+  const ctx = await getAuthContext();
+  if (!ctx) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+  const teamId = ctx.teamId;
 
   try {
-    const supabase = getSupabase();
+    const supabase = getSupabaseAdmin();
     const now = new Date();
     const tomorrowStr = new Date(now.getTime() + 86400000).toISOString().slice(0, 10);
 
@@ -113,6 +105,16 @@ export async function GET(request: NextRequest) {
         status,
       };
     });
+
+    // RBAC: Developers can only see their own data
+    if (ctx.role === 'developer') {
+      const selfIndex = developers.findIndex(d => d.id === ctx.memberId);
+      if (selfIndex >= 0) {
+        developers.splice(0, developers.length, developers[selfIndex]);
+      } else {
+        developers.length = 0;
+      }
+    }
 
     // Sort
     switch (sortBy) {

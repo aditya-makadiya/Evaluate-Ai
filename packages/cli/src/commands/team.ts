@@ -1,64 +1,48 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { linkTeam, getCurrentTeamId, getGitEmail, getSupabase } from './init.js';
+import { apiRequest } from '../utils/api.js';
+import { readCredentials } from '../utils/credentials.js';
 import { printHeader } from '../utils/display.js';
+
+interface TeamInfo {
+  id: string;
+  name: string;
+  created_at: string;
+  memberCount?: number;
+  yourRole?: string;
+}
+
+interface TeamMember {
+  name?: string;
+  email?: string;
+  role?: string;
+  evaluateai_installed?: boolean;
+  status?: string;
+}
 
 /**
  * Show current team info: name, member count, your role.
  */
 async function showTeamInfo(): Promise<void> {
-  const teamId = getCurrentTeamId();
-  if (!teamId) {
+  const creds = readCredentials();
+  if (!creds?.teamId) {
     console.log(chalk.yellow('  No team linked.'));
-    console.log(chalk.gray('  Run `evalai team link <team-id>` to link to a team.'));
+    console.log(chalk.gray('  Run `evalai login` to authenticate and link to a team.'));
     return;
   }
 
-  const supabase = getSupabase();
-  if (!supabase) {
-    console.log(chalk.red('  ✗ Supabase not configured.'));
+  const { ok, data: team } = await apiRequest<TeamInfo>(`/api/teams/${creds.teamId}`);
+
+  if (!ok || !team) {
+    console.log(chalk.red(`  Failed to fetch team info.`));
     return;
-  }
-
-  // Fetch team info
-  const { data: team, error: teamError } = await supabase
-    .from('teams')
-    .select('id, name, created_at')
-    .eq('id', teamId)
-    .single();
-
-  if (teamError || !team) {
-    console.log(chalk.red(`  ✗ Team not found: ${teamId}`));
-    return;
-  }
-
-  // Fetch member count
-  const { count } = await supabase
-    .from('team_members')
-    .select('id', { count: 'exact', head: true })
-    .eq('team_id', teamId);
-
-  // Fetch your role
-  const email = getGitEmail();
-  let yourRole = 'unknown';
-  if (email) {
-    const { data: member } = await supabase
-      .from('team_members')
-      .select('role, name')
-      .eq('team_id', teamId)
-      .eq('email', email)
-      .maybeSingle();
-
-    if (member) {
-      yourRole = member.role || 'developer';
-    }
   }
 
   printHeader('Team Info');
   console.log(`  ${chalk.bold('Name:')}     ${team.name}`);
   console.log(`  ${chalk.bold('ID:')}       ${team.id}`);
-  console.log(`  ${chalk.bold('Members:')}  ${count ?? 0}`);
-  console.log(`  ${chalk.bold('Your role:')} ${yourRole}`);
+  console.log(`  ${chalk.bold('Members:')}  ${team.memberCount ?? 0}`);
+  console.log(`  ${chalk.bold('Your role:')} ${team.yourRole ?? creds.email ?? 'unknown'}`);
   console.log('');
 }
 
@@ -66,31 +50,23 @@ async function showTeamInfo(): Promise<void> {
  * List team members with install status.
  */
 async function showTeamMembers(): Promise<void> {
-  const teamId = getCurrentTeamId();
-  if (!teamId) {
+  const creds = readCredentials();
+  if (!creds?.teamId) {
     console.log(chalk.yellow('  No team linked.'));
-    console.log(chalk.gray('  Run `evalai team link <team-id>` to link to a team.'));
+    console.log(chalk.gray('  Run `evalai login` to authenticate and link to a team.'));
     return;
   }
 
-  const supabase = getSupabase();
-  if (!supabase) {
-    console.log(chalk.red('  ✗ Supabase not configured.'));
+  const { ok, data } = await apiRequest<{ members: TeamMember[] }>(`/api/teams/${creds.teamId}/members`);
+
+  if (!ok || !data) {
+    console.log(chalk.red('  Failed to fetch team members.'));
     return;
   }
 
-  const { data: members, error } = await supabase
-    .from('team_members')
-    .select('name, email, role, evaluateai_installed, status')
-    .eq('team_id', teamId)
-    .order('name', { ascending: true });
+  const members = data.members ?? [];
 
-  if (error) {
-    console.log(chalk.red(`  ✗ Failed to fetch members: ${error.message}`));
-    return;
-  }
-
-  if (!members || members.length === 0) {
+  if (members.length === 0) {
     console.log(chalk.gray('  No team members found.'));
     return;
   }
@@ -126,7 +102,7 @@ async function showTeamMembers(): Promise<void> {
 }
 
 export const teamCommand = new Command('team')
-  .description('Manage team linking and view team info')
+  .description('View team info and members')
   .action(async () => {
     await showTeamInfo();
   });
@@ -137,19 +113,4 @@ teamCommand
   .description('List team members with EvaluateAI install status')
   .action(async () => {
     await showTeamMembers();
-  });
-
-// Subcommand: evalai team link <team-id>
-teamCommand
-  .command('link <team-id>')
-  .description('Link this CLI to a team (same as evalai init --team)')
-  .action(async (teamId: string) => {
-    printHeader('Team Linking');
-    const success = await linkTeam(teamId);
-    if (success) {
-      console.log('');
-      console.log(chalk.dim('  Run `evalai team` to view team info.'));
-      console.log(chalk.dim('  Run `evalai team members` to see team members.'));
-      console.log('');
-    }
   });

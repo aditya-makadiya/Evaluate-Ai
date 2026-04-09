@@ -1,24 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabase } from '@/lib/supabase';
-
-function getTeamId(request: NextRequest): string | null {
-  return request.nextUrl.searchParams.get('team_id')
-    || request.headers.get('x-team-id')
-    || null;
-}
+import { getAuthContext, requireRole } from '@/lib/auth';
+import { getSupabaseAdmin } from '@/lib/supabase-server';
 
 export async function GET(request: NextRequest) {
-  const teamId = getTeamId(request);
-
-  if (!teamId) {
-    return NextResponse.json(
-      { error: 'team_id is required (pass as query param or x-team-id header)' },
-      { status: 400 }
-    );
-  }
-
   try {
-    const supabase = getSupabase();
+    const ctx = await getAuthContext();
+    if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const teamId = ctx.teamId;
+    const supabase = getSupabaseAdmin();
 
     const { data, error } = await supabase
       .from('config')
@@ -44,14 +34,15 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
-  const teamId = getTeamId(request);
+  const ctx = await getAuthContext();
+  if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  if (!teamId) {
-    return NextResponse.json(
-      { error: 'team_id is required (pass as query param or x-team-id header)' },
-      { status: 400 }
-    );
+  // RBAC: Only owners and managers can change config
+  if (!requireRole(ctx, 'owner', 'manager')) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
+
+  const teamId = ctx.teamId;
 
   let body: { key?: string; value?: string };
   try {
@@ -70,7 +61,7 @@ export async function PUT(request: NextRequest) {
   }
 
   try {
-    const supabase = getSupabase();
+    const supabase = getSupabaseAdmin();
     const now = new Date().toISOString();
 
     const { error } = await supabase

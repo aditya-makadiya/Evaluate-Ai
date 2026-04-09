@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useAuth } from '@/components/auth-provider';
 import {
   Bell,
   AlertTriangle,
@@ -93,28 +94,16 @@ function LoadingSkeleton() {
 }
 
 export default function AlertsPage() {
+  const { user: authUser } = useAuth();
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterType>('all');
-  const [teamId, setTeamId] = useState<string>('');
-  const [userName, setUserName] = useState<string>('');
 
-  useEffect(() => {
-    try {
-      const team = JSON.parse(localStorage.getItem('evaluateai-team') || '{}');
-      const user = JSON.parse(localStorage.getItem('evaluateai-user') || '{}');
-      if (team.id) setTeamId(team.id);
-      if (user.name) setUserName(user.name);
-    } catch {}
-  }, []);
-
-  const fetchAlerts = (tid: string, uname: string) => {
-    if (!tid) return;
+  const fetchAlerts = () => {
+    if (!authUser) return;
     setLoading(true);
-    fetch(`/api/alerts?team_id=${tid}&limit=50`, {
-      headers: { 'x-user-name': uname },
-    })
+    fetch('/api/alerts?limit=50')
       .then(res => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
@@ -130,16 +119,16 @@ export default function AlertsPage() {
   };
 
   useEffect(() => {
-    if (!teamId) return;
-    fetchAlerts(teamId, userName);
-  }, [teamId, userName]);
+    if (!authUser) return;
+    fetchAlerts();
+  }, [authUser]);
 
   const handleAction = async (alertId: string, action: 'read' | 'dismiss') => {
     try {
       const res = await fetch('/api/alerts', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'x-user-name': userName },
-        body: JSON.stringify({ alertId, action, teamId }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ alertId, action }),
       });
       if (res.ok) {
         setAlerts(prev =>

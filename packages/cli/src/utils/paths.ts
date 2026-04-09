@@ -3,7 +3,6 @@ import { homedir } from 'node:os';
 import { mkdirSync, existsSync } from 'node:fs';
 
 export const DATA_DIR = join(homedir(), '.evaluateai-v2');
-export const DB_PATH = join(DATA_DIR, 'db.sqlite');
 export const CONFIG_PATH = join(DATA_DIR, 'config.json');
 export const LOGS_DIR = join(DATA_DIR, 'logs');
 

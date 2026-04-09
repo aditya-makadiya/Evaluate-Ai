@@ -1,13 +1,36 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { apiRequest } from '../utils/api.js';
 import { printHeader, formatCost, formatTokens, formatScore, formatTrend } from '../utils/display.js';
 
-function getSupabase(): SupabaseClient | null {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_ANON_KEY;
-  if (!url || !key) return null;
-  return createClient(url, key, { auth: { persistSession: false } });
+interface PeriodStats {
+  sessionCount: number;
+  totalTurns: number;
+  totalTokens: number;
+  totalCost: number;
+  avgScore: number | null;
+  avgEfficiency: number | null;
+  antiPatterns: Record<string, number>;
+}
+
+interface SessionRow {
+  total_turns?: number;
+  total_input_tokens?: number;
+  total_output_tokens?: number;
+  total_cost_usd?: number;
+  avg_prompt_score?: number;
+  efficiency_score?: number;
+  started_at: string;
+}
+
+interface StatsApiResponse {
+  sessionCount: number;
+  totalTurns: number;
+  totalTokens: number;
+  totalCost: number;
+  avgScore: number | null;
+  avgEfficiency: number | null;
+  antiPatterns: Record<string, number>;
 }
 
 /**
@@ -20,24 +43,47 @@ function daysAgo(n: number): string {
   return d.toISOString();
 }
 
-interface PeriodStats {
-  sessionCount: number;
-  totalTurns: number;
-  totalTokens: number;
-  totalCost: number;
-  avgScore: number | null;
-  avgEfficiency: number | null;
-  antiPatterns: Record<string, number>;
-}
+/**
+ * Fetch stats from the API. Falls back to aggregating sessions client-side
+ * if the /api/stats endpoint doesn't return enough data.
+ */
+async function queryPeriodStats(periodDays: number): Promise<PeriodStats> {
+  const since = daysAgo(periodDays === 1 ? 0 : periodDays);
 
-async function queryPeriodStats(supabase: SupabaseClient, since: string): Promise<PeriodStats> {
-  const { data: sessRows } = await supabase
-    .from('ai_sessions')
-    .select('*')
-    .gte('started_at', since);
+  // Try /api/stats endpoint first
+  const { ok, data } = await apiRequest<StatsApiResponse>(`/api/stats?since=${encodeURIComponent(since)}`);
 
-  const rows = sessRows ?? [];
-  const sessionCount = rows.length;
+  if (ok && data && typeof data.sessionCount === 'number') {
+    return {
+      sessionCount: data.sessionCount,
+      totalTurns: data.totalTurns ?? 0,
+      totalTokens: data.totalTokens ?? 0,
+      totalCost: data.totalCost ?? 0,
+      avgScore: data.avgScore ?? null,
+      avgEfficiency: data.avgEfficiency ?? null,
+      antiPatterns: data.antiPatterns ?? {},
+    };
+  }
+
+  // Fallback: aggregate from sessions list
+  const { ok: sessOk, data: sessData } = await apiRequest<{ sessions: SessionRow[] }>(`/api/sessions?limit=1000`);
+
+  if (!sessOk || !sessData?.sessions) {
+    return {
+      sessionCount: 0,
+      totalTurns: 0,
+      totalTokens: 0,
+      totalCost: 0,
+      avgScore: null,
+      avgEfficiency: null,
+      antiPatterns: {},
+    };
+  }
+
+  // Filter sessions by date
+  const sinceDate = new Date(since);
+  const rows = sessData.sessions.filter(s => new Date(s.started_at) >= sinceDate);
+
   let totalTurns = 0;
   let totalTokens = 0;
   let totalCost = 0;
@@ -60,43 +106,14 @@ async function queryPeriodStats(supabase: SupabaseClient, since: string): Promis
     }
   }
 
-  // Gather anti-patterns from turns
-  const antiPatterns: Record<string, number> = {};
-
-  if (rows.length > 0) {
-    const { data: turnRows } = await supabase
-      .from('ai_turns')
-      .select('anti_patterns')
-      .gte('created_at', since);
-
-    for (const t of (turnRows ?? [])) {
-      if (!t.anti_patterns) continue;
-      try {
-        const patterns: unknown = typeof t.anti_patterns === 'string'
-          ? JSON.parse(t.anti_patterns)
-          : t.anti_patterns;
-        if (Array.isArray(patterns)) {
-          for (const p of patterns) {
-            const id = typeof p === 'string' ? p : (p as { id?: string })?.id;
-            if (id) {
-              antiPatterns[id] = (antiPatterns[id] ?? 0) + 1;
-            }
-          }
-        }
-      } catch {
-        // skip malformed JSON
-      }
-    }
-  }
-
   return {
-    sessionCount,
+    sessionCount: rows.length,
     totalTurns,
     totalTokens,
     totalCost,
     avgScore: scoreCount > 0 ? scoreSum / scoreCount : null,
     avgEfficiency: effCount > 0 ? effSum / effCount : null,
-    antiPatterns,
+    antiPatterns: {},
   };
 }
 
@@ -153,13 +170,6 @@ export const statsCommand = new Command('stats')
   .option('--month', 'Show this month\'s stats')
   .option('--compare', 'Compare with previous period')
   .action(async (opts: { week?: boolean; month?: boolean; compare?: boolean }) => {
-    const supabase = getSupabase();
-    if (!supabase) {
-      console.log(chalk.red('  Supabase not configured.'));
-      console.log(chalk.gray('  Set SUPABASE_URL and SUPABASE_ANON_KEY environment variables.'));
-      return;
-    }
-
     let periodDays: number;
     let label: string;
 
@@ -174,22 +184,20 @@ export const statsCommand = new Command('stats')
       label = 'Today';
     }
 
-    const since = daysAgo(periodDays === 1 ? 0 : periodDays);
-    const stats = await queryPeriodStats(supabase, since);
+    const stats = await queryPeriodStats(periodDays);
 
     let prev: PeriodStats | undefined;
     if (opts.compare) {
-      const prevSince = daysAgo(periodDays * 2);
-      prev = await queryPeriodStats(supabase, prevSince);
+      const prevStats = await queryPeriodStats(periodDays * 2);
       // Subtract current period from the "since 2x ago" to get only previous period
       prev = {
-        sessionCount: prev.sessionCount - stats.sessionCount,
-        totalTurns: prev.totalTurns - stats.totalTurns,
-        totalTokens: prev.totalTokens - stats.totalTokens,
-        totalCost: prev.totalCost - stats.totalCost,
-        avgScore: prev.avgScore,
-        avgEfficiency: prev.avgEfficiency,
-        antiPatterns: prev.antiPatterns,
+        sessionCount: prevStats.sessionCount - stats.sessionCount,
+        totalTurns: prevStats.totalTurns - stats.totalTurns,
+        totalTokens: prevStats.totalTokens - stats.totalTokens,
+        totalCost: prevStats.totalCost - stats.totalCost,
+        avgScore: prevStats.avgScore,
+        avgEfficiency: prevStats.avgEfficiency,
+        antiPatterns: prevStats.antiPatterns,
       };
     }
 

@@ -1,16 +1,20 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { LogIn, Mail, Lock, AlertCircle } from 'lucide-react';
+import { getSupabaseBrowser } from '@/lib/supabase-browser';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const redirect = searchParams.get('redirect') || '/dashboard';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,24 +22,19 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+      const supabase = getSupabaseBrowser();
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || 'Login failed');
+      if (authError) {
+        setError(authError.message);
         return;
       }
 
-      // Store user data in localStorage for MVP
-      localStorage.setItem('evaluateai-user', JSON.stringify(data.user));
-      localStorage.setItem('evaluateai-session', JSON.stringify(data.session));
-
-      router.push('/');
+      router.push(redirect);
+      router.refresh();
     } catch {
       setError('Network error. Please try again.');
     } finally {
@@ -137,51 +136,14 @@ export default function LoginPage() {
           Sign up
         </Link>
       </p>
-
-      {/* Demo Quick Login */}
-      <div className="mt-8 pt-6 border-t border-[var(--border-primary)]">
-        <p className="text-xs text-[var(--text-muted)] text-center mb-3 uppercase tracking-wider font-medium">Quick Demo Login</p>
-        <div className="grid gap-2">
-          {[
-            { name: 'Aditya Makadiya', email: 'aditya@acme.dev', role: 'Owner', color: '#8b5cf6', id: '32709dfb-7637-4562-a806-584f36db302a', teamId: '943dc5d1-1b71-49dd-8862-43d67f450183', score: 85 },
-            { name: 'Priya Sharma', email: 'priya@acme.dev', role: 'Manager', color: '#3b82f6', id: '4fe275ec-d331-4674-87e1-9f248f6c6144', teamId: '943dc5d1-1b71-49dd-8862-43d67f450183', score: 74 },
-            { name: 'Jake Wilson', email: 'jake@acme.dev', role: 'Developer', color: '#ef4444', id: '2e7e98b2-9da0-46b6-a8c8-b9c53f94d048', teamId: '943dc5d1-1b71-49dd-8862-43d67f450183', score: 38 },
-            { name: 'Sara Chen', email: 'sara@acme.dev', role: 'Developer', color: '#22c55e', id: '0caea587-774c-44ae-8da5-4c8d149fb74f', teamId: '943dc5d1-1b71-49dd-8862-43d67f450183', score: null },
-            { name: 'Rob Kumar', email: 'rob@acme.dev', role: 'Developer', color: '#f59e0b', id: '54436876-e490-433b-af13-4426a8cfa6c4', teamId: '943dc5d1-1b71-49dd-8862-43d67f450183', score: null },
-          ].map((demo) => (
-            <button
-              key={demo.email}
-              onClick={() => {
-                localStorage.setItem('evaluateai-user', JSON.stringify({ name: demo.name, email: demo.email, id: demo.id }));
-                localStorage.setItem('evaluateai-team', JSON.stringify({ id: demo.teamId, name: 'Acme Engineering' }));
-                router.push('/dashboard');
-              }}
-              className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg border border-[var(--border-primary)] hover:border-[var(--border-hover)] bg-[var(--bg-card)] hover:bg-[var(--bg-elevated)] transition-all text-left group"
-            >
-              <div
-                className="h-8 w-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
-                style={{ backgroundColor: demo.color }}
-              >
-                {demo.name.split(' ').map(n => n[0]).join('')}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-[var(--text-primary)] truncate">{demo.name}</p>
-                <p className="text-xs text-[var(--text-muted)]">{demo.role} · {demo.email}</p>
-              </div>
-              {demo.score !== null && (
-                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                  demo.score >= 70 ? 'bg-emerald-900/30 text-emerald-400' :
-                  demo.score >= 40 ? 'bg-yellow-900/30 text-yellow-400' :
-                  'bg-red-900/30 text-red-400'
-                }`}>
-                  {demo.score}
-                </span>
-              )}
-              <span className="text-xs text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity">→</span>
-            </button>
-          ))}
-        </div>
-      </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }

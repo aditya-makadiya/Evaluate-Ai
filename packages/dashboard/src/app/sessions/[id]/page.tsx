@@ -82,6 +82,8 @@ interface SessionDetail {
   contextPeakPct: number | null;
   analysis: string | null;
   turns: TurnData[];
+  developerId: string | null;
+  developerName: string | null;
 }
 
 // --------------- Design tokens ---------------
@@ -201,8 +203,10 @@ function guessIntent(session: SessionDetail): string {
 function sessionTitle(session: SessionDetail): string {
   const prompt = session.turns?.[0]?.promptText;
   if (prompt) {
-    const clean = prompt.replace(/\n/g, ' ').trim();
-    return clean.length > 50 ? clean.slice(0, 50) + '...' : clean;
+    const clean = prompt.replace(/<[^>]+>/g, '').replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+    if (clean.length > 0) {
+      return clean.length > 100 ? clean.slice(0, 100) + '...' : clean;
+    }
   }
   return `Session ${session.id.slice(0, 8)}`;
 }
@@ -413,7 +417,7 @@ function TurnCard({ turn, sessionId }: { turn: TurnData; sessionId: string }) {
 
   return (
     <div
-      className={`bg-[var(--bg-card)] border border-[var(--border-primary)] border-l-[3px] ${scoreBorderColor(score)} rounded-lg p-4 cursor-pointer hover:bg-[#161616] hover:border-[var(--border-hover)] hover:shadow-lg hover:shadow-black/20 transition-all duration-200 group`}
+      className={`bg-[var(--bg-card)] border border-[var(--border-primary)] border-l-[3px] ${scoreBorderColor(score)} rounded-lg p-4 cursor-pointer hover:bg-[var(--bg-elevated)] hover:border-[var(--border-hover)] hover:shadow-lg hover:shadow-black/20 transition-all duration-200 group`}
       onClick={() => router.push(`/sessions/${sessionId}/turns/${turn.turnNumber}`)}
     >
       {/* Header */}
@@ -620,6 +624,13 @@ export default function SessionDetailPage() {
   const intent = guessIntent(session);
   const intentStyle = INTENT_STYLES[intent] ?? INTENT_STYLES.research;
 
+  // Compute fallback efficiency score from avg turn prompt scores if null
+  const turnScores = turns.map(t => t.heuristicScore ?? t.llmScore).filter((s): s is number => s !== null);
+  const computedEfficiency = session.efficiencyScore
+    ?? (analysis?.efficiencyScore ?? null)
+    ?? (turnScores.length > 0 ? Math.round(turnScores.reduce((a, b) => a + b, 0) / turnScores.length) : null);
+  const efficiencyIsEstimated = session.efficiencyScore == null && computedEfficiency != null;
+
   const costPerTurn = turns.map((t, i) => ({
     turn: `T${i + 1}`,
     cost: session.totalCostUsd / (session.totalTurns || 1),
@@ -636,13 +647,15 @@ export default function SessionDetailPage() {
     <div className={`min-h-screen bg-[var(--bg-primary)] p-6 md:p-8 transition-opacity duration-500 ${mounted ? 'opacity-100' : 'opacity-0'}`}>
       <div className="max-w-7xl mx-auto">
 
-        {/* Back button */}
+        {/* Back button — go to developer detail page */}
         <button
-          onClick={() => router.push('/sessions')}
+          onClick={() => router.push(session.developerId ? `/dashboard/developers/${session.developerId}` : '/dashboard/developers')}
           className="inline-flex items-center gap-1.5 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] mb-6 transition-colors group"
         >
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-          <span className="group-hover:underline underline-offset-4">Sessions</span>
+          <span className="group-hover:underline underline-offset-4">
+            {session.developerName ? `${session.developerName}'s Sessions` : 'Developers'}
+          </span>
         </button>
 
         {/* Header section */}
@@ -657,19 +670,19 @@ export default function SessionDetailPage() {
               {intent}
             </span>
             {/* Model */}
-            <span className="text-xs text-[var(--text-muted)] bg-[var(--bg-elevated)] border border-[var(--border-primary)] px-2.5 py-1 rounded-full">
+            <span className="text-xs text-[var(--text-muted)] bg-[var(--bg-elevated)] border border-[var(--border-primary)] px-2.5 py-1 rounded-full" title="AI model used for this session">
               {session.model ?? 'Unknown'}
             </span>
             {/* Turns */}
-            <span className="text-xs text-[var(--text-muted)] flex items-center gap-1">
+            <span className="text-xs text-[var(--text-muted)] flex items-center gap-1" title="Number of prompt-response exchanges">
               <Hash className="w-3 h-3" /> {session.totalTurns} turns
             </span>
             {/* Cost */}
-            <span className="text-xs text-[var(--text-muted)] flex items-center gap-1">
+            <span className="text-xs text-[var(--text-muted)] flex items-center gap-1" title="Total API cost for all turns in this session">
               <Coins className="w-3 h-3" /> {formatCost(session.totalCostUsd)}
             </span>
             {/* Duration */}
-            <span className="text-xs text-[var(--text-muted)] flex items-center gap-1">
+            <span className="text-xs text-[var(--text-muted)] flex items-center gap-1" title="Total session duration from first to last turn">
               <Clock className="w-3 h-3" /> {formatDuration(session.startedAt, session.endedAt)}
             </span>
           </div>
@@ -711,38 +724,45 @@ export default function SessionDetailPage() {
             <h2 className="text-lg font-medium text-[var(--text-primary)] mb-2">Session Metrics</h2>
 
             {/* Efficiency score ring */}
-            <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-xl p-6 flex flex-col items-center">
-              <p className="text-xs text-[var(--text-muted)] uppercase tracking-wider font-medium mb-4">Efficiency Score</p>
-              <ScoreRing score={session.efficiencyScore} size={140} />
+            <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-xl p-6 flex flex-col items-center" title="Efficiency Score measures overall session quality. Based on prompt scores, retries, token usage, and workflow efficiency. Score 0-100 where higher is better.">
+              <p className="text-xs text-[var(--text-muted)] uppercase tracking-wider font-medium mb-4">
+                Efficiency Score
+                {efficiencyIsEstimated && (
+                  <span className="ml-1.5 text-[10px] normal-case tracking-normal text-yellow-400" title="Estimated from average turn scores. LLM analysis has not run for this session.">
+                    (estimated)
+                  </span>
+                )}
+              </p>
+              <ScoreRing score={computedEfficiency} size={140} />
             </div>
 
             {/* Stat grid */}
             <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-xl p-5 grid grid-cols-2 gap-4">
-              <div className="space-y-1">
+              <div className="space-y-1" title="Total API cost for all turns in this session">
                 <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-medium flex items-center gap-1.5">
                   <Coins className="w-3 h-3" /> Total Cost
                 </p>
                 <p className="text-xl font-semibold text-[var(--text-primary)] font-mono">{formatCost(session.totalCostUsd)}</p>
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1" title="Total time from session start to end">
                 <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-medium flex items-center gap-1.5">
                   <Clock className="w-3 h-3" /> Duration
                 </p>
                 <p className="text-xl font-semibold text-[var(--text-primary)]">{formatDuration(session.startedAt, session.endedAt)}</p>
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1" title="Number of prompt-response exchanges in this session">
                 <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-medium flex items-center gap-1.5">
                   <Hash className="w-3 h-3" /> Turns
                 </p>
                 <p className="text-xl font-semibold text-[var(--text-primary)]">{session.totalTurns}</p>
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1" title="Number of tool calls made by the AI (file reads, edits, bash commands, etc.)">
                 <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-medium flex items-center gap-1.5">
                   <Wrench className="w-3 h-3" /> Tool Calls
                 </p>
                 <p className="text-xl font-semibold text-[var(--text-primary)]">{session.totalToolCalls}</p>
               </div>
-              <div className="space-y-1 col-span-2 pt-2 border-t border-[var(--bg-elevated)]">
+              <div className="space-y-1 col-span-2 pt-2 border-t border-[var(--bg-elevated)]" title="Average API cost per prompt-response turn. Lower means more cost-efficient prompting.">
                 <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-medium flex items-center gap-1.5">
                   <Zap className="w-3 h-3" /> Cost per Turn (avg)
                 </p>
@@ -752,16 +772,20 @@ export default function SessionDetailPage() {
 
             {/* Progress bars */}
             <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-xl p-5">
-              <PercentBar
-                label="Token Waste Ratio"
-                value={session.tokenWasteRatio !== null ? session.tokenWasteRatio * 100 : null}
-                icon={<AlertTriangle className="w-3.5 h-3.5" />}
-              />
-              <PercentBar
-                label="Context Peak Usage"
-                value={session.contextPeakPct}
-                icon={<Layers className="w-3.5 h-3.5" />}
-              />
+              <div title="Percentage of tokens wasted on retries, verbose prompts, or repeated context. Lower is better.">
+                <PercentBar
+                  label="Token Waste Ratio"
+                  value={session.tokenWasteRatio !== null ? session.tokenWasteRatio * 100 : null}
+                  icon={<AlertTriangle className="w-3.5 h-3.5" />}
+                />
+              </div>
+              <div title="Maximum percentage of the AI model's context window used in any single turn. High values (>80%) may cause truncation.">
+                <PercentBar
+                  label="Context Peak Usage"
+                  value={session.contextPeakPct}
+                  icon={<Layers className="w-3.5 h-3.5" />}
+                />
+              </div>
             </div>
 
             {/* Cost per turn chart */}
@@ -784,6 +808,8 @@ export default function SessionDetailPage() {
                         fontSize: 12,
                         boxShadow: '0 10px 15px rgba(0,0,0,0.3)',
                       }}
+                      labelStyle={{ color: 'var(--text-muted)' }}
+                      itemStyle={{ color: 'var(--text-primary)' }}
                       formatter={(value: number) => [`$${value.toFixed(4)}`, 'Cost']}
                     />
                     <Bar dataKey="cost" fill="#3b82f6" radius={[4, 4, 0, 0]} />
@@ -818,6 +844,8 @@ export default function SessionDetailPage() {
                         fontSize: 12,
                         boxShadow: '0 10px 15px rgba(0,0,0,0.3)',
                       }}
+                      labelStyle={{ color: 'var(--text-muted)' }}
+                      itemStyle={{ color: 'var(--text-primary)' }}
                       formatter={(value: number) => [`${Math.round(value)}%`, 'Context']}
                     />
                     <Line

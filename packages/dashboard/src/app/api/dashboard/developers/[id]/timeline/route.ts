@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabase } from '@/lib/supabase';
-
-function getTeamId(request: NextRequest): string | null {
-  return request.nextUrl.searchParams.get('team_id')
-    || request.headers.get('x-team-id')
-    || null;
-}
+import { getAuthContext } from '@/lib/auth';
+import { getSupabaseAdmin } from '@/lib/supabase-server';
 
 const VALID_FILTERS = new Set(['ai', 'code', 'meeting', 'task']);
 
@@ -21,9 +16,19 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const ctx = await getAuthContext();
+    if (!ctx) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const teamId = ctx.teamId;
     const { id } = await params;
-    const teamId = getTeamId(request);
-    const supabase = getSupabase();
+
+    // RBAC: Developers can only view their own timeline
+    if (ctx.role === 'developer' && id !== ctx.memberId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const supabase = getSupabaseAdmin();
     const { searchParams } = request.nextUrl;
 
     const limit = Math.min(Math.max(parseInt(searchParams.get('limit') ?? '20', 10), 1), 100);

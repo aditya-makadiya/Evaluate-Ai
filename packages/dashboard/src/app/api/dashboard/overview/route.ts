@@ -1,11 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getSupabase } from '@/lib/supabase';
-
-function getTeamId(request: NextRequest): string | null {
-  return request.nextUrl.searchParams.get('team_id')
-    || request.headers.get('x-team-id')
-    || null;
-}
+import { NextResponse } from 'next/server';
+import { getAuthContext } from '@/lib/auth';
+import { getSupabaseAdmin } from '@/lib/supabase-server';
 
 function getGreeting(userName?: string | null): string {
   const hour = new Date().getHours();
@@ -17,25 +12,29 @@ function getGreeting(userName?: string | null): string {
   return greeting;
 }
 
-export async function GET(request: NextRequest) {
-  const teamId = getTeamId(request);
-  const userName = request.headers.get('x-user-name') || null;
+const EMPTY_RESPONSE = {
+  stats: { activeDevs: 0, totalDevs: 0, prsMerged: 0, tasksDone: 0, tasksTotal: 0, aiSpend: 0, commits: 0 },
+  timeline: [],
+  alerts: [],
+  healthScore: 0,
+};
 
-  if (!teamId) {
+export async function GET() {
+  const ctx = await getAuthContext();
+
+  if (!ctx) {
     return NextResponse.json({
-      error: 'team_id is required (pass as query param or x-team-id header)',
-      greeting: getGreeting(userName),
-      stats: { activeDevs: 0, totalDevs: 0, prsMerged: 0, tasksDone: 0, tasksTotal: 0, aiSpend: 0, commits: 0 },
-      timeline: [],
-      alerts: [],
-      healthScore: 0,
-    }, { status: 400 });
+      ...EMPTY_RESPONSE,
+      greeting: getGreeting(),
+      error: 'Unauthorized',
+    }, { status: 401 });
   }
 
+  const teamId = ctx.teamId;
+
   try {
-    const supabase = getSupabase();
+    const supabase = getSupabaseAdmin();
     const now = new Date();
-    const todayStr = now.toISOString().slice(0, 10);
     const tomorrowStr = new Date(now.getTime() + 86400000).toISOString().slice(0, 10);
 
     // Week boundaries (Monday-based)
@@ -141,7 +140,7 @@ export async function GET(request: NextRequest) {
     );
 
     return NextResponse.json({
-      greeting: getGreeting(userName),
+      greeting: getGreeting(ctx.name),
       stats: {
         activeDevs,
         totalDevs,
@@ -158,11 +157,8 @@ export async function GET(request: NextRequest) {
   } catch (err) {
     console.error('Dashboard overview API error:', err);
     return NextResponse.json({
-      greeting: getGreeting(userName),
-      stats: { activeDevs: 0, totalDevs: 0, prsMerged: 0, tasksDone: 0, tasksTotal: 0, aiSpend: 0, commits: 0 },
-      timeline: [],
-      alerts: [],
-      healthScore: 0,
+      greeting: getGreeting(ctx.name),
+      ...EMPTY_RESPONSE,
     });
   }
 }

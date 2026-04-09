@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import { useAuth } from '@/components/auth-provider';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -12,13 +13,15 @@ import {
   Code,
   Bot,
   Lightbulb,
+  MessageSquare,
 } from 'lucide-react';
+import DeveloperSessionsTab from '@/components/developer-sessions-tab';
 import DeveloperTimeline from '@/components/developer-timeline';
 import DeveloperWorkTab from '@/components/developer-work-tab';
 import DeveloperAiTab from '@/components/developer-ai-tab';
 import DeveloperInsightsTab from '@/components/developer-insights-tab';
 
-type Tab = 'timeline' | 'work' | 'ai' | 'insights';
+type Tab = 'sessions' | 'timeline' | 'work' | 'ai' | 'insights';
 
 interface DeveloperData {
   developer: {
@@ -49,6 +52,7 @@ interface DeveloperData {
     inputTokens: number | null;
     outputTokens: number | null;
     startedAt: string;
+    firstPrompt: string | null;
   }[];
   codeChanges: {
     id: string;
@@ -75,10 +79,17 @@ interface DeveloperData {
   antiPatterns: { pattern: string; count: number }[];
   commitsPerDay: { date: string; count: number }[];
   scoreTrend: { date: string; score: number }[];
+  costTrend: { date: string; cost: number }[];
+  tokenStats: {
+    week: { input: number; output: number; turns: number };
+    month: { input: number; output: number; turns: number };
+  };
+  usageByDayOfWeek: { day: string; sessions: number }[];
   insights: string[];
 }
 
 const TABS: { key: Tab; label: string; icon: typeof Activity }[] = [
+  { key: 'sessions', label: 'Sessions', icon: MessageSquare },
   { key: 'timeline', label: 'Activity Timeline', icon: Activity },
   { key: 'work', label: 'Work', icon: Code },
   { key: 'ai', label: 'AI Usage', icon: Bot },
@@ -130,37 +141,25 @@ function LoadingSkeleton() {
 }
 
 export default function DeveloperDetailPage() {
+  const { user: authUser } = useAuth();
   const params = useParams();
   const id = params.id as string;
   const [data, setData] = useState<DeveloperData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<Tab>('timeline');
-  const [teamId, setTeamId] = useState<string>('');
-  const [userName, setUserName] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<Tab>('sessions');
 
   useEffect(() => {
-    try {
-      const team = JSON.parse(localStorage.getItem('evaluateai-team') || '{}');
-      const user = JSON.parse(localStorage.getItem('evaluateai-user') || '{}');
-      if (team.id) setTeamId(team.id);
-      if (user.name) setUserName(user.name);
-    } catch {}
-  }, []);
-
-  useEffect(() => {
-    if (!teamId) return;
+    if (!authUser) return;
     setLoading(true);
-    fetch(`/api/dashboard/developers/${id}?team_id=${teamId}`, {
-      headers: { 'x-user-name': userName },
-    })
+    fetch(`/api/dashboard/developers/${id}`)
       .then(res => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
       })
       .then(json => { setData(json); setLoading(false); })
       .catch(err => { setError(err.message); setLoading(false); });
-  }, [id, teamId, userName]);
+  }, [id, authUser]);
 
   return (
     <div className="min-h-screen">
@@ -244,8 +243,18 @@ export default function DeveloperDetailPage() {
 
           {/* Tab content */}
           <div className="animate-section">
+            {activeTab === 'sessions' && (
+              <DeveloperSessionsTab
+                sessions={data.sessions}
+                stats={{
+                  totalAiCost: data.stats.totalAiCost,
+                  avgPromptScore: data.stats.avgPromptScore,
+                  sessionsThisWeek: data.stats.sessionsThisWeek,
+                }}
+              />
+            )}
             {activeTab === 'timeline' && (
-              <DeveloperTimeline developerId={id} teamId={teamId} userName={userName} />
+              <DeveloperTimeline developerId={id} />
             )}
             {activeTab === 'work' && (
               <DeveloperWorkTab
@@ -266,6 +275,10 @@ export default function DeveloperDetailPage() {
                 sessions={data.sessions}
                 modelUsage={data.modelUsage}
                 antiPatterns={data.antiPatterns}
+                costTrend={data.costTrend}
+                tokenStats={data.tokenStats}
+                usageByDayOfWeek={data.usageByDayOfWeek}
+                scoreTrend={data.scoreTrend}
                 stats={{
                   totalAiCost: data.stats.totalAiCost,
                   avgPromptScore: data.stats.avgPromptScore,

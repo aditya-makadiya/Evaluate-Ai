@@ -13,10 +13,13 @@ CREATE TABLE IF NOT EXISTS teams (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   slug TEXT UNIQUE NOT NULL,
+  team_code TEXT UNIQUE,
   owner_id UUID REFERENCES auth.users(id),
   settings JSONB DEFAULT '{}',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_teams_team_code ON teams(team_code);
 
 -- ================================================================
 -- TEAM MEMBERS
@@ -291,6 +294,23 @@ CREATE TABLE IF NOT EXISTS config (
 );
 
 -- ================================================================
+-- CLI TOKENS (for CLI → Dashboard API auth)
+-- ================================================================
+CREATE TABLE IF NOT EXISTS cli_tokens (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  member_id UUID NOT NULL REFERENCES team_members(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL UNIQUE,
+  token_prefix TEXT NOT NULL,
+  name TEXT DEFAULT 'CLI',
+  last_used_at TIMESTAMPTZ,
+  expires_at TIMESTAMPTZ,
+  revoked_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ================================================================
 -- INDEXES
 -- ================================================================
 CREATE INDEX IF NOT EXISTS idx_team_members_team ON team_members(team_id);
@@ -314,6 +334,8 @@ CREATE INDEX IF NOT EXISTS idx_timeline_dev ON activity_timeline(developer_id, o
 CREATE INDEX IF NOT EXISTS idx_timeline_team ON activity_timeline(team_id, occurred_at DESC);
 CREATE INDEX IF NOT EXISTS idx_timeline_type ON activity_timeline(team_id, event_type, occurred_at DESC);
 CREATE INDEX IF NOT EXISTS idx_config_team ON config(team_id, key);
+CREATE INDEX IF NOT EXISTS idx_cli_tokens_hash ON cli_tokens(token_hash);
+CREATE INDEX IF NOT EXISTS idx_cli_tokens_user ON cli_tokens(user_id);
 
 -- ================================================================
 -- AUTO-UPDATE updated_at

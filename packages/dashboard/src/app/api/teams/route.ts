@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getSupabaseServer } from '@/lib/supabase-ssr';
 import { getSupabaseAdmin } from '@/lib/supabase-server';
 
 function slugify(name: string): string {
@@ -10,15 +11,22 @@ function slugify(name: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
-function getUserIdFromRequest(request: Request): string | null {
-  const header = request.headers.get('x-user-id');
-  return header ?? null;
+function generateTeamCode(name: string): string {
+  const prefix = name
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '')
+    .slice(0, 4)
+    || 'TEAM';
+  const suffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+  return `${prefix}-${suffix}`;
 }
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
-    const userId = getUserIdFromRequest(request);
-    if (!userId) {
+    const supabase = await getSupabaseServer();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -28,7 +36,7 @@ export async function GET(request: Request) {
     const { data: memberships, error: memberError } = await admin
       .from('team_members')
       .select('team_id, role')
-      .eq('user_id', userId);
+      .eq('user_id', user.id);
 
     if (memberError) {
       return NextResponse.json({ error: memberError.message }, { status: 500 });
@@ -64,6 +72,7 @@ export async function GET(request: Request) {
           id: team.id,
           name: team.name,
           slug: team.slug,
+          teamCode: team.team_code,
           createdAt: team.created_at,
           memberCount: count ?? 0,
           currentUserRole: membership?.role ?? null,
@@ -80,8 +89,10 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const userId = getUserIdFromRequest(request);
-    if (!userId) {
+    const supabase = await getSupabaseServer();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -96,11 +107,12 @@ export async function POST(request: Request) {
 
     const admin = getSupabaseAdmin();
     const slug = slugify(name);
+    const teamCode = generateTeamCode(name);
 
-    // Create team
+    // Create team with team_code
     const { data: team, error: teamError } = await admin
       .from('teams')
-      .insert({ name, slug })
+      .insert({ name, slug, team_code: teamCode })
       .select()
       .single();
 
@@ -113,7 +125,9 @@ export async function POST(request: Request) {
       .from('team_members')
       .insert({
         team_id: team.id,
-        user_id: userId,
+        user_id: user.id,
+        email: user.email,
+        name: user.user_metadata?.name ?? user.email,
         role: 'owner',
       })
       .select()
@@ -128,6 +142,7 @@ export async function POST(request: Request) {
         id: team.id,
         name: team.name,
         slug: team.slug,
+        teamCode: team.team_code,
         createdAt: team.created_at,
       },
       member: {

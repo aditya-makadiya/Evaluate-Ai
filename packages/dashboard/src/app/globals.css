@@ -310,3 +310,27 @@ body::before {
 .animate-section:nth-child(3) { animation-delay: 160ms; }
 .animate-section:nth-child(4) { animation-delay: 240ms; }
 .animate-section:nth-child(5) { animation-delay: 320ms; }
+
+/* ──────────────────────────────────────────────
+   Recharts Tooltip Dark Mode Fix
+   ────────────────────────────────────────────── */
+.recharts-tooltip-wrapper .recharts-default-tooltip {
+  background-color: var(--bg-card) !important;
+  border-color: var(--border-primary) !important;
+}
+
+.recharts-tooltip-wrapper .recharts-tooltip-label {
+  color: var(--text-muted) !important;
+}
+
+.recharts-tooltip-wrapper .recharts-tooltip-item {
+  color: var(--text-primary) !important;
+}
+
+.recharts-tooltip-wrapper .recharts-tooltip-item-name {
+  color: var(--text-secondary) !important;
+}
+
+.recharts-tooltip-wrapper .recharts-tooltip-item-value {
+  color: var(--text-primary) !important;
+}

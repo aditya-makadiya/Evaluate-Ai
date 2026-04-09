@@ -17,6 +17,9 @@ import {
   configCommand,
   exportCommand,
   syncCommand,
+  loginCommand,
+  logoutCommand,
+  whoamiCommand,
   CLI_VERSION,
 } from '../dist/index.js';
 
@@ -27,9 +30,16 @@ program
   .version(CLI_VERSION)
   .description('EvaluateAI — AI coding assistant quality analyzer');
 
-// Register commands
+// Auth commands
+program.addCommand(loginCommand);
+program.addCommand(logoutCommand);
+program.addCommand(whoamiCommand);
+
+// Setup & team commands
 program.addCommand(initCommand);
 program.addCommand(teamCommand);
+
+// Data commands
 program.addCommand(statsCommand);
 program.addCommand(sessionsCommand);
 program.addCommand(configCommand);

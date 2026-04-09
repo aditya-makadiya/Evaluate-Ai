@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getAuthContext } from '@/lib/auth';
 import { getSupabaseAdmin } from '@/lib/supabase-server';
 
 interface RouteContext {
@@ -8,13 +9,16 @@ interface RouteContext {
 export async function GET(_request: Request, context: RouteContext) {
   try {
     const { teamId } = await context.params;
-    const admin = getSupabaseAdmin();
+    const ctx = await getAuthContext(teamId);
+    if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { data: members, error } = await admin
+    const supabase = getSupabaseAdmin();
+
+    const { data: members, error } = await supabase
       .from('team_members')
       .select('*')
       .eq('team_id', teamId)
-      .order('created_at', { ascending: true });
+      .order('joined_at', { ascending: true });
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -29,7 +33,7 @@ export async function GET(_request: Request, context: RouteContext) {
       role: m.role,
       githubUsername: m.github_username ?? null,
       evaluateaiInstalled: m.evaluateai_installed ?? false,
-      createdAt: m.created_at,
+      createdAt: m.joined_at,
     }));
 
     return NextResponse.json({ members: formatted });
@@ -42,6 +46,9 @@ export async function GET(_request: Request, context: RouteContext) {
 export async function POST(request: Request, context: RouteContext) {
   try {
     const { teamId } = await context.params;
+    const ctx = await getAuthContext(teamId);
+    if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const { email, name, role, githubUsername } = await request.json();
 
     if (!email || !role) {
@@ -51,10 +58,10 @@ export async function POST(request: Request, context: RouteContext) {
       );
     }
 
-    const admin = getSupabaseAdmin();
+    const supabase = getSupabaseAdmin();
 
     // Check if member already exists in this team
-    const { data: existing } = await admin
+    const { data: existing } = await supabase
       .from('team_members')
       .select('id')
       .eq('team_id', teamId)
@@ -76,7 +83,7 @@ export async function POST(request: Request, context: RouteContext) {
     if (name) insertData.name = name;
     if (githubUsername) insertData.github_username = githubUsername;
 
-    const { data: member, error } = await admin
+    const { data: member, error } = await supabase
       .from('team_members')
       .insert(insertData)
       .select()

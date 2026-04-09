@@ -1,21 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabase } from '@/lib/supabase';
-
-function getTeamId(request: NextRequest): string | null {
-  return request.nextUrl.searchParams.get('team_id')
-    || request.headers.get('x-team-id')
-    || null;
-}
+import { getAuthContext } from '@/lib/auth';
+import { getSupabaseAdmin } from '@/lib/supabase-server';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const teamId = getTeamId(request);
 
   try {
-    const supabase = getSupabase();
+    const ctx = await getAuthContext();
+    if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const teamId = ctx.teamId;
+    const supabase = getSupabaseAdmin();
 
     let sessionQuery = supabase
       .from('ai_sessions')
@@ -28,12 +26,28 @@ export async function GET(
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
+    // RBAC: Developers can only view their own sessions
+    if (ctx.role === 'developer' && session.developer_id !== ctx.memberId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // Fetch developer name for back-navigation breadcrumb
+    let developerName: string | null = null;
+    if (session.developer_id) {
+      const { data: memberRow } = await supabase
+        .from('team_members')
+        .select('name')
+        .eq('id', session.developer_id)
+        .single();
+      developerName = memberRow?.name ?? null;
+    }
+
     const [{ data: turnsData }, { data: toolEventsData }] = await Promise.all([
       supabase
         .from('ai_turns')
         .select('*')
         .eq('session_id', id)
-        .order('turn_number', { ascending: true }),
+        .order('created_at', { ascending: true }),
       supabase
         .from('ai_tool_events')
         .select('*')
@@ -62,7 +76,7 @@ export async function GET(
       gitBranch: session.git_branch,
       startedAt: session.started_at,
       endedAt: session.ended_at,
-      totalTurns: session.total_turns,
+      totalTurns: (turnsData ?? []).length || session.total_turns,
       totalInputTokens: session.total_input_tokens,
       totalOutputTokens: session.total_output_tokens,
       totalCostUsd: session.total_cost_usd,
@@ -73,12 +87,15 @@ export async function GET(
       tokenWasteRatio: session.token_waste_ratio,
       contextPeakPct: session.context_peak_pct,
       analyzedAt: session.analyzed_at,
+      developerId: session.developer_id,
+      developerName,
     };
 
     // Transform turns to camelCase, parse JSONB fields
-    const parsedTurns = (turnsData ?? []).map(t => ({
+    // Use position-based turn numbers (1-indexed) to handle duplicate turn_number values
+    const parsedTurns = (turnsData ?? []).map((t, idx) => ({
       id: t.id,
-      turnNumber: t.turn_number,
+      turnNumber: idx + 1,
       promptText: t.prompt_text,
       promptHash: t.prompt_hash,
       promptTokensEst: t.prompt_tokens_est,
