@@ -68,26 +68,26 @@ function PatternRow({ pattern, count, rank }: PatternRowProps) {
         onClick={() => setExpanded(!expanded)}
         className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-white/[0.03]"
       >
-        <span className="text-xs font-medium text-[var(--text-muted)] w-4 text-right tabular-nums">
+        <span className="text-xs font-medium text-text-muted w-4 text-right tabular-nums">
           {rank}
         </span>
         <span className={`h-2 w-2 shrink-0 rounded-full ${config.dot}`} />
-        <span className="min-w-0 flex-1 truncate text-sm text-[var(--text-primary)]">
+        <span className="min-w-0 flex-1 truncate text-sm text-text-primary">
           {pattern}
         </span>
         <span
-          className={`shrink-0 rounded-md px-2 py-0.5 text-[10px] font-semibold tabular-nums ${config.bg} text-[var(--text-secondary)]`}
+          className={`shrink-0 rounded-md px-2 py-0.5 text-[10px] font-semibold tabular-nums ${config.bg} text-text-secondary`}
         >
           {count}
         </span>
         {expanded ? (
-          <ChevronDown className="h-3 w-3 shrink-0 text-[var(--text-muted)]" />
+          <ChevronDown className="h-3 w-3 shrink-0 text-text-muted" />
         ) : (
-          <ChevronRight className="h-3 w-3 shrink-0 text-[var(--text-muted)]" />
+          <ChevronRight className="h-3 w-3 shrink-0 text-text-muted" />
         )}
       </button>
       {expanded && (
-        <div className="ml-[52px] mr-3 mb-1 rounded-md bg-white/[0.02] border border-[var(--border-primary)] px-3 py-2 text-xs text-[var(--text-secondary)] leading-relaxed">
+        <div className="ml-[52px] mr-3 mb-1 rounded-md bg-white/[0.02] border border-border-primary px-3 py-2 text-xs text-text-secondary leading-relaxed">
           <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${config.bg} ${severity === 'high' ? 'text-red-400' : severity === 'medium' ? 'text-yellow-400' : 'text-blue-400'} mr-2 mb-1`}>
             {config.label} severity
           </span>
@@ -104,13 +104,13 @@ export function AntiPatternList({ patterns }: AntiPatternListProps) {
   return (
     <div className="card">
       <div className="mb-4 flex items-center gap-2">
-        <AlertTriangle className="h-4 w-4 text-[var(--score-warning)]" />
-        <h3 className="text-sm font-medium text-[var(--text-primary)]">Top Issues</h3>
+        <AlertTriangle className="h-4 w-4 text-score-warning" />
+        <h3 className="text-sm font-medium text-text-primary">Top Issues</h3>
       </div>
       {sorted.length === 0 ? (
         <div className="flex flex-col items-center py-8 text-center">
-          <p className="text-sm text-[var(--text-muted)]">No anti-patterns detected yet.</p>
-          <p className="mt-1 text-xs text-[var(--text-muted)]">
+          <p className="text-sm text-text-muted">No anti-patterns detected yet.</p>
+          <p className="mt-1 text-xs text-text-muted">
             Great job, or just getting started!
           </p>
         </div>

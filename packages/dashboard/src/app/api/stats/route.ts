@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getAuthContext } from '@/lib/auth';
 import { getSupabaseAdmin } from '@/lib/supabase-server';
 
@@ -51,7 +51,7 @@ async function periodStats(teamId: string, fromDate: string, toDate: string): Pr
 
 const emptyStats = { sessions: 0, turns: 0, tokens: 0, cost: 0, avgScore: null, efficiency: null };
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const ctx = await getAuthContext();
     if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

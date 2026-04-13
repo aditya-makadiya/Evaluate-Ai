@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { useAuth } from '@/components/auth-provider';
 import Link from 'next/link';
@@ -149,9 +149,8 @@ export default function DeveloperDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('sessions');
 
-  useEffect(() => {
+  const fetchDeveloper = useCallback(() => {
     if (!authUser) return;
-    setLoading(true);
     fetch(`/api/dashboard/developers/${id}`)
       .then(res => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -161,13 +160,17 @@ export default function DeveloperDetailPage() {
       .catch(err => { setError(err.message); setLoading(false); });
   }, [id, authUser]);
 
+  useEffect(() => {
+    fetchDeveloper();
+  }, [fetchDeveloper]);
+
   return (
     <div className="min-h-screen">
       {/* Back link */}
       <div className="mb-4 animate-section">
         <Link
           href="/dashboard/developers"
-          className="inline-flex items-center gap-1.5 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+          className="inline-flex items-center gap-1.5 text-sm text-text-muted hover:text-text-primary transition-colors"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           Back to developers
@@ -192,7 +195,7 @@ export default function DeveloperDetailPage() {
               </div>
               <div>
                 <div className="flex items-center gap-3">
-                  <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
+                  <h1 className="text-2xl font-bold tracking-tight text-text-primary">
                     {data.developer.name}
                   </h1>
                   {data.developer.evaluateaiInstalled ? (
@@ -202,9 +205,9 @@ export default function DeveloperDetailPage() {
                   )}
                 </div>
                 <div className="flex items-center gap-3 mt-1">
-                  <span className="text-sm text-[var(--text-muted)]">{data.developer.role ?? 'Developer'}</span>
+                  <span className="text-sm text-text-muted">{data.developer.role ?? 'Developer'}</span>
                   {data.developer.githubUsername && (
-                    <span className="flex items-center gap-1 text-xs text-[var(--text-muted)]">
+                    <span className="flex items-center gap-1 text-xs text-text-muted">
                       <Github className="h-3 w-3" />
                       {data.developer.githubUsername}
                     </span>
@@ -220,13 +223,13 @@ export default function DeveloperDetailPage() {
           </header>
 
           {/* Tabs */}
-          <div className="animate-section mb-6 border-b border-[var(--border-primary)]">
+          <div className="animate-section mb-6 border-b border-border-primary">
             <div className="flex gap-0">
               {TABS.map(tab => {
                 const isActive = activeTab === tab.key;
                 const tabClasses = isActive
-                  ? 'text-[var(--text-primary)] border-b-2 border-[#8b5cf6]'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] border-b-2 border-transparent';
+                  ? 'text-text-primary border-b-2 border-[#8b5cf6]'
+                  : 'text-text-muted hover:text-text-secondary border-b-2 border-transparent';
                 return (
                   <button
                     key={tab.key}

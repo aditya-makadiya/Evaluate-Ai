@@ -25,7 +25,7 @@ export function HeroSection() {
         />
 
         {/* Gradient fade at bottom */}
-        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[var(--bg-primary)] to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-bg-primary to-transparent" />
       </div>
 
       <div className="relative z-10 max-w-5xl mx-auto px-6 text-center">
@@ -39,7 +39,7 @@ export function HeroSection() {
 
         {/* Headline */}
         <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold tracking-tight leading-[1.1] mb-6 animate-[slideUp_0.6s_ease-out_0.1s_both]">
-          <span className="bg-gradient-to-r from-[var(--text-primary)] via-[var(--text-primary)] to-[var(--text-secondary)] bg-clip-text text-transparent">
+          <span className="bg-gradient-to-r from-text-primary via-text-primary to-text-secondary bg-clip-text text-transparent">
             Know What Your Team Ships.
           </span>
           <br />
@@ -49,7 +49,7 @@ export function HeroSection() {
         </h1>
 
         {/* Subheadline */}
-        <p className="text-lg md:text-xl text-[var(--text-secondary)] max-w-2xl mx-auto mb-10 leading-relaxed animate-[slideUp_0.6s_ease-out_0.2s_both]">
+        <p className="text-lg md:text-xl text-text-secondary max-w-2xl mx-auto mb-10 leading-relaxed animate-[slideUp_0.6s_ease-out_0.2s_both]">
           Connect meetings, GitHub, and AI tools to see the real picture.
           Track developer productivity with zero manual reporting.
         </p>
@@ -65,7 +65,7 @@ export function HeroSection() {
           </Link>
           <a
             href="#features"
-            className="group flex items-center gap-2 border border-[var(--border-primary)] bg-white/[0.03] backdrop-blur-sm rounded-xl px-8 py-3.5 text-base font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-hover)] hover:bg-white/[0.06] transition-all"
+            className="group flex items-center gap-2 border border-border-primary bg-white/[0.03] backdrop-blur-sm rounded-xl px-8 py-3.5 text-base font-medium text-text-secondary hover:text-text-primary hover:border-border-hover hover:bg-white/[0.06] transition-all"
           >
             <Play className="h-4 w-4" />
             See Demo
@@ -73,7 +73,7 @@ export function HeroSection() {
         </div>
 
         {/* Trust signal */}
-        <p className="text-xs text-[var(--text-muted)] mt-6 animate-[slideUp_0.6s_ease-out_0.4s_both]">
+        <p className="text-xs text-text-muted mt-6 animate-[slideUp_0.6s_ease-out_0.4s_both]">
           No credit card required &middot; Free for up to 3 developers
         </p>
       </div>

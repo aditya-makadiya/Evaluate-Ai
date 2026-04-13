@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth-provider';
 import {
   Calendar,
@@ -20,7 +20,6 @@ import {
 import MeetingDetailPanel, {
   type Meeting,
   type OverallStats,
-  STATUS_FLOW,
 } from '@/components/meetings/meeting-detail-panel';
 
 // ═══════════════════════════════════════
@@ -29,7 +28,7 @@ import MeetingDetailPanel, {
 
 function StatsRow({ stats }: { stats: OverallStats }) {
   const items = [
-    { label: 'Meetings', value: stats.totalMeetings, icon: Calendar, accent: 'text-[var(--accent-purple)]' },
+    { label: 'Meetings', value: stats.totalMeetings, icon: Calendar, accent: 'text-accent-purple' },
     { label: 'Action Items', value: stats.totalTasks, icon: CheckCircle2, accent: 'text-sky-400' },
     { label: 'Completed', value: stats.completedTasks, icon: TrendingUp, accent: 'text-emerald-400' },
     { label: 'Delivery', value: `${stats.deliveryRate}%`, icon: ArrowUpRight, accent: stats.deliveryRate >= 70 ? 'text-emerald-400' : stats.deliveryRate >= 40 ? 'text-amber-400' : 'text-red-400', sub: `${stats.completedTasks}/${stats.totalTasks}` },
@@ -39,13 +38,13 @@ function StatsRow({ stats }: { stats: OverallStats }) {
       {items.map((c) => {
         const Icon = c.icon;
         return (
-          <div key={c.label} className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-xl p-4 hover:border-[var(--border-hover)] transition-colors">
+          <div key={c.label} className="bg-bg-card border border-border-primary rounded-xl p-4 hover:border-border-hover transition-colors">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">{c.label}</span>
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-text-muted">{c.label}</span>
               <Icon className={`h-3.5 w-3.5 ${c.accent} opacity-60`} />
             </div>
-            <p className="text-xl font-bold text-[var(--text-primary)] tracking-tight">{c.value}</p>
-            {'sub' in c && c.sub && <p className="text-[10px] text-[var(--text-muted)] mt-0.5">{c.sub}</p>}
+            <p className="text-xl font-bold text-text-primary tracking-tight">{c.value}</p>
+            {'sub' in c && c.sub && <p className="text-[10px] text-text-muted mt-0.5">{c.sub}</p>}
           </div>
         );
       })}
@@ -73,10 +72,10 @@ function MeetingListItem({ meeting, isSelected, onSelect }: {
   return (
     <div
       onClick={onSelect}
-      className={`group flex items-center gap-3 px-4 py-3 cursor-pointer border-b border-[var(--border-primary)] transition-colors ${
+      className={`group flex items-center gap-3 px-4 py-3 cursor-pointer border-b border-border-primary transition-colors ${
         isSelected
-          ? 'bg-[var(--accent-purple)]/5 border-l-2 border-l-[var(--accent-purple)]'
-          : 'border-l-2 border-l-transparent hover:bg-[var(--bg-elevated)]/40'
+          ? 'bg-accent-purple/5 border-l-2 border-l-accent-purple'
+          : 'border-l-2 border-l-transparent hover:bg-bg-elevated/40'
       }`}
     >
       {/* Status indicator */}
@@ -86,19 +85,19 @@ function MeetingListItem({ meeting, isSelected, onSelect }: {
         ) : someInProgress ? (
           <CircleDot className="h-4 w-4 text-sky-400" />
         ) : (
-          <Circle className="h-4 w-4 text-[var(--text-muted)]" />
+          <Circle className="h-4 w-4 text-text-muted" />
         )}
       </div>
 
       {/* Title & meta */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="text-[13px] font-medium text-[var(--text-primary)] truncate">{meeting.title}</span>
-          <span className="text-[9px] font-semibold uppercase tracking-wider text-[var(--accent-purple)] bg-[var(--accent-purple)]/10 rounded px-1.5 py-0.5 shrink-0">
+          <span className="text-[13px] font-medium text-text-primary truncate">{meeting.title}</span>
+          <span className="text-[9px] font-semibold uppercase tracking-wider text-accent-purple bg-accent-purple/10 rounded px-1.5 py-0.5 shrink-0">
             {meeting.source}
           </span>
         </div>
-        <div className="flex items-center gap-3 mt-0.5 text-[11px] text-[var(--text-muted)]">
+        <div className="flex items-center gap-3 mt-0.5 text-[11px] text-text-muted">
           <span className="flex items-center gap-1">
             <Calendar className="h-3 w-3 opacity-60" />
             {new Date(meeting.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
@@ -118,11 +117,11 @@ function MeetingListItem({ meeting, isSelected, onSelect }: {
       <div className="flex items-center gap-3 shrink-0">
         {hasTasks ? (
           <>
-            <span className="text-[10px] text-[var(--text-muted)]">{tasksDone}/{tasksTotal} tasks</span>
+            <span className="text-[10px] text-text-muted">{tasksDone}/{tasksTotal} tasks</span>
             <span className={`text-sm font-bold ${deliveryColor} min-w-[40px] text-right`}>{meeting.stats.deliveryRate}%</span>
           </>
         ) : (
-          <span className="text-[11px] text-[var(--text-muted)] opacity-60">No tasks</span>
+          <span className="text-[11px] text-text-muted opacity-60">No tasks</span>
         )}
       </div>
     </div>
@@ -137,11 +136,11 @@ function LoadingSkeleton() {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
-        {[...Array(4)].map((_, i) => <div key={i} className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-xl p-4"><div className="h-3 shimmer rounded w-14 mb-3" /><div className="h-6 shimmer rounded w-10" /></div>)}
+        {[...Array(4)].map((_, i) => <div key={i} className="bg-bg-card border border-border-primary rounded-xl p-4"><div className="h-3 shimmer rounded w-14 mb-3" /><div className="h-6 shimmer rounded w-10" /></div>)}
       </div>
-      <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-xl overflow-hidden">
+      <div className="bg-bg-card border border-border-primary rounded-xl overflow-hidden">
         {[...Array(5)].map((_, i) => (
-          <div key={i} className="flex items-center gap-3 px-4 py-3.5 border-b border-[var(--border-primary)]">
+          <div key={i} className="flex items-center gap-3 px-4 py-3.5 border-b border-border-primary">
             <div className="h-4 w-4 shimmer rounded-full" />
             <div className="flex-1 space-y-1.5">
               <div className="h-3.5 shimmer rounded max-w-sm" />
@@ -159,14 +158,14 @@ function LoadingSkeleton() {
 function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center animate-section">
-      <div className="p-4 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-primary)] mb-5">
-        <Mic className="w-7 h-7 text-[var(--text-muted)]" />
+      <div className="p-4 rounded-2xl bg-bg-card border border-border-primary mb-5">
+        <Mic className="w-7 h-7 text-text-muted" />
       </div>
-      <p className="text-sm font-medium text-[var(--text-primary)]">No meetings yet</p>
-      <p className="text-xs text-[var(--text-muted)] mt-1.5 max-w-sm leading-relaxed">
+      <p className="text-sm font-medium text-text-primary">No meetings yet</p>
+      <p className="text-xs text-text-muted mt-1.5 max-w-sm leading-relaxed">
         Connect Fireflies.ai on the Integrations page to automatically capture meeting transcripts and extract action items.
       </p>
-      <a href="/dashboard/integrations" className="mt-5 inline-flex items-center gap-2 bg-[var(--accent-purple)] hover:bg-[var(--accent-hover)] text-white rounded-lg px-4 py-2.5 text-sm font-medium transition-colors">
+      <a href="/dashboard/integrations" className="mt-5 inline-flex items-center gap-2 bg-accent-purple hover:bg-accent-hover text-white rounded-lg px-4 py-2.5 text-sm font-medium transition-colors">
         <Mic className="h-4 w-4" /> Connect Fireflies
       </a>
     </div>
@@ -190,7 +189,8 @@ export default function MeetingsPage() {
   const [extracting, setExtracting] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  async function fetchMeetings() {
+  const fetchMeetings = useCallback(async () => {
+    if (!teamId) { setLoading(false); return; }
     try {
       const res = await fetch(`/api/dashboard/meetings?team_id=${teamId}&limit=50`);
       if (!res.ok) throw new Error('Failed to fetch meetings');
@@ -202,7 +202,7 @@ export default function MeetingsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [teamId]);
 
   async function handleSync() {
     setSyncing(true); setSyncMsg(null); setError(null);
@@ -263,10 +263,8 @@ export default function MeetingsPage() {
   }, [meetings]);
 
   useEffect(() => {
-    if (!teamId) { setLoading(false); return; }
     fetchMeetings();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [teamId]);
+  }, [fetchMeetings]);
 
   const selectedMeeting = meetings.find((m) => m.id === selectedId) ?? null;
 
@@ -276,24 +274,24 @@ export default function MeetingsPage() {
       <header className="mb-5 flex items-start justify-between animate-section">
         <div>
           <div className="flex items-center gap-3 mb-0.5">
-            <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">Meetings</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-text-primary">Meetings</h1>
             {overallStats.totalMeetings > 0 && (
-              <span className="text-[11px] font-medium text-[var(--text-muted)] bg-[var(--bg-elevated)] border border-[var(--border-primary)] rounded-md px-2 py-0.5">{overallStats.totalMeetings}</span>
+              <span className="text-[11px] font-medium text-text-muted bg-bg-elevated border border-border-primary rounded-md px-2 py-0.5">{overallStats.totalMeetings}</span>
             )}
           </div>
-          <p className="text-sm text-[var(--text-muted)]">Track meeting decisions and task delivery</p>
+          <p className="text-sm text-text-muted">Track meeting decisions and task delivery</p>
         </div>
         {teamId && (
           <div className="flex items-center gap-2">
             {meetings.some((m) => m.stats.totalTasks === 0) && (
               <button onClick={handleReExtract} disabled={extracting}
-                className="flex items-center gap-2 border border-[var(--border-primary)] bg-[var(--bg-card)] hover:bg-[var(--bg-elevated)] disabled:opacity-50 text-[var(--text-secondary)] rounded-lg px-3.5 py-2 text-xs font-medium transition-colors">
+                className="flex items-center gap-2 border border-border-primary bg-bg-card hover:bg-bg-elevated disabled:opacity-50 text-text-secondary rounded-lg px-3.5 py-2 text-xs font-medium transition-colors">
                 <Sparkles className={`h-3.5 w-3.5 ${extracting ? 'animate-pulse' : ''}`} />
                 {extracting ? 'Extracting...' : 'Extract Tasks'}
               </button>
             )}
             <button onClick={handleSync} disabled={syncing}
-              className="flex items-center gap-2 bg-[var(--accent-purple)] hover:bg-[var(--accent-hover)] disabled:opacity-50 text-white rounded-lg px-3.5 py-2 text-xs font-medium transition-colors">
+              className="flex items-center gap-2 bg-accent-purple hover:bg-accent-hover disabled:opacity-50 text-white rounded-lg px-3.5 py-2 text-xs font-medium transition-colors">
               <RefreshCw className={`h-3.5 w-3.5 ${syncing ? 'animate-spin' : ''}`} />
               {syncing ? 'Syncing...' : 'Sync Meetings'}
             </button>
@@ -327,7 +325,7 @@ export default function MeetingsPage() {
 
           <div className="animate-section">
             {/* Split layout: list + detail panel */}
-            <div className="flex gap-0 rounded-xl overflow-hidden border border-[var(--border-primary)] bg-[var(--bg-card)]">
+            <div className="flex gap-0 rounded-xl overflow-hidden border border-border-primary bg-bg-card">
               {/* Meeting list */}
               <div className={`min-w-0 transition-all duration-200 ${selectedMeeting ? 'flex-1' : 'w-full'}`}>
                 <div className="overflow-y-auto max-h-[calc(100vh-340px)]">

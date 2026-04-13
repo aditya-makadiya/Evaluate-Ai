@@ -95,7 +95,7 @@ export async function GET() {
 
     // Build developer name lookup from team members
     const timelineDevIds = [...new Set((timelineData ?? []).map(e => e.developer_id).filter(Boolean))];
-    let timelineDevNames: Record<string, string> = {};
+    const timelineDevNames: Record<string, string> = {};
     if (timelineDevIds.length > 0) {
       const { data: devRows } = await supabase
         .from('team_members')

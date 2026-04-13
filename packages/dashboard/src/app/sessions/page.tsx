@@ -26,8 +26,8 @@ export default function SessionsRedirect() {
   }, [user, router]);
 
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
-      <div className="animate-pulse text-sm text-[var(--text-muted)]">Redirecting...</div>
+    <div className="min-h-screen bg-bg-primary flex items-center justify-center">
+      <div className="animate-pulse text-sm text-text-muted">Redirecting...</div>
     </div>
   );
 }

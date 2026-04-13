@@ -6,7 +6,6 @@ export { statsCommand } from './commands/stats.js';
 export { sessionsCommand } from './commands/sessions.js';
 export { configCommand } from './commands/config.js';
 export { exportCommand } from './commands/export.js';
-export { syncCommand } from './commands/sync.js';
 export { loginCommand } from './commands/login.js';
 export { logoutCommand } from './commands/logout.js';
 export { whoamiCommand } from './commands/whoami.js';

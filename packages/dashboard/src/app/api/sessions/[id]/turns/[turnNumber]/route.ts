@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthContext } from '@/lib/auth';
 import { getSupabaseAdmin } from '@/lib/supabase-server';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { execSync } from 'node:child_process';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 
@@ -93,7 +94,6 @@ function findTranscriptFile(sessionId: string): string | null {
   } catch { /* ignore */ }
 
   try {
-    const { execSync } = require('node:child_process');
     const result = execSync(
       `find "${claudeProjectsDir}" -name "${sessionId}.jsonl" -maxdepth 3 2>/dev/null | head -1`,
       { encoding: 'utf-8', timeout: 2000 }
@@ -256,8 +256,8 @@ function generateImprovement(
   scoreBreakdown: ScoreBreakdown | null,
   promptTokensEst: number | null
 ) {
-  let antiPatternIds: string[] = [];
-  let antiPatternObjects: AntiPatternItem[] = [];
+  const antiPatternIds: string[] = [];
+  const antiPatternObjects: AntiPatternItem[] = [];
 
   if (Array.isArray(antiPatternsRaw)) {
     for (const ap of antiPatternsRaw) {
@@ -338,15 +338,6 @@ export async function GET(
     }
 
     const supabase = getSupabaseAdmin();
-
-    // Fetch turn data — use limit(1) + order to handle duplicate turn_numbers
-    const { data: turns, error: turnErr } = await supabase
-      .from('ai_turns')
-      .select('*')
-      .eq('session_id', id)
-      .eq('turn_number', turnNumber)
-      .order('created_at', { ascending: false })
-      .limit(1);
 
     // Fetch all turns for this session ordered by created_at and pick by position.
     // We use position-based lookup because turn_number values can be duplicated

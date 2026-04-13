@@ -149,28 +149,28 @@ export default function TeamPage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Team Management</h1>
-        <p className="text-sm text-[var(--text-secondary)] mt-1">
+        <p className="text-sm text-text-secondary mt-1">
           {authUser.teamName}
         </p>
       </div>
 
       {/* Team Code Section */}
-      <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-6">
+      <div className="bg-bg-card border border-border-primary rounded-lg p-6">
         <div className="flex items-center gap-2 mb-4">
           <Hash className="h-4 w-4 text-purple-400" />
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-text-secondary">
             Team Code
           </h2>
         </div>
 
-        <p className="text-xs text-[var(--text-muted)] mb-4">
+        <p className="text-xs text-text-muted mb-4">
           Share this code with developers so they can join your team during signup.
         </p>
 
         <div className="flex items-center gap-3">
-          <div className="flex-1 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg px-4 py-3">
+          <div className="flex-1 bg-bg-secondary border border-border-primary rounded-lg px-4 py-3">
             {loading ? (
-              <div className="h-7 bg-[var(--bg-elevated)] rounded w-32 animate-pulse" />
+              <div className="h-7 bg-bg-elevated rounded w-32 animate-pulse" />
             ) : (
               <code className="text-xl font-mono font-bold text-purple-400 tracking-widest">
                 {teamCode || 'N/A'}
@@ -180,7 +180,7 @@ export default function TeamPage() {
           <button
             onClick={() => copyToClipboard(teamCode, setCopiedCode)}
             disabled={!teamCode}
-            className="h-11 w-11 shrink-0 flex items-center justify-center rounded-lg border border-[var(--border-primary)] bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors disabled:opacity-50"
+            className="h-11 w-11 shrink-0 flex items-center justify-center rounded-lg border border-border-primary bg-bg-card text-text-muted hover:text-text-primary hover:bg-bg-elevated transition-colors disabled:opacity-50"
             title="Copy team code"
           >
             {copiedCode ? <Check className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4" />}
@@ -189,7 +189,7 @@ export default function TeamPage() {
             <button
               onClick={handleRegenerateCode}
               disabled={regenerating}
-              className="h-11 w-11 shrink-0 flex items-center justify-center rounded-lg border border-[var(--border-primary)] bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors disabled:opacity-50"
+              className="h-11 w-11 shrink-0 flex items-center justify-center rounded-lg border border-border-primary bg-bg-card text-text-muted hover:text-text-primary hover:bg-bg-elevated transition-colors disabled:opacity-50"
               title="Regenerate team code"
             >
               <RefreshCw className={`h-4 w-4 ${regenerating ? 'animate-spin' : ''}`} />
@@ -199,11 +199,11 @@ export default function TeamPage() {
       </div>
 
       {/* Members Section */}
-      <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-6">
+      <div className="bg-bg-card border border-border-primary rounded-lg p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4 text-purple-400" />
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-text-secondary">
               Members ({members.length})
             </h2>
           </div>
@@ -213,16 +213,16 @@ export default function TeamPage() {
           <div className="space-y-3">
             {[1, 2, 3].map(i => (
               <div key={i} className="flex items-center gap-3 p-3 animate-pulse">
-                <div className="h-9 w-9 rounded-full bg-[var(--bg-elevated)]" />
+                <div className="h-9 w-9 rounded-full bg-bg-elevated" />
                 <div className="flex-1 space-y-1.5">
-                  <div className="h-3.5 bg-[var(--bg-elevated)] rounded w-28" />
-                  <div className="h-3 bg-[var(--bg-elevated)] rounded w-40" />
+                  <div className="h-3.5 bg-bg-elevated rounded w-28" />
+                  <div className="h-3 bg-bg-elevated rounded w-40" />
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <div className="divide-y divide-[var(--border-primary)]">
+          <div className="divide-y divide-border-primary">
             {members.map(member => (
               <div key={member.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
                 <div className="h-9 w-9 rounded-full bg-purple-600/20 border border-purple-500/30 flex items-center justify-center shrink-0">
@@ -232,17 +232,17 @@ export default function TeamPage() {
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-[var(--text-primary)] truncate">
+                  <p className="text-sm font-medium text-text-primary truncate">
                     {member.name}
                   </p>
-                  <p className="text-xs text-[var(--text-muted)] truncate">{member.email}</p>
+                  <p className="text-xs text-text-muted truncate">{member.email}</p>
                 </div>
 
                 <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${roleColors[member.role] || roleColors.developer}`}>
                   {member.role}
                 </span>
 
-                <span className={`text-[10px] px-1.5 py-0.5 rounded ${member.evaluateaiInstalled ? 'bg-green-900/30 text-green-400' : 'bg-[var(--bg-elevated)] text-[var(--text-muted)]'}`}>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded ${member.evaluateaiInstalled ? 'bg-green-900/30 text-green-400' : 'bg-bg-elevated text-text-muted'}`}>
                   {member.evaluateaiInstalled ? 'CLI' : 'No CLI'}
                 </span>
 
@@ -252,7 +252,7 @@ export default function TeamPage() {
                     <button
                       onClick={() => setActiveMenu(activeMenu === member.id ? null : member.id)}
                       disabled={actionLoading === member.id}
-                      className="h-7 w-7 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors"
+                      className="h-7 w-7 flex items-center justify-center rounded text-text-muted hover:text-text-primary hover:bg-bg-elevated transition-colors"
                     >
                       {actionLoading === member.id ? (
                         <div className="h-3 w-3 animate-spin rounded-full border border-purple-400/30 border-t-purple-400" />
@@ -262,11 +262,11 @@ export default function TeamPage() {
                     </button>
 
                     {activeMenu === member.id && (
-                      <div className="absolute right-0 top-8 z-20 w-44 bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg shadow-xl py-1">
+                      <div className="absolute right-0 top-8 z-20 w-44 bg-bg-card border border-border-primary rounded-lg shadow-xl py-1">
                         {isOwner && member.role === 'developer' && (
                           <button
                             onClick={() => handleChangeRole(member.id, 'manager')}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)] transition-colors"
+                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-text-secondary hover:bg-bg-elevated hover:text-text-primary transition-colors"
                           >
                             <Shield className="h-3.5 w-3.5" />
                             Promote to Manager
@@ -275,7 +275,7 @@ export default function TeamPage() {
                         {isOwner && member.role === 'manager' && (
                           <button
                             onClick={() => handleChangeRole(member.id, 'developer')}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)] transition-colors"
+                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-text-secondary hover:bg-bg-elevated hover:text-text-primary transition-colors"
                           >
                             <Shield className="h-3.5 w-3.5" />
                             Demote to Developer
@@ -299,23 +299,23 @@ export default function TeamPage() {
       </div>
 
       {/* CLI Setup Section */}
-      <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-6">
+      <div className="bg-bg-card border border-border-primary rounded-lg p-6">
         <div className="flex items-center gap-2 mb-4">
           <Terminal className="h-4 w-4 text-purple-400" />
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-text-secondary">
             CLI Setup
           </h2>
         </div>
-        <p className="text-xs text-[var(--text-muted)] mb-4">
+        <p className="text-xs text-text-muted mb-4">
           Have developers run this command to get started:
         </p>
-        <div className="flex items-center gap-2 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg px-4 py-3">
+        <div className="flex items-center gap-2 bg-bg-secondary border border-border-primary rounded-lg px-4 py-3">
           <code className="flex-1 text-sm font-mono text-purple-400">
             npm install -g evaluateai && evalai login
           </code>
           <button
             onClick={() => copyToClipboard('npm install -g evaluateai && evalai login', setCopiedInstall)}
-            className="h-8 w-8 shrink-0 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors"
+            className="h-8 w-8 shrink-0 flex items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-elevated transition-colors"
           >
             {copiedInstall ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
           </button>

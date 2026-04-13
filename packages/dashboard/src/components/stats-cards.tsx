@@ -45,11 +45,11 @@ interface CardProps {
 function Card({ label, value, icon, iconColor, trend, delay = 0 }: CardProps) {
   return (
     <div
-      className="group relative rounded-xl border border-[var(--border-primary)] bg-white/[0.03] backdrop-blur-sm p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--border-hover)] hover:shadow-lg hover:shadow-black/20"
+      className="group relative rounded-xl border border-border-primary bg-white/[0.03] backdrop-blur-sm p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-border-hover hover:shadow-lg hover:shadow-black/20"
       style={{ animation: `countUp 0.4s ease-out ${delay}ms both` }}
     >
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
+        <span className="text-xs font-medium uppercase tracking-wider text-text-muted">
           {label}
         </span>
         <div
@@ -59,7 +59,7 @@ function Card({ label, value, icon, iconColor, trend, delay = 0 }: CardProps) {
           {icon}
         </div>
       </div>
-      <div className="mt-3 text-[28px] font-semibold leading-none tracking-tight text-[var(--text-primary)]">
+      <div className="mt-3 text-[28px] font-semibold leading-none tracking-tight text-text-primary">
         {value}
       </div>
       {trend && (
@@ -72,7 +72,7 @@ function Card({ label, value, icon, iconColor, trend, delay = 0 }: CardProps) {
           <span className={trend.positive ? 'font-medium text-emerald-400' : 'font-medium text-red-400'}>
             {trend.value}
           </span>
-          <span className="text-[var(--text-muted)]">vs last week</span>
+          <span className="text-text-muted">vs last week</span>
         </div>
       )}
     </div>

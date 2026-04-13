@@ -47,7 +47,7 @@ export function HowItWorksSection() {
           <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">
             How It Works
           </h2>
-          <p className="text-[var(--text-secondary)] text-lg max-w-xl mx-auto">
+          <p className="text-text-secondary text-lg max-w-xl mx-auto">
             Three steps to complete visibility into your engineering team.
           </p>
         </div>
@@ -65,14 +65,14 @@ export function HowItWorksSection() {
             >
               {/* Connector line */}
               {i < steps.length - 1 && (
-                <div className="hidden md:block absolute top-16 left-[calc(100%_-_12px)] w-[calc(100%_-_80px)] h-px bg-gradient-to-r from-[var(--border-hover)] to-transparent z-0" />
+                <div className="hidden md:block absolute top-16 left-[calc(100%_-_12px)] w-[calc(100%_-_80px)] h-px bg-gradient-to-r from-border-hover to-transparent z-0" />
               )}
 
-              <div className="relative bg-white/[0.03] backdrop-blur-sm border border-[var(--border-primary)] rounded-2xl p-8 hover:border-[var(--border-hover)] transition-all duration-300 hover:bg-white/[0.05] group-hover:shadow-[0_0_40px_var(--glow)]"
+              <div className="relative bg-white/[0.03] backdrop-blur-sm border border-border-primary rounded-2xl p-8 hover:border-border-hover transition-all duration-300 hover:bg-white/[0.05] group-hover:shadow-[0_0_40px_var(--glow)]"
                 style={{ '--glow': step.glow } as React.CSSProperties}
               >
                 {/* Step number */}
-                <span className="text-xs font-mono text-[var(--text-muted)] tracking-wider mb-4 block">
+                <span className="text-xs font-mono text-text-muted tracking-wider mb-4 block">
                   STEP {step.number}
                 </span>
 
@@ -82,10 +82,10 @@ export function HowItWorksSection() {
                 </div>
 
                 <h3 className="text-xl font-semibold mb-2">{step.title}</h3>
-                <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
+                <p className="text-sm text-text-secondary leading-relaxed mb-3">
                   {step.description}
                 </p>
-                <p className="text-xs font-mono text-[var(--text-muted)]">
+                <p className="text-xs font-mono text-text-muted">
                   {step.detail}
                 </p>
               </div>

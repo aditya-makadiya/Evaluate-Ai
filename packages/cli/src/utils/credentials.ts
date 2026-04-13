@@ -54,3 +54,48 @@ export function getApiUrl(): string {
 export function getAuthToken(): string | null {
   return process.env.EVALUATEAI_TOKEN || readCredentials()?.token || null;
 }
+
+export interface VerifyResult {
+  valid: boolean;
+  userId?: string;
+  teamId?: string;
+  teamName?: string;
+  email?: string;
+}
+
+/**
+ * Verify a CLI token against the API.
+ * Returns verification result with user details on success.
+ * Never throws — returns { valid: false } on any failure.
+ */
+export async function verifyToken(token: string): Promise<VerifyResult> {
+  try {
+    const apiUrl = getApiUrl();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+
+    try {
+      const res = await fetch(`${apiUrl}/api/cli/verify`, {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: controller.signal,
+      });
+
+      if (!res.ok) {
+        return { valid: false };
+      }
+
+      const data = await res.json() as Record<string, unknown>;
+      return {
+        valid: true,
+        userId: (data.userId as string) || undefined,
+        teamId: (data.teamId as string) || undefined,
+        teamName: (data.teamName as string) || undefined,
+        email: (data.email as string) || undefined,
+      };
+    } finally {
+      clearTimeout(timer);
+    }
+  } catch {
+    return { valid: false };
+  }
+}

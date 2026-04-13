@@ -45,15 +45,15 @@ function SectionCard({
   description?: string;
 }) {
   return (
-    <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-6 hover:border-[var(--border-hover)] transition-colors">
+    <div className="bg-bg-card border border-border-primary rounded-lg p-6 hover:border-border-hover transition-colors">
       <div className="flex items-center gap-3 mb-1">
-        <div className="w-8 h-8 rounded-lg bg-[var(--bg-elevated)] flex items-center justify-center flex-shrink-0">
+        <div className="w-8 h-8 rounded-lg bg-bg-elevated flex items-center justify-center flex-shrink-0">
           {icon}
         </div>
-        <h3 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">{title}</h3>
+        <h3 className="text-sm font-semibold text-text-primary uppercase tracking-wider">{title}</h3>
       </div>
       {description && (
-        <p className="text-xs text-[var(--text-muted)] mb-4 ml-11">{description}</p>
+        <p className="text-xs text-text-muted mb-4 ml-11">{description}</p>
       )}
       <div className="mt-4">{children}</div>
     </div>
@@ -82,7 +82,7 @@ function RadioOption({
       className={`flex items-start gap-3.5 cursor-pointer group p-3.5 rounded-lg border transition-all ${
         selected
           ? 'bg-purple-900/10 border-purple-800/40'
-          : 'bg-transparent border-transparent hover:bg-[var(--bg-elevated)]'
+          : 'bg-transparent border-transparent hover:bg-bg-elevated'
       }`}
     >
       <div className="mt-0.5 flex-shrink-0">
@@ -90,7 +90,7 @@ function RadioOption({
           className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${
             selected
               ? 'border-purple-500 bg-purple-500'
-              : 'border-[var(--border-hover)] group-hover:border-[var(--text-muted)]'
+              : 'border-border-hover group-hover:border-text-muted'
           }`}
         >
           {selected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
@@ -105,10 +105,10 @@ function RadioOption({
         className="sr-only"
       />
       <div>
-        <span className={`text-sm font-medium transition-colors ${selected ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]'}`}>
+        <span className={`text-sm font-medium transition-colors ${selected ? 'text-text-primary' : 'text-text-secondary group-hover:text-text-primary'}`}>
           {label}
         </span>
-        <p className="text-xs text-[var(--text-muted)] mt-0.5 leading-relaxed">{description}</p>
+        <p className="text-xs text-text-muted mt-0.5 leading-relaxed">{description}</p>
       </div>
     </label>
   );
@@ -262,10 +262,10 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[var(--bg-primary)] p-6 lg:p-8 flex items-center justify-center">
+      <div className="min-h-screen bg-bg-primary p-6 lg:p-8 flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
-          <span className="text-sm text-[var(--text-muted)]">Loading settings...</span>
+          <span className="text-sm text-text-muted">Loading settings...</span>
         </div>
       </div>
     );
@@ -273,9 +273,9 @@ export default function SettingsPage() {
 
   if (error || !config) {
     return (
-      <div className="min-h-screen bg-[var(--bg-primary)] p-6 lg:p-8">
+      <div className="min-h-screen bg-bg-primary p-6 lg:p-8">
         <div className="max-w-3xl mx-auto">
-          <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-4">Settings</h1>
+          <h1 className="text-2xl font-bold text-text-primary mb-4">Settings</h1>
           <div className="bg-red-900/20 border border-red-800/50 rounded-lg p-5 text-red-300 text-sm">
             Failed to load settings: {error ?? 'Unknown error'}
           </div>
@@ -285,7 +285,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)] p-6 lg:p-8 relative">
+    <div className="min-h-screen bg-bg-primary p-6 lg:p-8 relative">
       {/* Toast notification */}
       {toast && (
         <div
@@ -313,9 +313,9 @@ export default function SettingsPage() {
               <div className="w-9 h-9 rounded-lg bg-purple-900/30 flex items-center justify-center">
                 <Settings className="w-5 h-5 text-purple-400" />
               </div>
-              <h1 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">Settings</h1>
+              <h1 className="text-2xl font-bold text-text-primary tracking-tight">Settings</h1>
             </div>
-            <p className="text-sm text-[var(--text-muted)] mt-2 ml-12">Configure EvaluateAI behavior and preferences</p>
+            <p className="text-sm text-text-muted mt-2 ml-12">Configure EvaluateAI behavior and preferences</p>
           </div>
           <button
             onClick={handleSave}
@@ -401,8 +401,8 @@ export default function SettingsPage() {
             <div>
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-[var(--text-primary)]">{config.threshold}</span>
-                  <span className="text-sm text-[var(--text-muted)]">/ 100</span>
+                  <span className="text-3xl font-bold text-text-primary">{config.threshold}</span>
+                  <span className="text-sm text-text-muted">/ 100</span>
                 </div>
               </div>
               <div className="relative">
@@ -412,7 +412,7 @@ export default function SettingsPage() {
                   max={100}
                   value={config.threshold}
                   onChange={(e) => updateConfig('threshold', Number(e.target.value))}
-                  className="w-full h-2 bg-[var(--bg-elevated)] rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-purple-500 [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-[var(--bg-card)] [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:transition-all [&::-webkit-slider-thumb]:hover:bg-purple-400"
+                  className="w-full h-2 bg-bg-elevated rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-purple-500 [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-bg-card [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:transition-all [&::-webkit-slider-thumb]:hover:bg-purple-400"
                 />
                 {/* Track fill */}
                 <div
@@ -420,7 +420,7 @@ export default function SettingsPage() {
                   style={{ width: `${config.threshold}%` }}
                 />
               </div>
-              <div className="flex justify-between text-[11px] text-[var(--text-muted)] mt-2 font-medium">
+              <div className="flex justify-between text-[11px] text-text-muted mt-2 font-medium">
                 <span>0 (never)</span>
                 <span>50</span>
                 <span>100 (always)</span>
@@ -442,7 +442,7 @@ export default function SettingsPage() {
                     Copy this token now — it won&apos;t be shown again
                   </p>
                   <div className="flex items-center gap-2">
-                    <code className="flex-1 text-xs font-mono text-[var(--text-primary)] bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded px-3 py-2 break-all">
+                    <code className="flex-1 text-xs font-mono text-text-primary bg-bg-primary border border-border-primary rounded px-3 py-2 break-all">
                       {newToken}
                     </code>
                     <button
@@ -451,7 +451,7 @@ export default function SettingsPage() {
                         setCopiedToken(true);
                         setTimeout(() => setCopiedToken(false), 2000);
                       }}
-                      className="h-9 w-9 shrink-0 flex items-center justify-center rounded-lg border border-[var(--border-primary)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors"
+                      className="h-9 w-9 shrink-0 flex items-center justify-center rounded-lg border border-border-primary text-text-muted hover:text-text-primary hover:bg-bg-elevated transition-colors"
                     >
                       {copiedToken ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
                     </button>
@@ -461,16 +461,16 @@ export default function SettingsPage() {
 
               {/* Token list */}
               {cliTokens.length > 0 && (
-                <div className="divide-y divide-[var(--border-primary)]">
+                <div className="divide-y divide-border-primary">
                   {cliTokens.map(token => (
                     <div key={token.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
-                      <Key className="h-3.5 w-3.5 text-[var(--text-muted)] shrink-0" />
+                      <Key className="h-3.5 w-3.5 text-text-muted shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-mono text-[var(--text-primary)]">
+                        <p className="text-xs font-mono text-text-primary">
                           {token.prefix}...
                           {token.isRevoked && <span className="ml-2 text-red-400 font-sans">(revoked)</span>}
                         </p>
-                        <p className="text-[10px] text-[var(--text-muted)]">
+                        <p className="text-[10px] text-text-muted">
                           Created {new Date(token.createdAt).toLocaleDateString()}
                           {token.lastUsedAt && ` · Last used ${new Date(token.lastUsedAt).toLocaleDateString()}`}
                         </p>
@@ -492,14 +492,14 @@ export default function SettingsPage() {
               <button
                 onClick={handleGenerateToken}
                 disabled={generatingToken}
-                className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium border border-[var(--border-primary)] rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-hover)] transition-all disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium border border-border-primary rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-elevated hover:border-border-hover transition-all disabled:opacity-50"
               >
                 {generatingToken ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                 Generate New API Key
               </button>
 
-              <p className="text-xs text-[var(--text-muted)]">
-                Use API keys with <code className="text-[var(--text-secondary)] bg-[var(--bg-elevated)] px-1.5 py-0.5 rounded text-[11px] font-mono">evalai login --token &lt;key&gt;</code> for CI/CD environments.
+              <p className="text-xs text-text-muted">
+                Use API keys with <code className="text-text-secondary bg-bg-elevated px-1.5 py-0.5 rounded text-[11px] font-mono">evalai login --token &lt;key&gt;</code> for CI/CD environments.
               </p>
             </div>
           </SectionCard>
@@ -513,7 +513,7 @@ export default function SettingsPage() {
             <div className="flex flex-col sm:flex-row gap-3">
               <button
                 onClick={handleExport}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium border border-[var(--border-primary)] rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-hover)] transition-all"
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium border border-border-primary rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-elevated hover:border-border-hover transition-all"
               >
                 <Download className="w-4 h-4" /> Export Data
               </button>
@@ -536,7 +536,7 @@ export default function SettingsPage() {
                   </button>
                   <button
                     onClick={() => setShowResetConfirm(false)}
-                    className="px-3 py-1.5 text-xs font-medium border border-[var(--border-primary)] text-[var(--text-secondary)] rounded-md hover:bg-[var(--bg-elevated)] transition-colors"
+                    className="px-3 py-1.5 text-xs font-medium border border-border-primary text-text-secondary rounded-md hover:bg-bg-elevated transition-colors"
                   >
                     Cancel
                   </button>

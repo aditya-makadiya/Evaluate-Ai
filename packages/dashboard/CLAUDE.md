@@ -9,19 +9,19 @@ The dashboard supports dark and light themes via CSS custom properties.
 
 ```
 BACKGROUNDS:
-  bg-[var(--bg-primary)]       Main background
-  bg-[var(--bg-secondary)]     Slightly elevated
-  bg-[var(--bg-card)]          Cards, panels
-  bg-[var(--bg-elevated)]      Hover states, modals
+  bg-bg-primary       Main background
+  bg-bg-secondary     Slightly elevated
+  bg-bg-card          Cards, panels
+  bg-bg-elevated      Hover states, modals
 
 BORDERS:
-  border-[var(--border-primary)]   Default borders
-  border-[var(--border-hover)]     Hover state borders
+  border-border-primary   Default borders
+  border-border-hover     Hover state borders
 
 TEXT:
-  text-[var(--text-primary)]       Main text
-  text-[var(--text-secondary)]     Secondary text
-  text-[var(--text-muted)]         Muted, labels, timestamps
+  text-text-primary       Main text
+  text-text-secondary     Secondary text
+  text-text-muted         Muted, labels, timestamps
 
 BRAND (constant across themes):
   #8b5cf6   Purple (primary accent)
@@ -29,7 +29,8 @@ BRAND (constant across themes):
 ```
 
 **DO NOT USE:** `bg-[#141414]`, `text-[#ededed]`, `border-[#262626]` or any hardcoded hex in Tailwind classes.
-**INSTEAD USE:** `bg-[var(--bg-card)]`, `text-[var(--text-primary)]`, `border-[var(--border-primary)]`
+**DO NOT USE:** `bg-[var(--bg-card)]` — use canonical Tailwind v4 syntax instead (e.g., `bg-bg-card`).
+**INSTEAD USE:** `bg-bg-card`, `text-text-primary`, `border-border-primary` (registered in `@theme inline` in globals.css)
 
 ### Score Colors (always these, both themes)
 
@@ -77,7 +78,7 @@ Inner element gap:  gap-2 (tight), gap-3 (normal), gap-4 (loose)
 
 Every card follows this pattern:
 ```tsx
-<div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-5 hover:border-[var(--border-hover)] transition-colors">
+<div className="bg-bg-card border border-border-primary rounded-lg p-5 hover:border-border-hover transition-colors">
   {/* content */}
 </div>
 ```
@@ -86,9 +87,9 @@ Every card follows this pattern:
 
 ```
 Primary:     bg-purple-600 hover:bg-purple-500 text-white rounded-lg px-4 py-2
-Secondary:   border border-[var(--border-primary)] bg-[var(--bg-card)] hover:bg-[var(--bg-elevated)]
+Secondary:   border border-border-primary bg-bg-card hover:bg-bg-elevated
 Destructive: bg-red-900/30 text-red-400 hover:bg-red-900/50
-Ghost:       text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)]
+Ghost:       text-text-muted hover:text-text-primary hover:bg-bg-elevated
 ```
 
 ### Charts (Recharts)
@@ -108,8 +109,8 @@ Always show loading skeleton, never empty/blank screen:
 ```tsx
 // Skeleton pattern
 <div className="animate-pulse">
-  <div className="h-4 bg-[var(--bg-elevated)] rounded w-32 mb-2" />
-  <div className="h-8 bg-[var(--bg-elevated)] rounded w-48" />
+  <div className="h-4 bg-bg-elevated rounded w-32 mb-2" />
+  <div className="h-8 bg-bg-elevated rounded w-48" />
 </div>
 ```
 
@@ -120,9 +121,9 @@ Or use `.shimmer` CSS class for animated gradient skeleton.
 Always show a helpful message with icon and action:
 ```tsx
 <div className="flex flex-col items-center justify-center py-16 text-center">
-  <Icon className="w-10 h-10 text-[var(--text-muted)] mb-3" />
-  <p className="text-sm text-[var(--text-secondary)]">No data yet</p>
-  <p className="text-xs text-[var(--text-muted)]">Helpful next step here</p>
+  <Icon className="w-10 h-10 text-text-muted mb-3" />
+  <p className="text-sm text-text-secondary">No data yet</p>
+  <p className="text-xs text-text-muted">Helpful next step here</p>
 </div>
 ```
 

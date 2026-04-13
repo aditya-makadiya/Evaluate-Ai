@@ -5,12 +5,6 @@ import {
   Folder,
   User,
   GitCommit,
-  Circle,
-  CircleDot,
-  CheckCircle2,
-  SignalHigh,
-  SignalMedium,
-  SignalLow,
 } from 'lucide-react';
 import { type TaskItem, STATUS_META, PRIORITY_META, STATUS_FLOW } from './task-detail-panel';
 
@@ -42,10 +36,10 @@ export default function TaskListItem({ task, isSelected, onSelect, onStatusToggl
   return (
     <div
       onClick={onSelect}
-      className={`group flex items-center gap-3 px-4 py-2.5 cursor-pointer border-b border-[var(--border-primary)] transition-colors ${
+      className={`group flex items-center gap-3 px-4 py-2.5 cursor-pointer border-b border-border-primary transition-colors ${
         isSelected
-          ? 'bg-[var(--accent-purple)]/5 border-l-2 border-l-[var(--accent-purple)]'
-          : 'border-l-2 border-l-transparent hover:bg-[var(--bg-elevated)]/40'
+          ? 'bg-accent-purple/5 border-l-2 border-l-accent-purple'
+          : 'border-l-2 border-l-transparent hover:bg-bg-elevated/40'
       }`}
     >
       {/* Status icon */}
@@ -64,11 +58,11 @@ export default function TaskListItem({ task, isSelected, onSelect, onStatusToggl
 
       {/* Title + description */}
       <div className="flex-1 min-w-0">
-        <span className={`text-[13px] block truncate leading-snug ${done ? 'line-through text-[var(--text-muted)]' : 'text-[var(--text-primary)]'}`}>
+        <span className={`text-[13px] block truncate leading-snug ${done ? 'line-through text-text-muted' : 'text-text-primary'}`}>
           {task.title}
         </span>
         {task.description && (
-          <span className="text-[11px] text-[var(--text-muted)] block truncate mt-0.5 max-w-lg">
+          <span className="text-[11px] text-text-muted block truncate mt-0.5 max-w-lg">
             {task.description}
           </span>
         )}
@@ -87,7 +81,7 @@ export default function TaskListItem({ task, isSelected, onSelect, onStatusToggl
           </span>
         )}
         {task.deadline && !overdue && (
-          <span className="hidden sm:inline text-[10px] text-[var(--text-muted)]">
+          <span className="hidden sm:inline text-[10px] text-text-muted">
             {new Date(task.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
           </span>
         )}
@@ -97,15 +91,15 @@ export default function TaskListItem({ task, isSelected, onSelect, onStatusToggl
           </span>
         )}
         {task.assigneeName ? (
-          <span className="h-5 w-5 rounded-full bg-[var(--accent-purple)]/15 border border-[var(--accent-purple)]/25 flex items-center justify-center text-[9px] font-bold text-[var(--accent-purple)]" title={task.assigneeName}>
+          <span className="h-5 w-5 rounded-full bg-accent-purple/15 border border-accent-purple/25 flex items-center justify-center text-[9px] font-bold text-accent-purple" title={task.assigneeName}>
             {task.assigneeName.charAt(0).toUpperCase()}
           </span>
         ) : (
-          <span className="h-5 w-5 rounded-full bg-[var(--bg-elevated)] border border-[var(--border-primary)] flex items-center justify-center opacity-40">
-            <User className="h-2.5 w-2.5 text-[var(--text-muted)]" />
+          <span className="h-5 w-5 rounded-full bg-bg-elevated border border-border-primary flex items-center justify-center opacity-40">
+            <User className="h-2.5 w-2.5 text-text-muted" />
           </span>
         )}
-        <span className="hidden sm:inline text-[10px] text-[var(--text-muted)] w-14 text-right">{relativeDate(task.createdAt)}</span>
+        <span className="hidden sm:inline text-[10px] text-text-muted w-14 text-right">{relativeDate(task.createdAt)}</span>
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { readCredentials, getApiUrl } from '../utils/credentials.js';
+import { readCredentials, getApiUrl, verifyToken } from '../utils/credentials.js';
 
 export const whoamiCommand = new Command('whoami')
   .description('Show current login status')
@@ -26,19 +26,12 @@ export const whoamiCommand = new Command('whoami')
     console.log(`  ${chalk.dim('Since:')}    ${creds.createdAt ? new Date(creds.createdAt).toLocaleDateString() : 'unknown'}`);
     console.log('');
 
-    // Verify token is still valid
-    try {
-      const res = await fetch(`${getApiUrl()}/api/cli/verify`, {
-        headers: { Authorization: `Bearer ${creds.token}` },
-      });
-      if (res.ok) {
-        console.log(chalk.green('  ✓ Token is valid'));
-      } else {
-        console.log(chalk.red('  ✗ Token is invalid or expired'));
-        console.log(chalk.dim('  Run: evalai login'));
-      }
-    } catch {
-      console.log(chalk.yellow('  ⚠ Could not reach API to verify token'));
+    const result = await verifyToken(creds.token);
+    if (result.valid) {
+      console.log(chalk.green('  ✓ Token is valid'));
+    } else {
+      console.log(chalk.red('  ✗ Token is invalid or expired'));
+      console.log(chalk.dim('  Run: evalai login'));
     }
     console.log('');
   });

@@ -18,15 +18,15 @@ export default function MarketingLayout({
   }, []);
 
   const navLinkClass =
-    'text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors';
+    'text-sm font-medium text-text-secondary hover:text-text-primary transition-colors';
 
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)]">
+    <div className="min-h-screen bg-bg-primary text-text-primary">
       {/* Sticky Nav */}
       <header
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           scrolled
-            ? 'bg-[var(--bg-primary)]/80 backdrop-blur-xl border-b border-[var(--border-primary)]'
+            ? 'bg-bg-primary/80 backdrop-blur-xl border-b border-border-primary'
             : 'bg-transparent'
         }`}
       >
@@ -60,7 +60,7 @@ export default function MarketingLayout({
           {/* Mobile Menu Toggle */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden h-10 w-10 flex items-center justify-center rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)]"
+            className="md:hidden h-10 w-10 flex items-center justify-center rounded-lg text-text-secondary hover:bg-bg-elevated"
             aria-label="Toggle menu"
           >
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -75,10 +75,10 @@ export default function MarketingLayout({
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden bg-[var(--bg-card)] border-b border-[var(--border-primary)] px-6 py-4 space-y-3">
-            <a href="#features" className="block text-sm text-[var(--text-secondary)]" onClick={() => setMobileMenuOpen(false)}>Features</a>
-            <a href="#pricing" className="block text-sm text-[var(--text-secondary)]" onClick={() => setMobileMenuOpen(false)}>Pricing</a>
-            <Link href="/auth/login" className="block text-sm text-[var(--text-secondary)]">Login</Link>
+          <div className="md:hidden bg-bg-card border-b border-border-primary px-6 py-4 space-y-3">
+            <a href="#features" className="block text-sm text-text-secondary" onClick={() => setMobileMenuOpen(false)}>Features</a>
+            <a href="#pricing" className="block text-sm text-text-secondary" onClick={() => setMobileMenuOpen(false)}>Pricing</a>
+            <Link href="/auth/login" className="block text-sm text-text-secondary">Login</Link>
             <Link href="/auth/signup" className="block bg-purple-600 text-white rounded-lg px-4 py-2 text-sm font-medium text-center">
               Get Started
             </Link>
@@ -90,7 +90,7 @@ export default function MarketingLayout({
       <main>{children}</main>
 
       {/* Footer */}
-      <footer className="border-t border-[var(--border-primary)] bg-[var(--bg-secondary)]">
+      <footer className="border-t border-border-primary bg-bg-secondary">
         <div className="max-w-7xl mx-auto px-6 py-12">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10">
             {/* Brand */}
@@ -103,44 +103,44 @@ export default function MarketingLayout({
                 </div>
                 <span className="text-sm font-semibold">Evaluate<span className="text-purple-500">AI</span></span>
               </div>
-              <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+              <p className="text-xs text-text-muted leading-relaxed">
                 Built by developers, for engineering managers.
               </p>
             </div>
 
             {/* Product */}
             <div>
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)] mb-3">Product</h4>
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-text-secondary mb-3">Product</h4>
               <div className="space-y-2">
-                <a href="#features" className="block text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">Features</a>
-                <a href="#pricing" className="block text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">Pricing</a>
-                <a href="#" className="block text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">Docs</a>
+                <a href="#features" className="block text-sm text-text-muted hover:text-text-primary transition-colors">Features</a>
+                <a href="#pricing" className="block text-sm text-text-muted hover:text-text-primary transition-colors">Pricing</a>
+                <a href="#" className="block text-sm text-text-muted hover:text-text-primary transition-colors">Docs</a>
               </div>
             </div>
 
             {/* Resources */}
             <div>
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)] mb-3">Resources</h4>
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-text-secondary mb-3">Resources</h4>
               <div className="space-y-2">
-                <a href="#" className="block text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">GitHub</a>
-                <a href="#" className="block text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">npm</a>
-                <a href="#" className="block text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">Changelog</a>
+                <a href="#" className="block text-sm text-text-muted hover:text-text-primary transition-colors">GitHub</a>
+                <a href="#" className="block text-sm text-text-muted hover:text-text-primary transition-colors">npm</a>
+                <a href="#" className="block text-sm text-text-muted hover:text-text-primary transition-colors">Changelog</a>
               </div>
             </div>
 
             {/* Legal */}
             <div>
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)] mb-3">Legal</h4>
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-text-secondary mb-3">Legal</h4>
               <div className="space-y-2">
-                <a href="#" className="block text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">Privacy</a>
-                <a href="#" className="block text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">Terms</a>
+                <a href="#" className="block text-sm text-text-muted hover:text-text-primary transition-colors">Privacy</a>
+                <a href="#" className="block text-sm text-text-muted hover:text-text-primary transition-colors">Terms</a>
               </div>
             </div>
           </div>
 
-          <div className="border-t border-[var(--border-primary)] pt-6 flex flex-col md:flex-row items-center justify-between gap-3">
-            <p className="text-xs text-[var(--text-muted)]">&copy; 2026 EvaluateAI. All rights reserved.</p>
-            <p className="text-xs text-[var(--text-muted)]">Built by developers, for engineering managers.</p>
+          <div className="border-t border-border-primary pt-6 flex flex-col md:flex-row items-center justify-between gap-3">
+            <p className="text-xs text-text-muted">&copy; 2026 EvaluateAI. All rights reserved.</p>
+            <p className="text-xs text-text-muted">Built by developers, for engineering managers.</p>
           </div>
         </div>
       </footer>

@@ -34,7 +34,7 @@ export function CtaSection() {
           </span>{' '}
           today
         </h2>
-        <p className="text-[var(--text-secondary)] text-lg mb-10 max-w-lg mx-auto">
+        <p className="text-text-secondary text-lg mb-10 max-w-lg mx-auto">
           Set up in 2 minutes. See results immediately.
         </p>
 
@@ -47,7 +47,7 @@ export function CtaSection() {
             placeholder="you@company.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="flex-1 w-full sm:w-auto bg-[var(--bg-input)] border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-purple-500 focus:outline-none transition-colors"
+            className="flex-1 w-full sm:w-auto bg-bg-input border border-border-primary rounded-xl px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:border-purple-500 focus:outline-none transition-colors"
           />
           <button
             type="submit"
@@ -58,7 +58,7 @@ export function CtaSection() {
           </button>
         </form>
 
-        <p className="text-xs text-[var(--text-muted)]">
+        <p className="text-xs text-text-muted">
           No credit card required. Free for up to 3 developers.
         </p>
       </div>

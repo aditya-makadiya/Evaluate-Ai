@@ -82,8 +82,6 @@ Always prefer transcript data over estimates.
 - `evalai sessions [id]` — Browse/detail sessions
 - `evalai config [set key value]` — Configuration
 - `evalai export [--csv|--json]` — Export data
-- `evalai sync` — Sync to Supabase
-- `evalai dashboard` — Launch web dashboard
 
 ## Import Convention
 

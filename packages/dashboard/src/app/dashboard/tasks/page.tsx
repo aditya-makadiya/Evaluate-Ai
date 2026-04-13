@@ -19,7 +19,6 @@ import TaskDetailPanel, {
   type TaskItem,
   type TaskStats,
   type FilterOptions,
-  STATUS_META,
   STATUS_FLOW,
 } from '@/components/tasks/task-detail-panel';
 import TaskListItem from '@/components/tasks/task-list-item';
@@ -36,7 +35,7 @@ const PAGE_SIZE = 20;
 
 function StatsRow({ stats }: { stats: TaskStats }) {
   const items = [
-    { label: 'Total', value: stats.total, icon: CheckSquare, accent: 'text-[var(--accent-purple)]' },
+    { label: 'Total', value: stats.total, icon: CheckSquare, accent: 'text-accent-purple' },
     { label: 'Pending', value: stats.pending, icon: Clock, accent: 'text-amber-400', sub: stats.highPriority > 0 ? `${stats.highPriority} urgent` : undefined },
     { label: 'Done', value: stats.completed, icon: TrendingUp, accent: 'text-emerald-400' },
     { label: 'Delivery', value: `${stats.deliveryRate}%`, icon: ArrowUpRight, accent: stats.deliveryRate >= 70 ? 'text-emerald-400' : stats.deliveryRate >= 40 ? 'text-amber-400' : 'text-red-400', sub: `${stats.completed}/${stats.total}` },
@@ -46,13 +45,13 @@ function StatsRow({ stats }: { stats: TaskStats }) {
       {items.map((c) => {
         const Icon = c.icon;
         return (
-          <div key={c.label} className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-xl p-4 hover:border-[var(--border-hover)] transition-colors">
+          <div key={c.label} className="bg-bg-card border border-border-primary rounded-xl p-4 hover:border-border-hover transition-colors">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">{c.label}</span>
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-text-muted">{c.label}</span>
               <Icon className={`h-3.5 w-3.5 ${c.accent} opacity-60`} />
             </div>
-            <p className="text-xl font-bold text-[var(--text-primary)] tracking-tight">{c.value}</p>
-            {c.sub && <p className="text-[10px] text-[var(--text-muted)] mt-0.5">{c.sub}</p>}
+            <p className="text-xl font-bold text-text-primary tracking-tight">{c.value}</p>
+            {c.sub && <p className="text-[10px] text-text-muted mt-0.5">{c.sub}</p>}
           </div>
         );
       })}
@@ -66,8 +65,8 @@ function StatsRow({ stats }: { stats: TaskStats }) {
 
 function PillBtn({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
   const cls = active
-    ? 'bg-[var(--accent-purple)]/10 border-[var(--accent-purple)]/30 text-[var(--accent-purple)]'
-    : 'bg-[var(--bg-primary)] border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--border-hover)]';
+    ? 'bg-accent-purple/10 border-accent-purple/30 text-accent-purple'
+    : 'bg-bg-primary border-border-primary text-text-secondary hover:border-border-hover';
   return (
     <button onClick={onClick} className={`border rounded-full px-3 py-1 text-[11px] font-medium transition-colors ${cls}`}>
       {label}
@@ -88,14 +87,14 @@ function FilterBar({
 
   return (
     <div className="flex items-center gap-2 mb-4 flex-wrap animate-section">
-      <ListFilter className="h-3.5 w-3.5 text-[var(--text-muted)] mr-0.5" />
+      <ListFilter className="h-3.5 w-3.5 text-text-muted mr-0.5" />
 
       {/* Status pills */}
       <PillBtn active={activeStatus === 'pending'} label="Todo" onClick={() => onStatusChange(activeStatus === 'pending' ? '' : 'pending')} />
       <PillBtn active={activeStatus === 'in_progress'} label="In Progress" onClick={() => onStatusChange(activeStatus === 'in_progress' ? '' : 'in_progress')} />
       <PillBtn active={activeStatus === 'completed'} label="Done" onClick={() => onStatusChange(activeStatus === 'completed' ? '' : 'completed')} />
 
-      <span className="w-px h-4 bg-[var(--border-primary)]" />
+      <span className="w-px h-4 bg-border-primary" />
 
       {/* Priority pills */}
       <PillBtn active={activePriority === 'high'} label="Urgent" onClick={() => onPriorityChange(activePriority === 'high' ? '' : 'high')} />
@@ -105,9 +104,9 @@ function FilterBar({
       {/* Assignee & Project dropdowns */}
       {filters.assignees.length > 0 && (
         <>
-          <span className="w-px h-4 bg-[var(--border-primary)]" />
+          <span className="w-px h-4 bg-border-primary" />
           <select value={activeAssignee} onChange={(e) => onAssigneeChange(e.target.value)}
-            className="bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-full px-3 py-1 text-[11px] text-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-purple)] cursor-pointer hover:border-[var(--border-hover)] transition-colors">
+            className="bg-bg-primary border border-border-primary rounded-full px-3 py-1 text-[11px] text-text-secondary focus:outline-none focus:border-accent-purple cursor-pointer hover:border-border-hover transition-colors">
             <option value="">Assignee</option>
             {filters.assignees.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
           </select>
@@ -115,7 +114,7 @@ function FilterBar({
       )}
       {filters.projects.length > 0 && (
         <select value={activeProject} onChange={(e) => onProjectChange(e.target.value)}
-          className="bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-full px-3 py-1 text-[11px] text-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-purple)] cursor-pointer hover:border-[var(--border-hover)] transition-colors">
+          className="bg-bg-primary border border-border-primary rounded-full px-3 py-1 text-[11px] text-text-secondary focus:outline-none focus:border-accent-purple cursor-pointer hover:border-border-hover transition-colors">
           <option value="">Project</option>
           {filters.projects.map((p) => <option key={p} value={p}>{p}</option>)}
         </select>
@@ -123,7 +122,7 @@ function FilterBar({
 
       {any && (
         <button onClick={() => { onStatusChange(''); onPriorityChange(''); onAssigneeChange(''); onProjectChange(''); }}
-          className="text-[11px] text-[var(--accent-purple)] hover:text-[var(--accent-hover)] transition-colors ml-1">
+          className="text-[11px] text-accent-purple hover:text-accent-hover transition-colors ml-1">
           Clear all
         </button>
       )}
@@ -140,23 +139,23 @@ function Pagination({ page, totalPages, total, onPageChange }: {
 }) {
   if (totalPages <= 1) return null;
   return (
-    <div className="flex items-center justify-between px-4 py-2.5 border-t border-[var(--border-primary)] bg-[var(--bg-elevated)]/20">
-      <span className="text-[11px] text-[var(--text-muted)]">{total} task{total !== 1 ? 's' : ''}</span>
+    <div className="flex items-center justify-between px-4 py-2.5 border-t border-border-primary bg-bg-elevated/20">
+      <span className="text-[11px] text-text-muted">{total} task{total !== 1 ? 's' : ''}</span>
       <div className="flex items-center gap-1">
         <button onClick={() => onPageChange(page - 1)} disabled={page <= 1}
-          className="p-1 rounded-md hover:bg-[var(--bg-elevated)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-[var(--text-muted)]">
+          className="p-1 rounded-md hover:bg-bg-elevated disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-text-muted">
           <ChevronLeft className="h-4 w-4" />
         </button>
         {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
           <button key={p} onClick={() => onPageChange(p)}
             className={`min-w-[28px] h-7 rounded-md text-[11px] font-medium transition-colors ${
-              p === page ? 'bg-[var(--accent-purple)] text-white' : 'text-[var(--text-muted)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-secondary)]'
+              p === page ? 'bg-accent-purple text-white' : 'text-text-muted hover:bg-bg-elevated hover:text-text-secondary'
             }`}>
             {p}
           </button>
         ))}
         <button onClick={() => onPageChange(page + 1)} disabled={page >= totalPages}
-          className="p-1 rounded-md hover:bg-[var(--bg-elevated)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-[var(--text-muted)]">
+          className="p-1 rounded-md hover:bg-bg-elevated disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-text-muted">
           <ChevronRight className="h-4 w-4" />
         </button>
       </div>
@@ -172,11 +171,11 @@ function LoadingSkeleton() {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
-        {[...Array(4)].map((_, i) => <div key={i} className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-xl p-4"><div className="h-3 shimmer rounded w-14 mb-3" /><div className="h-6 shimmer rounded w-10" /></div>)}
+        {[...Array(4)].map((_, i) => <div key={i} className="bg-bg-card border border-border-primary rounded-xl p-4"><div className="h-3 shimmer rounded w-14 mb-3" /><div className="h-6 shimmer rounded w-10" /></div>)}
       </div>
-      <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-xl overflow-hidden">
+      <div className="bg-bg-card border border-border-primary rounded-xl overflow-hidden">
         {[...Array(8)].map((_, i) => (
-          <div key={i} className="flex items-center gap-3 px-4 py-3 border-b border-[var(--border-primary)]">
+          <div key={i} className="flex items-center gap-3 px-4 py-3 border-b border-border-primary">
             <div className="h-4 w-4 shimmer rounded-full" />
             <div className="h-3.5 w-3.5 shimmer rounded" />
             <div className="flex-1 space-y-1.5">
@@ -195,15 +194,15 @@ function LoadingSkeleton() {
 function EmptyState({ hasFilters }: { hasFilters: boolean }) {
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center animate-section">
-      <div className="p-4 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-primary)] mb-5">
-        {hasFilters ? <AlertCircle className="w-7 h-7 text-[var(--text-muted)]" /> : <CheckSquare className="w-7 h-7 text-[var(--text-muted)]" />}
+      <div className="p-4 rounded-2xl bg-bg-card border border-border-primary mb-5">
+        {hasFilters ? <AlertCircle className="w-7 h-7 text-text-muted" /> : <CheckSquare className="w-7 h-7 text-text-muted" />}
       </div>
-      <p className="text-sm font-medium text-[var(--text-primary)]">{hasFilters ? 'No matching tasks' : 'No tasks yet'}</p>
-      <p className="text-xs text-[var(--text-muted)] mt-1.5 max-w-sm leading-relaxed">
+      <p className="text-sm font-medium text-text-primary">{hasFilters ? 'No matching tasks' : 'No tasks yet'}</p>
+      <p className="text-xs text-text-muted mt-1.5 max-w-sm leading-relaxed">
         {hasFilters ? 'Adjust filters or clear all to see every task.' : 'Tasks are extracted from synced meetings. Start by syncing a meeting.'}
       </p>
       {!hasFilters && (
-        <a href="/dashboard/meetings" className="mt-5 inline-flex items-center gap-2 bg-[var(--accent-purple)] hover:bg-[var(--accent-hover)] text-white rounded-lg px-4 py-2.5 text-sm font-medium transition-colors">
+        <a href="/dashboard/meetings" className="mt-5 inline-flex items-center gap-2 bg-accent-purple hover:bg-accent-hover text-white rounded-lg px-4 py-2.5 text-sm font-medium transition-colors">
           <Mic className="h-4 w-4" /> Go to Meetings
         </a>
       )}
@@ -233,9 +232,15 @@ export default function TasksPage() {
   const [assigneeFilter, setAssigneeFilter] = useState('');
   const [projectFilter, setProjectFilter] = useState('');
   const hasFilters = !!(statusFilter || priorityFilter || assigneeFilter || projectFilter);
+
+  const handleStatusChange = useCallback((v: string) => { setStatusFilter(v); setPage(1); }, []);
+  const handlePriorityChange = useCallback((v: string) => { setPriorityFilter(v); setPage(1); }, []);
+  const handleAssigneeChange = useCallback((v: string) => { setAssigneeFilter(v); setPage(1); }, []);
+  const handleProjectChange = useCallback((v: string) => { setProjectFilter(v); setPage(1); }, []);
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   const fetchTasks = useCallback(async () => {
+    if (!teamId) { setLoading(false); return; }
     try {
       const params = new URLSearchParams({ team_id: teamId, limit: String(PAGE_SIZE), page: String(page) });
       if (statusFilter) params.set('status', statusFilter);
@@ -308,19 +313,18 @@ export default function TasksPage() {
     return () => window.removeEventListener('keydown', handleKey);
   }, [tasks]);
 
-  useEffect(() => { setPage(1); }, [statusFilter, priorityFilter, assigneeFilter, projectFilter]);
   const selectedTask = tasks.find((t) => t.id === selectedId) ?? null;
-  useEffect(() => { if (!teamId) { setLoading(false); return; } fetchTasks(); }, [teamId, fetchTasks]);
+  useEffect(() => { fetchTasks(); }, [fetchTasks]);
 
   return (
     <div>
       {/* Header */}
       <header className="mb-5 animate-section">
         <div className="flex items-center gap-3 mb-0.5">
-          <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">Tasks</h1>
-          {totalCount > 0 && <span className="text-[11px] font-medium text-[var(--text-muted)] bg-[var(--bg-elevated)] border border-[var(--border-primary)] rounded-md px-2 py-0.5">{totalCount}</span>}
+          <h1 className="text-2xl font-bold tracking-tight text-text-primary">Tasks</h1>
+          {totalCount > 0 && <span className="text-[11px] font-medium text-text-muted bg-bg-elevated border border-border-primary rounded-md px-2 py-0.5">{totalCount}</span>}
         </div>
-        <p className="text-sm text-[var(--text-muted)]">Meeting decisions tracked through code delivery</p>
+        <p className="text-sm text-text-muted">Meeting decisions tracked through code delivery</p>
       </header>
 
       {error && (
@@ -338,12 +342,12 @@ export default function TasksPage() {
             <>
               <StatsRow stats={stats} />
               <FilterBar filters={filters} activeStatus={statusFilter} activePriority={priorityFilter} activeAssignee={assigneeFilter} activeProject={projectFilter}
-                onStatusChange={setStatusFilter} onPriorityChange={setPriorityFilter} onAssigneeChange={setAssigneeFilter} onProjectChange={setProjectFilter} />
+                onStatusChange={handleStatusChange} onPriorityChange={handlePriorityChange} onAssigneeChange={handleAssigneeChange} onProjectChange={handleProjectChange} />
 
               {tasks.length > 0 ? (
                 <div className="animate-section">
                   {/* Split layout: list + detail panel */}
-                  <div className="flex gap-0 rounded-xl overflow-hidden border border-[var(--border-primary)] bg-[var(--bg-card)]">
+                  <div className="flex gap-0 rounded-xl overflow-hidden border border-border-primary bg-bg-card">
                     {/* Task list */}
                     <div className={`min-w-0 transition-all duration-200 ${selectedTask ? 'flex-1' : 'w-full'}`}>
                       <div className="overflow-y-auto max-h-[calc(100vh-320px)]">

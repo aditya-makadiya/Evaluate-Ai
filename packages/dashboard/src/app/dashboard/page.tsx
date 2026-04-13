@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/components/auth-provider';
 import {
@@ -161,7 +161,7 @@ function HealthScoreCircle({ score }: { score: number }) {
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className={`text-3xl font-bold ${textColor}`}>{score}</span>
-        <span className="text-xs text-[var(--text-muted)]">Health</span>
+        <span className="text-xs text-text-muted">Health</span>
       </div>
     </div>
   );
@@ -173,9 +173,8 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchOverview = useCallback(() => {
     if (!authUser) return;
-    setLoading(true);
     fetch('/api/dashboard/overview')
       .then(res => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -184,6 +183,10 @@ export default function DashboardPage() {
       .then(json => { setData(json); setLoading(false); })
       .catch(err => { setError(err.message); setLoading(false); });
   }, [authUser]);
+
+  useEffect(() => {
+    fetchOverview();
+  }, [fetchOverview]);
 
   const noTeam = !authUser && !loading;
   const hasAnyData = data && (
@@ -199,10 +202,10 @@ export default function DashboardPage() {
     <div className="min-h-screen">
       {/* Header */}
       <header className="mb-8 animate-section">
-        <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
+        <h1 className="text-2xl font-bold tracking-tight text-text-primary">
           {data?.greeting ?? (authUser?.name ? `Good morning, ${authUser.name}` : 'Good morning')}
         </h1>
-        <p className="mt-1 text-sm text-[var(--text-muted)]">
+        <p className="mt-1 text-sm text-text-muted">
           {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
           {' \u00B7 '}Team Overview
         </p>
@@ -210,9 +213,9 @@ export default function DashboardPage() {
 
       {noTeam && (
         <div className="animate-section flex flex-col items-center justify-center py-16 text-center">
-          <Activity className="w-10 h-10 text-[var(--text-muted)] mb-3" />
-          <p className="text-sm text-[var(--text-secondary)]">No team linked</p>
-          <p className="text-xs text-[var(--text-muted)] mt-1">Login and link to a team to see your dashboard.</p>
+          <Activity className="w-10 h-10 text-text-muted mb-3" />
+          <p className="text-sm text-text-secondary">No team linked</p>
+          <p className="text-xs text-text-muted mt-1">Login and link to a team to see your dashboard.</p>
         </div>
       )}
 
@@ -226,9 +229,9 @@ export default function DashboardPage() {
 
       {!loading && !error && isEmpty && (
         <div className="animate-section flex flex-col items-center justify-center py-16 text-center">
-          <Activity className="w-10 h-10 text-[var(--text-muted)] mb-3" />
-          <p className="text-sm text-[var(--text-secondary)]">No team data yet</p>
-          <p className="text-xs text-[var(--text-muted)] mt-1">Add team members and connect integrations to get started.</p>
+          <Activity className="w-10 h-10 text-text-muted mb-3" />
+          <p className="text-sm text-text-secondary">No team data yet</p>
+          <p className="text-xs text-text-muted mt-1">Add team members and connect integrations to get started.</p>
         </div>
       )}
 
@@ -236,9 +239,9 @@ export default function DashboardPage() {
         <>
           {/* Health score + stat cards */}
           <div className="animate-section mb-8 flex flex-col lg:flex-row items-start gap-6">
-            <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-5 flex flex-col items-center">
+            <div className="bg-bg-card border border-border-primary rounded-lg p-5 flex flex-col items-center">
               <HealthScoreCircle score={data.healthScore} />
-              <p className="mt-2 text-xs text-[var(--text-muted)]">Team Health Score</p>
+              <p className="mt-2 text-xs text-text-muted">Team Health Score</p>
             </div>
 
             <div className="flex-1 grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -273,16 +276,16 @@ export default function DashboardPage() {
           {/* Activity feed + alerts */}
           <div className="animate-section grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Activity Feed */}
-            <div className="lg:col-span-2 bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-5">
+            <div className="lg:col-span-2 bg-bg-card border border-border-primary rounded-lg p-5">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-[var(--text-primary)]">Activity Feed</h2>
-                <span className="text-xs text-[var(--text-muted)]">Last 20 events</span>
+                <h2 className="text-lg font-semibold text-text-primary">Activity Feed</h2>
+                <span className="text-xs text-text-muted">Last 20 events</span>
               </div>
 
               {data.timeline.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <Activity className="w-8 h-8 text-[var(--text-muted)] mb-2" />
-                  <p className="text-sm text-[var(--text-secondary)]">No recent activity</p>
+                  <Activity className="w-8 h-8 text-text-muted mb-2" />
+                  <p className="text-sm text-text-secondary">No recent activity</p>
                 </div>
               ) : (
                 <div className="space-y-1">
@@ -293,17 +296,17 @@ export default function DashboardPage() {
                     return (
                       <div
                         key={event.id}
-                        className="flex items-start gap-3 px-3 py-2.5 rounded-md hover:bg-[var(--bg-elevated)] transition-colors"
+                        className="flex items-start gap-3 px-3 py-2.5 rounded-md hover:bg-bg-elevated transition-colors"
                       >
-                        <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[var(--bg-elevated)]">
-                          <EventIcon className="h-3.5 w-3.5 text-[var(--text-muted)]" />
+                        <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-bg-elevated">
+                          <EventIcon className="h-3.5 w-3.5 text-text-muted" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm text-[var(--text-primary)] truncate">
+                          <p className="text-sm text-text-primary truncate">
                             <span className="mr-1">{emoji}</span>
                             {event.title}
                           </p>
-                          <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                          <p className="text-xs text-text-muted mt-0.5">
                             {event.developerName} {'\u00B7'} {timeAgo(event.createdAt)}
                           </p>
                         </div>
@@ -315,17 +318,17 @@ export default function DashboardPage() {
             </div>
 
             {/* Quick Alerts */}
-            <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-5">
+            <div className="bg-bg-card border border-border-primary rounded-lg p-5">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-[var(--text-primary)]">Alerts</h2>
-                <AlertTriangle className="h-4 w-4 text-[var(--text-muted)]" />
+                <h2 className="text-lg font-semibold text-text-primary">Alerts</h2>
+                <AlertTriangle className="h-4 w-4 text-text-muted" />
               </div>
 
               {data.alerts.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                   <CheckCircle2 className="w-8 h-8 text-emerald-400 mb-2" />
-                  <p className="text-sm text-[var(--text-secondary)]">No alerts</p>
-                  <p className="text-xs text-[var(--text-muted)] mt-1">Everything looks good!</p>
+                  <p className="text-sm text-text-secondary">No alerts</p>
+                  <p className="text-xs text-text-muted mt-1">Everything looks good!</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -345,10 +348,10 @@ export default function DashboardPage() {
               )}
 
               {/* Quick links */}
-              <div className="mt-6 pt-4 border-t border-[var(--border-primary)] space-y-2">
+              <div className="mt-6 pt-4 border-t border-border-primary space-y-2">
                 <Link
                   href="/dashboard/developers"
-                  className="flex items-center justify-between text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                  className="flex items-center justify-between text-sm text-text-secondary hover:text-text-primary transition-colors"
                 >
                   View all developers
                   <ArrowRight className="h-3.5 w-3.5" />
@@ -372,12 +375,12 @@ interface StatCardProps {
 
 function StatCard({ icon: Icon, label, value, color, mono }: StatCardProps) {
   return (
-    <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-5 hover:border-[var(--border-hover)] transition-colors">
+    <div className="bg-bg-card border border-border-primary rounded-lg p-5 hover:border-border-hover transition-colors">
       <div className="flex items-center gap-2 mb-3">
         <Icon className={`h-4 w-4 ${color}`} />
-        <span className="text-xs text-[var(--text-muted)] uppercase tracking-wider">{label}</span>
+        <span className="text-xs text-text-muted uppercase tracking-wider">{label}</span>
       </div>
-      <p className={`text-2xl font-bold text-[var(--text-primary)] ${mono ? 'font-mono' : ''}`}>
+      <p className={`text-2xl font-bold text-text-primary ${mono ? 'font-mono' : ''}`}>
         {value}
       </p>
     </div>

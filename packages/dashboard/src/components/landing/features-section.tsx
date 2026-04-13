@@ -69,7 +69,7 @@ export function FeaturesSection() {
           <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">
             Everything you need to see the real picture
           </h2>
-          <p className="text-[var(--text-secondary)] text-lg max-w-xl mx-auto">
+          <p className="text-text-secondary text-lg max-w-xl mx-auto">
             Automatically capture what matters. No forms, no standups, no busywork.
           </p>
         </div>
@@ -78,7 +78,7 @@ export function FeaturesSection() {
           {features.map((feature, i) => (
             <div
               key={feature.title}
-              className={`group relative bg-white/[0.03] backdrop-blur-sm border border-[var(--border-primary)] rounded-2xl p-6 hover:border-purple-500/30 hover:bg-white/[0.05] transition-all duration-500 ${
+              className={`group relative bg-white/[0.03] backdrop-blur-sm border border-border-primary rounded-2xl p-6 hover:border-purple-500/30 hover:bg-white/[0.05] transition-all duration-500 ${
                 isVisible
                   ? 'opacity-100 translate-y-0'
                   : 'opacity-0 translate-y-8'
@@ -93,7 +93,7 @@ export function FeaturesSection() {
                   <feature.icon className="h-5 w-5 text-purple-400" />
                 </div>
                 <h3 className="text-base font-semibold mb-2">{feature.title}</h3>
-                <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+                <p className="text-sm text-text-secondary leading-relaxed">
                   {feature.description}
                 </p>
               </div>

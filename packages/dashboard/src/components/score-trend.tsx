@@ -27,14 +27,14 @@ function scoreColorForValue(score: number): string {
   return '#ef4444';
 }
 
-function CustomTooltip({ active, payload, label }: any) {
+function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: { value: number }[]; label?: string }) {
   if (!active || !payload?.length) return null;
   const score = Math.round(payload[0].value);
   const color = scoreColorForValue(score);
   return (
-    <div className="rounded-lg border border-[var(--border-primary)] bg-[var(--bg-elevated)] px-3 py-2 text-sm shadow-xl shadow-black/30">
-      <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
-        {formatDate(label)}
+    <div className="rounded-lg border border-border-primary bg-bg-elevated px-3 py-2 text-sm shadow-xl shadow-black/30">
+      <p className="text-[10px] font-medium uppercase tracking-wider text-text-muted">
+        {formatDate(label ?? '')}
       </p>
       <p className="mt-0.5 text-base font-semibold" style={{ color }}>
         {score}/100
@@ -47,8 +47,8 @@ export function ScoreTrend({ data }: ScoreTrendProps) {
   if (data.length === 0) {
     return (
       <div className="card">
-        <h3 className="mb-4 text-sm font-medium text-[var(--text-primary)]">Score Trend</h3>
-        <p className="text-sm text-[var(--text-muted)]">No score data yet.</p>
+        <h3 className="mb-4 text-sm font-medium text-text-primary">Score Trend</h3>
+        <p className="text-sm text-text-muted">No score data yet.</p>
       </div>
     );
   }
@@ -57,16 +57,16 @@ export function ScoreTrend({ data }: ScoreTrendProps) {
     <div className="card">
       <div className="mb-5 flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-medium text-[var(--text-primary)]">Score Trend</h3>
-          <p className="mt-0.5 text-xs text-[var(--text-muted)]">Last 30 days</p>
+          <h3 className="text-sm font-medium text-text-primary">Score Trend</h3>
+          <p className="mt-0.5 text-xs text-text-muted">Last 30 days</p>
         </div>
-        <div className="flex items-center gap-3 text-xs text-[var(--text-muted)]">
+        <div className="flex items-center gap-3 text-xs text-text-muted">
           <span className="flex items-center gap-1.5">
             <span className="inline-block h-2 w-2 rounded-full bg-[#22c55e]" />
             Score
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="inline-block h-[1px] w-3 border-t border-dashed border-[var(--text-muted)]" />
+            <span className="inline-block h-[1px] w-3 border-t border-dashed border-text-muted" />
             Good (70)
           </span>
         </div>

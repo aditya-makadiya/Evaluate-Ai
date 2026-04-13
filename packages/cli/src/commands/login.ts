@@ -1,8 +1,8 @@
 import { Command } from 'commander';
 import { createServer } from 'node:http';
-import { createHash, randomBytes } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import chalk from 'chalk';
-import { saveCredentials, getApiUrl } from '../utils/credentials.js';
+import { saveCredentials, readCredentials, getApiUrl, verifyToken } from '../utils/credentials.js';
 
 function findOpenPort(start: number, end: number): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -112,44 +112,56 @@ async function loginWithBrowser(): Promise<boolean> {
 
 async function loginWithToken(token: string): Promise<boolean> {
   const apiUrl = getApiUrl();
+  const result = await verifyToken(token);
 
-  try {
-    const res = await fetch(`${apiUrl}/api/cli/verify`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    if (!res.ok) {
-      console.log(chalk.red('  ✗ Invalid token'));
-      return false;
-    }
-
-    const data = await res.json() as Record<string, unknown>;
-
-    saveCredentials({
-      token,
-      apiUrl,
-      userId: (data.userId as string) || '',
-      teamId: (data.teamId as string) || '',
-      teamName: (data.teamName as string) || '',
-      email: (data.email as string) || '',
-      createdAt: new Date().toISOString(),
-    });
-
-    console.log(chalk.green('  ✓ Logged in successfully'));
-    return true;
-  } catch {
-    console.log(chalk.red('  ✗ Failed to verify token. Check your API URL.'));
+  if (!result.valid) {
+    console.log(chalk.red('  ✗ Invalid token. Check your token and API URL.'));
     return false;
   }
+
+  saveCredentials({
+    token,
+    apiUrl,
+    userId: result.userId || '',
+    teamId: result.teamId || '',
+    teamName: result.teamName || '',
+    email: result.email || '',
+    createdAt: new Date().toISOString(),
+  });
+
+  console.log(chalk.green('  ✓ Logged in successfully'));
+  return true;
 }
 
 export const loginCommand = new Command('login')
   .description('Log in to EvaluateAI')
   .option('--token <token>', 'Login with an API token (for CI/CD)')
   .option('--api-url <url>', 'API URL override')
+  .option('--force', 'Force re-authentication even if already logged in')
   .action(async (opts) => {
     if (opts.apiUrl) {
       process.env.EVALUATEAI_API_URL = opts.apiUrl;
+    }
+
+    // Check for existing valid session unless --force or --token is used
+    if (!opts.force && !opts.token) {
+      const existing = readCredentials();
+      if (existing?.token) {
+        const result = await verifyToken(existing.token);
+        if (result.valid) {
+          console.log('');
+          console.log(chalk.green('  ✓ Already logged in'));
+          if (existing.email) console.log(`  ${chalk.dim('Email:')}  ${existing.email}`);
+          if (existing.teamName) console.log(`  ${chalk.dim('Team:')}   ${existing.teamName}`);
+          console.log('');
+          console.log(chalk.dim('  Use --force to re-authenticate'));
+          console.log('');
+          process.exit(0);
+        }
+        // Token exists but is invalid — proceed with login
+        console.log(chalk.yellow('  ⚠ Existing session is no longer valid. Re-authenticating...'));
+        console.log('');
+      }
     }
 
     if (opts.token) {

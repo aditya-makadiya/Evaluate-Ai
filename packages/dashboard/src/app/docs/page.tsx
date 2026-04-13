@@ -148,12 +148,12 @@ function CodeBlock({ code, className = '' }: { code: string; className?: string 
 
   return (
     <div className={`relative group ${className}`}>
-      <pre className="bg-[var(--bg-primary)] border border-[var(--bg-elevated)] rounded-lg px-4 py-3 text-sm font-mono text-[var(--text-primary)] overflow-x-auto">
+      <pre className="bg-bg-primary border border-bg-elevated rounded-lg px-4 py-3 text-sm font-mono text-text-primary overflow-x-auto">
         {code}
       </pre>
       <button
         onClick={handleCopy}
-        className="absolute top-2 right-2 p-1.5 rounded-md bg-[var(--bg-elevated)] border border-[var(--border-primary)] text-[var(--text-muted)] hover:text-[var(--text-primary)] opacity-0 group-hover:opacity-100 transition-all"
+        className="absolute top-2 right-2 p-1.5 rounded-md bg-bg-elevated border border-border-primary text-text-muted hover:text-text-primary opacity-0 group-hover:opacity-100 transition-all"
       >
         {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
       </button>
@@ -185,9 +185,9 @@ export default function DocsPage() {
           <div className="w-9 h-9 rounded-lg bg-purple-900/30 flex items-center justify-center">
             <BookOpen className="w-5 h-5 text-purple-400" />
           </div>
-          <h1 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">Documentation</h1>
+          <h1 className="text-2xl font-bold text-text-primary tracking-tight">Documentation</h1>
         </div>
-        <p className="text-sm text-[var(--text-muted)] ml-12">
+        <p className="text-sm text-text-muted ml-12">
           Getting started guide and CLI command reference for EvaluateAI
         </p>
       </div>
@@ -196,16 +196,16 @@ export default function DocsPage() {
         {/* Sidebar navigation */}
         <div className="lg:sticky lg:top-6 lg:self-start space-y-4">
           {/* Quick start */}
-          <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-4">
-            <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">Getting Started</p>
+          <div className="bg-bg-card border border-border-primary rounded-lg p-4">
+            <p className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">Getting Started</p>
             <div className="space-y-1">
               {['installation', 'setup', 'how-it-works'].map(section => (
                 <a
                   key={section}
                   href={`#${section}`}
-                  className="flex items-center gap-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] py-1.5 px-2 rounded-md hover:bg-[var(--bg-elevated)] transition-colors"
+                  className="flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary py-1.5 px-2 rounded-md hover:bg-bg-elevated transition-colors"
                 >
-                  <ChevronRight className="w-3 h-3 text-[var(--text-muted)]" />
+                  <ChevronRight className="w-3 h-3 text-text-muted" />
                   {section === 'installation' ? 'Installation' : section === 'setup' ? 'Initial Setup' : 'How It Works'}
                 </a>
               ))}
@@ -213,8 +213,8 @@ export default function DocsPage() {
           </div>
 
           {/* Command list */}
-          <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-4">
-            <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">CLI Commands</p>
+          <div className="bg-bg-card border border-border-primary rounded-lg p-4">
+            <p className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">CLI Commands</p>
             <div className="space-y-0.5">
               {CLI_COMMANDS.map(cmd => {
                 const Icon = COMMAND_ICONS[cmd.name] ?? Terminal;
@@ -226,7 +226,7 @@ export default function DocsPage() {
                     className={`flex items-center gap-2.5 text-sm py-1.5 px-2 rounded-md transition-colors ${
                       activeCommand === cmd.name
                         ? 'bg-purple-900/20 text-purple-400'
-                        : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)]'
+                        : 'text-text-secondary hover:text-text-primary hover:bg-bg-elevated'
                     }`}
                   >
                     <Icon className="w-3.5 h-3.5 shrink-0" />
@@ -241,58 +241,58 @@ export default function DocsPage() {
         {/* Main content */}
         <div className="space-y-8">
           {/* Installation */}
-          <section id="installation" className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-6">
+          <section id="installation" className="bg-bg-card border border-border-primary rounded-lg p-6">
             <div className="flex items-center gap-2.5 mb-4">
               <Download className="w-5 h-5 text-purple-400" />
-              <h2 className="text-lg font-semibold text-[var(--text-primary)]">Installation</h2>
+              <h2 className="text-lg font-semibold text-text-primary">Installation</h2>
             </div>
-            <p className="text-sm text-[var(--text-secondary)] mb-4 leading-relaxed">
-              Install the EvaluateAI CLI globally via npm. This gives you the <code className="text-[var(--text-primary)] bg-[var(--bg-elevated)] px-1.5 py-0.5 rounded text-xs font-mono">evalai</code> command.
+            <p className="text-sm text-text-secondary mb-4 leading-relaxed">
+              Install the EvaluateAI CLI globally via npm. This gives you the <code className="text-text-primary bg-bg-elevated px-1.5 py-0.5 rounded text-xs font-mono">evalai</code> command.
             </p>
             <CodeBlock code="npm install -g evaluateai" />
-            <p className="text-xs text-[var(--text-muted)] mt-3">
+            <p className="text-xs text-text-muted mt-3">
               Requires Node.js 20 or later.
             </p>
           </section>
 
           {/* Initial Setup */}
-          <section id="setup" className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-6">
+          <section id="setup" className="bg-bg-card border border-border-primary rounded-lg p-6">
             <div className="flex items-center gap-2.5 mb-4">
               <Play className="w-5 h-5 text-emerald-400" />
-              <h2 className="text-lg font-semibold text-[var(--text-primary)]">Initial Setup</h2>
+              <h2 className="text-lg font-semibold text-text-primary">Initial Setup</h2>
             </div>
-            <p className="text-sm text-[var(--text-secondary)] mb-4 leading-relaxed">
+            <p className="text-sm text-text-secondary mb-4 leading-relaxed">
               After installing, run these commands to connect EvaluateAI to your Claude Code workflow:
             </p>
             <div className="space-y-3">
               <div>
-                <p className="text-xs text-[var(--text-muted)] mb-1.5 font-medium">1. Log in to your account</p>
+                <p className="text-xs text-text-muted mb-1.5 font-medium">1. Log in to your account</p>
                 <CodeBlock code="evalai login" />
               </div>
               <div>
-                <p className="text-xs text-[var(--text-muted)] mb-1.5 font-medium">2. Install Claude Code hooks</p>
+                <p className="text-xs text-text-muted mb-1.5 font-medium">2. Install Claude Code hooks</p>
                 <CodeBlock code="evalai init" />
               </div>
               <div>
-                <p className="text-xs text-[var(--text-muted)] mb-1.5 font-medium">3. Verify everything is working</p>
+                <p className="text-xs text-text-muted mb-1.5 font-medium">3. Verify everything is working</p>
                 <CodeBlock code="evalai init --check" />
               </div>
             </div>
             <div className="mt-4 bg-purple-900/10 border border-purple-800/30 rounded-lg p-4 flex items-start gap-3">
               <Lightbulb className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
-              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                After setup, EvaluateAI automatically tracks every Claude Code session. No further configuration needed. View your data on this dashboard or via <code className="text-[var(--text-primary)] bg-[var(--bg-elevated)] px-1 py-0.5 rounded font-mono">evalai stats</code>.
+              <p className="text-xs text-text-secondary leading-relaxed">
+                After setup, EvaluateAI automatically tracks every Claude Code session. No further configuration needed. View your data on this dashboard or via <code className="text-text-primary bg-bg-elevated px-1 py-0.5 rounded font-mono">evalai stats</code>.
               </p>
             </div>
           </section>
 
           {/* How it works */}
-          <section id="how-it-works" className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-6">
+          <section id="how-it-works" className="bg-bg-card border border-border-primary rounded-lg p-6">
             <div className="flex items-center gap-2.5 mb-4">
               <Zap className="w-5 h-5 text-yellow-400" />
-              <h2 className="text-lg font-semibold text-[var(--text-primary)]">How It Works</h2>
+              <h2 className="text-lg font-semibold text-text-primary">How It Works</h2>
             </div>
-            <div className="space-y-4 text-sm text-[var(--text-secondary)] leading-relaxed">
+            <div className="space-y-4 text-sm text-text-secondary leading-relaxed">
               <p>
                 EvaluateAI uses Claude Code hooks to automatically capture data about your AI coding sessions:
               </p>
@@ -303,23 +303,23 @@ export default function DocsPage() {
                   { title: 'Anti-Pattern Detection', desc: 'Identifies common prompt mistakes like vague verbs, missing file references, and retries' },
                   { title: 'Improvement Coaching', desc: 'Suggests rewritten prompts and estimates token/cost savings from better prompting' },
                 ].map(item => (
-                  <div key={item.title} className="bg-[var(--bg-primary)] border border-[var(--bg-elevated)] rounded-lg p-4">
-                    <p className="text-xs font-semibold text-[var(--text-primary)] mb-1">{item.title}</p>
-                    <p className="text-xs text-[var(--text-muted)] leading-relaxed">{item.desc}</p>
+                  <div key={item.title} className="bg-bg-primary border border-bg-elevated rounded-lg p-4">
+                    <p className="text-xs font-semibold text-text-primary mb-1">{item.title}</p>
+                    <p className="text-xs text-text-muted leading-relaxed">{item.desc}</p>
                   </div>
                 ))}
               </div>
-              <p className="text-xs text-[var(--text-muted)]">
+              <p className="text-xs text-text-muted">
                 All data is synced to your team dashboard in real-time via Supabase.
               </p>
             </div>
           </section>
 
           {/* Key metrics explanation */}
-          <section className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-6">
+          <section className="bg-bg-card border border-border-primary rounded-lg p-6">
             <div className="flex items-center gap-2.5 mb-4">
               <BarChart3 className="w-5 h-5 text-blue-400" />
-              <h2 className="text-lg font-semibold text-[var(--text-primary)]">Understanding Metrics</h2>
+              <h2 className="text-lg font-semibold text-text-primary">Understanding Metrics</h2>
             </div>
             <div className="space-y-3">
               {[
@@ -330,11 +330,11 @@ export default function DocsPage() {
                 { metric: 'Cost per Turn', desc: 'Average API cost for each prompt-response exchange. Helps identify expensive patterns and opportunities to use cheaper models.' },
                 { metric: 'Context Peak Usage', desc: 'Maximum percentage of the model context window used in any single turn. High values (>80%) may cause truncation.' },
               ].map(item => (
-                <div key={item.metric} className="flex items-start gap-3 bg-[var(--bg-primary)] border border-[var(--bg-elevated)] rounded-lg p-3.5">
+                <div key={item.metric} className="flex items-start gap-3 bg-bg-primary border border-bg-elevated rounded-lg p-3.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-purple-400 mt-2 shrink-0" />
                   <div>
-                    <p className="text-sm font-medium text-[var(--text-primary)]">{item.metric}</p>
-                    <p className="text-xs text-[var(--text-muted)] mt-0.5 leading-relaxed">{item.desc}</p>
+                    <p className="text-sm font-medium text-text-primary">{item.metric}</p>
+                    <p className="text-xs text-text-muted mt-0.5 leading-relaxed">{item.desc}</p>
                   </div>
                 </div>
               ))}
@@ -343,7 +343,7 @@ export default function DocsPage() {
 
           {/* CLI Commands Reference */}
           <div>
-            <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-4 flex items-center gap-2.5">
+            <h2 className="text-lg font-semibold text-text-primary mb-4 flex items-center gap-2.5">
               <Terminal className="w-5 h-5 text-cyan-400" />
               CLI Command Reference
             </h2>
@@ -355,32 +355,32 @@ export default function DocsPage() {
                   <section
                     key={cmd.name}
                     id={`cmd-${cmd.name}`}
-                    className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-5 hover:border-[var(--border-hover)] transition-colors"
+                    className="bg-bg-card border border-border-primary rounded-lg p-5 hover:border-border-hover transition-colors"
                   >
                     <div className="flex items-center gap-2.5 mb-3">
-                      <div className="w-7 h-7 rounded-md bg-[var(--bg-elevated)] flex items-center justify-center">
+                      <div className="w-7 h-7 rounded-md bg-bg-elevated flex items-center justify-center">
                         <Icon className="w-3.5 h-3.5 text-purple-400" />
                       </div>
-                      <code className="text-base font-mono font-semibold text-[var(--text-primary)]">evalai {cmd.name}</code>
+                      <code className="text-base font-mono font-semibold text-text-primary">evalai {cmd.name}</code>
                     </div>
 
-                    <p className="text-sm text-[var(--text-secondary)] mb-4 leading-relaxed">{cmd.description}</p>
+                    <p className="text-sm text-text-secondary mb-4 leading-relaxed">{cmd.description}</p>
 
                     {/* Usage */}
                     <div className="mb-4">
-                      <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-widest font-semibold mb-2">Usage</p>
+                      <p className="text-[10px] text-text-muted uppercase tracking-widest font-semibold mb-2">Usage</p>
                       <CodeBlock code={cmd.usage} />
                     </div>
 
                     {/* Flags */}
                     {cmd.flags && cmd.flags.length > 0 && (
                       <div className="mb-4">
-                        <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-widest font-semibold mb-2">Options</p>
+                        <p className="text-[10px] text-text-muted uppercase tracking-widest font-semibold mb-2">Options</p>
                         <div className="space-y-1.5">
                           {cmd.flags.map(f => (
                             <div key={f.flag} className="flex items-start gap-3 text-xs">
-                              <code className="text-purple-400 font-mono bg-[var(--bg-primary)] px-2 py-0.5 rounded shrink-0">{f.flag}</code>
-                              <span className="text-[var(--text-muted)]">{f.description}</span>
+                              <code className="text-purple-400 font-mono bg-bg-primary px-2 py-0.5 rounded shrink-0">{f.flag}</code>
+                              <span className="text-text-muted">{f.description}</span>
                             </div>
                           ))}
                         </div>
@@ -390,7 +390,7 @@ export default function DocsPage() {
                     {/* Examples */}
                     {cmd.examples && cmd.examples.length > 0 && (
                       <div className="mb-3">
-                        <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-widest font-semibold mb-2">Examples</p>
+                        <p className="text-[10px] text-text-muted uppercase tracking-widest font-semibold mb-2">Examples</p>
                         <div className="space-y-2">
                           {cmd.examples.map((ex, i) => (
                             <CodeBlock key={i} code={ex} />
@@ -401,7 +401,7 @@ export default function DocsPage() {
 
                     {/* Notes */}
                     {cmd.notes && (
-                      <div className="flex items-start gap-2 mt-3 text-xs text-[var(--text-muted)]">
+                      <div className="flex items-start gap-2 mt-3 text-xs text-text-muted">
                         <Lightbulb className="w-3 h-3 shrink-0 mt-0.5 text-yellow-400" />
                         <span>{cmd.notes}</span>
                       </div>

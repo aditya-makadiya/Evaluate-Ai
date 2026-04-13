@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
 
     // Fetch first turn prompt text for each session to use as title
     const sessionIds = (data ?? []).map(s => s.id);
-    let firstPrompts: Record<string, string> = {};
+    const firstPrompts: Record<string, string> = {};
     if (sessionIds.length > 0) {
       const { data: turnsData } = await supabase
         .from('ai_turns')

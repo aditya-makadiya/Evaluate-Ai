@@ -21,8 +21,6 @@ export async function GET(
 
     const supabase = getSupabaseAdmin();
     const now = new Date();
-    const tomorrowStr = new Date(now.getTime() + 86400000).toISOString().slice(0, 10);
-
     // Week boundaries
     const dayOfWeek = now.getDay() || 7;
     const weekStart = new Date(now);

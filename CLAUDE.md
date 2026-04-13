@@ -84,15 +84,25 @@ src/
 ## Common Commands
 
 ```bash
-pnpm install                          # Install all dependencies
-pnpm run build                        # Build all packages
-pnpm --filter evaluateai-core test    # Run core tests
+# Build
+pnpm run build                        # Build all packages (Turborepo handles dependency order)
 pnpm --filter evaluateai-core build   # Build core only
 pnpm --filter evaluateai build        # Build CLI only
+pnpm --filter evaluateai-dashboard build # Build dashboard only
+
+# Lint
+pnpm --filter evaluateai-dashboard exec npx eslint src/ --ext .ts,.tsx  # Lint dashboard
+
+# Test
+pnpm --filter evaluateai-core test    # Run core tests
+
+# Dev
 pnpm --filter evaluateai-dashboard dev # Start dashboard dev server
+
+# CLI
+pnpm install                          # Install all dependencies
 evalai init                           # Install Claude Code hooks
 evalai stats                          # Show usage stats
-evalai sync                           # Sync to Supabase
 ```
 
 ## Environment Variables

@@ -56,7 +56,7 @@ function getInsightColor(insight: string): string {
   if (insight.includes('improved') || insight.includes('best')) return 'border-emerald-800/50 bg-emerald-950/20';
   if (insight.includes('declined') || insight.includes('coaching') || insight.includes('unplanned')) return 'border-yellow-800/50 bg-yellow-950/20';
   if (insight.includes('save') || insight.includes('switching')) return 'border-blue-800/50 bg-blue-950/20';
-  return 'border-[var(--border-primary)] bg-[var(--bg-card)]';
+  return 'border-border-primary bg-bg-card';
 }
 
 function formatDate(dateStr: string): string {
@@ -73,8 +73,8 @@ export default function DeveloperInsightsTab({ insights, scoreTrend, stats }: De
     <div className="space-y-6">
       {/* Score trend chart */}
       {chartData.length > 1 && (
-        <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-5">
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-4">
+        <div className="bg-bg-card border border-border-primary rounded-lg p-5">
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-text-muted mb-4">
             Prompt Score Trend (30 days)
           </h3>
           <ResponsiveContainer width="100%" height={200}>
@@ -100,14 +100,14 @@ export default function DeveloperInsightsTab({ insights, scoreTrend, stats }: De
       <div>
         <div className="flex items-center gap-2 mb-4">
           <Lightbulb className="h-5 w-5 text-yellow-400" />
-          <h3 className="text-lg font-semibold text-[var(--text-primary)]">Auto-Generated Insights</h3>
+          <h3 className="text-lg font-semibold text-text-primary">Auto-Generated Insights</h3>
         </div>
 
         {insights.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg">
-            <Lightbulb className="w-10 h-10 text-[var(--text-muted)] mb-3" />
-            <p className="text-sm text-[var(--text-secondary)]">No insights available yet</p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">Insights are generated from a week of activity data.</p>
+          <div className="flex flex-col items-center justify-center py-16 text-center bg-bg-card border border-border-primary rounded-lg">
+            <Lightbulb className="w-10 h-10 text-text-muted mb-3" />
+            <p className="text-sm text-text-secondary">No insights available yet</p>
+            <p className="text-xs text-text-muted mt-1">Insights are generated from a week of activity data.</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -119,8 +119,8 @@ export default function DeveloperInsightsTab({ insights, scoreTrend, stats }: De
                   key={i}
                   className={`flex items-start gap-3 rounded-lg border p-4 ${colorClass}`}
                 >
-                  <Icon className="h-5 w-5 shrink-0 mt-0.5 text-[var(--text-secondary)]" />
-                  <p className="text-sm text-[var(--text-primary)]">{insight}</p>
+                  <Icon className="h-5 w-5 shrink-0 mt-0.5 text-text-secondary" />
+                  <p className="text-sm text-text-primary">{insight}</p>
                 </div>
               );
             })}
@@ -144,9 +144,9 @@ export default function DeveloperInsightsTab({ insights, scoreTrend, stats }: De
 
 function SummaryCard({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
-    <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-4 text-center">
-      <p className="text-xs text-[var(--text-muted)] uppercase tracking-wider mb-1">{label}</p>
-      <p className={`text-lg font-bold text-[var(--text-primary)] ${mono ? 'font-mono' : ''}`}>{value}</p>
+    <div className="bg-bg-card border border-border-primary rounded-lg p-4 text-center">
+      <p className="text-xs text-text-muted uppercase tracking-wider mb-1">{label}</p>
+      <p className={`text-lg font-bold text-text-primary ${mono ? 'font-mono' : ''}`}>{value}</p>
     </div>
   );
 }

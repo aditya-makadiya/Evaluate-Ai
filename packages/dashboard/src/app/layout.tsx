@@ -50,21 +50,23 @@ const MANAGER_ONLY_HREFS = new Set([
   '/settings',
 ]);
 
+type SyncStatus = 'idle' | 'syncing' | 'success' | 'error';
+
 function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
   const isManagerOrOwner = useCanAccess('owner', 'manager');
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    if (typeof window === 'undefined') return 'dark';
+    return (localStorage.getItem('evaluateai-theme') as 'dark' | 'light') ?? 'dark';
+  });
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
+  const [syncMessage, setSyncMessage] = useState('');
 
   const isAuthPage = pathname.startsWith('/auth');
   const isMarketingPage = pathname === '/';
   const isOnboarding = pathname.startsWith('/onboarding');
   const isPublicPage = isAuthPage || isMarketingPage || isOnboarding;
-
-  useEffect(() => {
-    const saved = localStorage.getItem('evaluateai-theme') as 'dark' | 'light' | null;
-    if (saved) setTheme(saved);
-  }, []);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -73,6 +75,40 @@ function AppShell({ children }: { children: React.ReactNode }) {
 
   const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
 
+  const handleSync = async () => {
+    if (syncStatus === 'syncing') return;
+    setSyncStatus('syncing');
+    setSyncMessage('');
+
+    try {
+      const res = await fetch('/api/dashboard/generate-reports', { method: 'POST' });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setSyncStatus('error');
+        setSyncMessage(data.error ?? 'Sync failed');
+        return;
+      }
+
+      const parts: string[] = [];
+      if (data.reportsGenerated > 0) parts.push(`${data.reportsGenerated} reports`);
+      if (data.alertsGenerated > 0) parts.push(`${data.alertsGenerated} alerts`);
+      if (data.staleSessionsClosed > 0) parts.push(`${data.staleSessionsClosed} stale sessions cleaned`);
+
+      setSyncStatus('success');
+      setSyncMessage(parts.length > 0 ? `Generated ${parts.join(', ')}` : 'Up to date — no new data');
+
+      // Auto-clear success toast after 4 seconds
+      setTimeout(() => {
+        setSyncStatus((prev) => (prev === 'success' ? 'idle' : prev));
+        setSyncMessage('');
+      }, 4000);
+    } catch {
+      setSyncStatus('error');
+      setSyncMessage('Network error — please try again');
+    }
+  };
+
   if (isPublicPage) {
     return <main className="flex-1 min-h-screen">{children}</main>;
   }
@@ -80,9 +116,9 @@ function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       {/* Sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-30 flex w-60 flex-col border-r border-[var(--border-primary)] bg-[var(--bg-card)]">
+      <aside className="fixed inset-y-0 left-0 z-30 flex w-60 flex-col border-r border-border-primary bg-bg-card">
         {/* Logo + Theme Toggle */}
-        <div className="flex h-14 items-center justify-between px-5 border-b border-[var(--border-primary)]">
+        <div className="flex h-14 items-center justify-between px-5 border-b border-border-primary">
           <div className="flex items-center gap-3">
             <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-[#8b5cf6] to-[#6d28d9] flex items-center justify-center shadow-[0_0_12px_rgba(139,92,246,0.3)]">
               <svg
@@ -108,13 +144,13 @@ function AppShell({ children }: { children: React.ReactNode }) {
                 />
               </svg>
             </div>
-            <span className="text-[15px] font-semibold tracking-tight text-[var(--text-primary)]">
+            <span className="text-[15px] font-semibold tracking-tight text-text-primary">
               Evaluate<span className="text-[#8b5cf6]">AI</span>
             </span>
           </div>
           <button
             onClick={toggleTheme}
-            className="h-8 w-8 rounded-lg flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-all duration-200"
+            className="h-8 w-8 rounded-lg flex items-center justify-center text-text-muted hover:text-text-primary hover:bg-bg-elevated transition-all duration-200"
             title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
           >
             {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
@@ -137,8 +173,8 @@ function AppShell({ children }: { children: React.ReactNode }) {
                   group relative flex items-center gap-3 rounded-md px-3 py-2 text-[13px] font-medium transition-all duration-150
                   ${
                     isActive
-                      ? "bg-white/[0.06] text-[var(--text-primary)]"
-                      : "text-[var(--text-muted)] hover:bg-white/[0.04] hover:text-[var(--text-secondary)]"
+                      ? "bg-white/[0.06] text-text-primary"
+                      : "text-text-muted hover:bg-white/[0.04] hover:text-text-secondary"
                   }
                 `}
               >
@@ -154,7 +190,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
 
         {/* Bottom section */}
-        <div className="border-t border-[var(--border-primary)] px-4 py-3 space-y-2">
+        <div className="border-t border-border-primary px-4 py-3 space-y-2">
           {/* User info */}
           {user && (
             <div className="flex items-center gap-3 px-1 py-2">
@@ -162,16 +198,16 @@ function AppShell({ children }: { children: React.ReactNode }) {
                 <User className="h-3.5 w-3.5 text-purple-400" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-[var(--text-primary)] truncate">
+                <p className="text-xs font-medium text-text-primary truncate">
                   {user.name}
                 </p>
-                <p className="text-[10px] text-[var(--text-muted)] truncate">
+                <p className="text-[10px] text-text-muted truncate">
                   {user.email}
                 </p>
               </div>
               <button
                 onClick={signOut}
-                className="h-6 w-6 rounded flex items-center justify-center text-[var(--text-muted)] hover:text-red-400 hover:bg-red-900/20 transition-colors"
+                className="h-6 w-6 rounded flex items-center justify-center text-text-muted hover:text-red-400 hover:bg-red-900/20 transition-colors"
                 title="Sign out"
               >
                 <LogOut className="h-3 w-3" />
@@ -179,14 +215,40 @@ function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           )}
 
-          <button
-            className="flex w-full items-center justify-center gap-2 rounded-md border border-[var(--border-primary)] bg-white/[0.03] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:bg-white/[0.06] hover:text-[var(--text-primary)] hover:border-[var(--border-hover)]"
-            onClick={() => window.location.reload()}
-          >
-            <RefreshCw className="h-3 w-3" />
-            Sync Now
-          </button>
-          <p className="text-center text-[10px] text-[var(--text-muted)] tracking-wide uppercase">
+          {isManagerOrOwner ? (
+            <button
+              className={`flex w-full items-center justify-center gap-2 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
+                syncStatus === 'syncing'
+                  ? 'border-purple-500/30 bg-purple-900/20 text-purple-300 cursor-wait'
+                  : syncStatus === 'success'
+                    ? 'border-emerald-500/30 bg-emerald-900/20 text-emerald-300'
+                    : syncStatus === 'error'
+                      ? 'border-red-500/30 bg-red-900/20 text-red-300 hover:bg-red-900/30'
+                      : 'border-border-primary bg-white/[0.03] text-text-secondary hover:bg-white/[0.06] hover:text-text-primary hover:border-border-hover'
+              }`}
+              onClick={handleSync}
+              disabled={syncStatus === 'syncing'}
+            >
+              <RefreshCw className={`h-3 w-3 ${syncStatus === 'syncing' ? 'animate-spin' : ''}`} />
+              {syncStatus === 'syncing' ? 'Generating...' : syncStatus === 'success' ? 'Synced' : syncStatus === 'error' ? 'Retry Sync' : 'Sync Now'}
+            </button>
+          ) : (
+            <button
+              className="flex w-full items-center justify-center gap-2 rounded-md border border-border-primary bg-white/[0.03] px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:bg-white/[0.06] hover:text-text-primary hover:border-border-hover"
+              onClick={() => window.location.reload()}
+            >
+              <RefreshCw className="h-3 w-3" />
+              Refresh
+            </button>
+          )}
+          {syncMessage && (
+            <p className={`text-center text-[10px] leading-tight ${
+              syncStatus === 'error' ? 'text-red-400' : syncStatus === 'success' ? 'text-emerald-400' : 'text-text-muted'
+            }`}>
+              {syncMessage}
+            </p>
+          )}
+          <p className="text-center text-[10px] text-text-muted tracking-wide uppercase">
             v1.0.0
           </p>
         </div>
@@ -219,7 +281,7 @@ export default function RootLayout({
         <title>EvaluateAI</title>
         <meta name="description" content="AI coding assistant evaluation dashboard" />
       </head>
-      <body suppressHydrationWarning className="min-h-full flex bg-[var(--bg-primary)] text-[var(--text-primary)]">
+      <body suppressHydrationWarning className="min-h-full flex bg-bg-primary text-text-primary">
         <AuthProvider>
           <AppShell>{children}</AppShell>
         </AuthProvider>

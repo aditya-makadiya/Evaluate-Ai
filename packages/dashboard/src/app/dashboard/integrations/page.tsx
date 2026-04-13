@@ -13,8 +13,6 @@ import {
   Plug,
   Loader2,
   AlertCircle,
-  ToggleLeft,
-  ToggleRight,
   Key,
   X,
   RefreshCw,
@@ -99,9 +97,7 @@ function IntegrationsPage() {
   const [githubIntegration, setGithubIntegration] = useState<Integration | null>(null);
   const [firefliesIntegration, setFirefliesIntegration] = useState<Integration | null>(null);
   const [repos, setRepos] = useState<Repo[]>([]);
-  const [trackedRepos, setTrackedRepos] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
-  const [reposLoading, setReposLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showFirefliesModal, setShowFirefliesModal] = useState(false);
@@ -346,18 +342,6 @@ function IntegrationsPage() {
     }
   }
 
-  function toggleRepoTracking(fullName: string) {
-    setTrackedRepos((prev) => {
-      const next = new Set(prev);
-      if (next.has(fullName)) {
-        next.delete(fullName);
-      } else {
-        next.add(fullName);
-      }
-      return next;
-    });
-  }
-
   const isGitHubConnected = githubIntegration !== null;
   const isFirefliesConnected = firefliesIntegration !== null;
 
@@ -367,10 +351,10 @@ function IntegrationsPage() {
     <div className="max-w-4xl">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
+        <h1 className="text-2xl font-bold tracking-tight text-text-primary">
           Integrations
         </h1>
-        <p className="mt-1 text-sm text-[var(--text-secondary)]">
+        <p className="mt-1 text-sm text-text-secondary">
           Connect your tools to track developer activity automatically
         </p>
       </div>
@@ -392,27 +376,27 @@ function IntegrationsPage() {
       {/* Fireflies API Key Modal */}
       {showFirefliesModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-6 w-full max-w-md mx-4">
+          <div className="bg-bg-card border border-border-primary rounded-lg p-6 w-full max-w-md mx-4">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+              <h3 className="text-sm font-semibold text-text-primary">
                 Connect Fireflies.ai
               </h3>
               <button
                 onClick={() => setShowFirefliesModal(false)}
-                className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+                className="text-text-muted hover:text-text-primary transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <p className="text-xs text-[var(--text-secondary)] mb-4">
+            <p className="text-xs text-text-secondary mb-4">
               Enter your Fireflies API key to connect. You can find it at{' '}
               <span className="text-purple-400">Fireflies Dashboard &rarr; Integrations &rarr; Fireflies API</span>.
               Only workspace admins can access the API key.
             </p>
 
             <div className="mb-4">
-              <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">
+              <label className="block text-xs font-medium text-text-muted mb-1.5">
                 API Key
               </label>
               <input
@@ -420,7 +404,7 @@ function IntegrationsPage() {
                 value={firefliesApiKey}
                 onChange={(e) => setFirefliesApiKey(e.target.value)}
                 placeholder="Enter your Fireflies API key..."
-                className="w-full rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-purple-500 focus:outline-none"
+                className="w-full rounded-lg border border-border-primary bg-bg-secondary px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-purple-500 focus:outline-none"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleSaveFirefliesKey();
                 }}
@@ -430,7 +414,7 @@ function IntegrationsPage() {
             <div className="flex items-center justify-end gap-3">
               <button
                 onClick={() => setShowFirefliesModal(false)}
-                className="border border-[var(--border-primary)] bg-[var(--bg-card)] hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)] rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+                className="border border-border-primary bg-bg-card hover:bg-bg-elevated text-text-secondary rounded-lg px-4 py-2 text-sm font-medium transition-colors"
               >
                 Cancel
               </button>
@@ -454,22 +438,22 @@ function IntegrationsPage() {
       {/* Disconnect Confirmation Modal */}
       {confirmDisconnect && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-6 w-full max-w-sm mx-4">
+          <div className="bg-bg-card border border-border-primary rounded-lg p-6 w-full max-w-sm mx-4">
             <div className="flex items-center gap-3 mb-4">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-900/30">
                 <Unplug className="h-5 w-5 text-red-400" />
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+                <h3 className="text-sm font-semibold text-text-primary">
                   Disconnect {confirmDisconnect === 'github' ? 'GitHub' : 'Fireflies.ai'}?
                 </h3>
-                <p className="text-xs text-[var(--text-muted)]">
+                <p className="text-xs text-text-muted">
                   This action can be undone by reconnecting.
                 </p>
               </div>
             </div>
 
-            <p className="text-xs text-[var(--text-secondary)] mb-5">
+            <p className="text-xs text-text-secondary mb-5">
               {confirmDisconnect === 'github'
                 ? 'This will stop tracking commits, pull requests, and code reviews from your GitHub repositories.'
                 : 'This will stop syncing meeting transcripts and extracting action items from Fireflies.ai.'}
@@ -478,7 +462,7 @@ function IntegrationsPage() {
             <div className="flex items-center justify-end gap-3">
               <button
                 onClick={() => setConfirmDisconnect(null)}
-                className="border border-[var(--border-primary)] bg-[var(--bg-card)] hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)] rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+                className="border border-border-primary bg-bg-card hover:bg-bg-elevated text-text-secondary rounded-lg px-4 py-2 text-sm font-medium transition-colors"
               >
                 Cancel
               </button>
@@ -506,7 +490,7 @@ function IntegrationsPage() {
           return (
             <div
               key={card.id}
-              className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-5 hover:border-[var(--border-hover)] transition-colors"
+              className="bg-bg-card border border-border-primary rounded-lg p-5 hover:border-border-hover transition-colors"
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-start gap-4">
@@ -516,14 +500,14 @@ function IntegrationsPage() {
                         ? 'bg-emerald-900/30 text-emerald-400'
                         : isAvailable
                         ? 'bg-purple-900/30 text-purple-400'
-                        : 'bg-[var(--bg-elevated)] text-[var(--text-muted)]'
+                        : 'bg-bg-elevated text-text-muted'
                     }`}
                   >
                     <Icon className="h-5 w-5" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+                      <h3 className="text-sm font-semibold text-text-primary">
                         {card.name}
                       </h3>
                       {isConnected && (
@@ -533,12 +517,12 @@ function IntegrationsPage() {
                         </span>
                       )}
                       {!isAvailable && (
-                        <span className="inline-flex items-center rounded-full bg-[var(--bg-elevated)] px-2 py-0.5 text-[10px] font-medium text-[var(--text-muted)]">
+                        <span className="inline-flex items-center rounded-full bg-bg-elevated px-2 py-0.5 text-[10px] font-medium text-text-muted">
                           Coming Soon
                         </span>
                       )}
                     </div>
-                    <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                    <p className="mt-0.5 text-xs text-text-muted">
                       {card.description}
                     </p>
                   </div>
@@ -592,9 +576,9 @@ function IntegrationsPage() {
 
               {/* GitHub Connected: Show installed repos */}
               {card.id === 'github' && isConnected && repos.length > 0 && (
-                <div className="mt-4 border-t border-[var(--border-primary)] pt-4">
+                <div className="mt-4 border-t border-border-primary pt-4">
                   <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
                       Tracked Repositories ({repos.length})
                     </h4>
                     <a
@@ -611,14 +595,14 @@ function IntegrationsPage() {
                     {repos.map((repo) => (
                       <div
                         key={repo.fullName ?? repo.name}
-                        className="flex items-center gap-3 rounded-md bg-[var(--bg-secondary)] px-3 py-2"
+                        className="flex items-center gap-3 rounded-md bg-bg-secondary px-3 py-2"
                       >
-                        <Github className="h-3.5 w-3.5 text-[var(--text-muted)] shrink-0" />
-                        <span className="text-sm text-[var(--text-primary)] truncate">
+                        <Github className="h-3.5 w-3.5 text-text-muted shrink-0" />
+                        <span className="text-sm text-text-primary truncate">
                           {repo.fullName ?? repo.name}
                         </span>
                         {repo.language && (
-                          <span className="text-xs text-[var(--text-muted)] shrink-0">
+                          <span className="text-xs text-text-muted shrink-0">
                             {repo.language}
                           </span>
                         )}
@@ -635,13 +619,13 @@ function IntegrationsPage() {
 
               {/* GitHub sync controls */}
               {card.id === 'github' && isConnected && (
-                <div className="mt-4 border-t border-[var(--border-primary)] pt-4">
+                <div className="mt-4 border-t border-border-primary pt-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-1">
+                      <h4 className="text-xs font-semibold uppercase tracking-wider text-text-muted mb-1">
                         Code Sync
                       </h4>
-                      <p className="text-xs text-[var(--text-muted)]">
+                      <p className="text-xs text-text-muted">
                         {githubLastSyncAt
                           ? `Last synced: ${new Date(githubLastSyncAt).toLocaleString()}`
                           : 'Commits and PRs are captured automatically via webhooks. Use Sync Now to pull any missed data.'}
@@ -661,14 +645,14 @@ function IntegrationsPage() {
 
               {/* Fireflies connected details */}
               {card.id === 'fireflies' && isFirefliesConnected && (
-                <div className="mt-4 border-t border-[var(--border-primary)] pt-4">
+                <div className="mt-4 border-t border-border-primary pt-4">
                   {/* Sync Controls */}
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-1">
+                      <h4 className="text-xs font-semibold uppercase tracking-wider text-text-muted mb-1">
                         Meeting Sync
                       </h4>
-                      <p className="text-xs text-[var(--text-muted)]">
+                      <p className="text-xs text-text-muted">
                         {lastSyncAt
                           ? `Last synced: ${new Date(lastSyncAt).toLocaleString()}`
                           : 'Not synced yet — click Sync Now to pull meetings'}
@@ -686,23 +670,23 @@ function IntegrationsPage() {
 
                   {/* How It Works */}
                   <div>
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-text-muted mb-2">
                       How It Works
                     </h4>
                     <div className="space-y-1.5">
-                      <div className="flex items-start gap-2 text-xs text-[var(--text-secondary)]">
+                      <div className="flex items-start gap-2 text-xs text-text-secondary">
                         <span className="text-purple-400 mt-0.5">1.</span>
                         <span>Fireflies bot joins your meetings and transcribes them</span>
                       </div>
-                      <div className="flex items-start gap-2 text-xs text-[var(--text-secondary)]">
+                      <div className="flex items-start gap-2 text-xs text-text-secondary">
                         <span className="text-purple-400 mt-0.5">2.</span>
                         <span>Click &quot;Sync Now&quot; to pull new meetings into EvaluateAI</span>
                       </div>
-                      <div className="flex items-start gap-2 text-xs text-[var(--text-secondary)]">
+                      <div className="flex items-start gap-2 text-xs text-text-secondary">
                         <span className="text-purple-400 mt-0.5">3.</span>
                         <span>AI extracts action items and assigns to team members</span>
                       </div>
-                      <div className="flex items-start gap-2 text-xs text-[var(--text-secondary)]">
+                      <div className="flex items-start gap-2 text-xs text-text-secondary">
                         <span className="text-purple-400 mt-0.5">4.</span>
                         <span>Track task delivery on the Meetings page</span>
                       </div>

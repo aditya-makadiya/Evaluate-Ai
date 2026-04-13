@@ -24,13 +24,13 @@ function getColor(model: string, index: number): string {
   return fallback[index % fallback.length];
 }
 
-function CustomTooltip({ active, payload }: any) {
+function CustomTooltip({ active, payload }: { active?: boolean; payload?: { payload: { model: string; count: number; pct: number; cost: number } }[] }) {
   if (!active || !payload?.length) return null;
   const entry = payload[0].payload;
   return (
-    <div className="rounded-lg border border-[var(--border-primary)] bg-[var(--bg-elevated)] px-3 py-2 text-sm shadow-xl shadow-black/30">
-      <p className="font-medium text-[var(--text-primary)]">{entry.model}</p>
-      <div className="mt-1 flex items-center gap-3 text-xs text-[var(--text-muted)]">
+    <div className="rounded-lg border border-border-primary bg-bg-elevated px-3 py-2 text-sm shadow-xl shadow-black/30">
+      <p className="font-medium text-text-primary">{entry.model}</p>
+      <div className="mt-1 flex items-center gap-3 text-xs text-text-muted">
         <span>{entry.count} sessions</span>
         <span>${entry.cost.toFixed(2)}</span>
       </div>
@@ -48,10 +48,10 @@ export function ModelDonut({ data }: ModelDonutProps) {
 
   return (
     <div className="card">
-      <h3 className="mb-4 text-sm font-medium text-[var(--text-primary)]">Model Usage</h3>
+      <h3 className="mb-4 text-sm font-medium text-text-primary">Model Usage</h3>
       {data.length === 0 ? (
         <div className="flex flex-col items-center py-8 text-center">
-          <p className="text-sm text-[var(--text-muted)]">No model data yet.</p>
+          <p className="text-sm text-text-muted">No model data yet.</p>
         </div>
       ) : (
         <div className="flex items-center gap-6">
@@ -88,10 +88,10 @@ export function ModelDonut({ data }: ModelDonutProps) {
                   style={{ backgroundColor: entry.color }}
                 />
                 <div className="min-w-0">
-                  <p className="text-xs font-medium text-[var(--text-primary)] truncate max-w-[120px]">
+                  <p className="text-xs font-medium text-text-primary truncate max-w-[120px]">
                     {entry.model}
                   </p>
-                  <p className="text-[10px] text-[var(--text-muted)]">
+                  <p className="text-[10px] text-text-muted">
                     {(entry.percent * 100).toFixed(0)}% &middot; ${entry.cost.toFixed(2)}
                   </p>
                 </div>

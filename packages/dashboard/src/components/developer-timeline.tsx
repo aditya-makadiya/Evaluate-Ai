@@ -102,9 +102,6 @@ export default function DeveloperTimeline({ developerId }: DeveloperTimelineProp
     const filterParam = filterType === 'all' ? '' : `&type=${filterType}`;
     const url = `/api/dashboard/developers/${developerId}/timeline?limit=${pageSize}&offset=${startOffset}${filterParam}`;
 
-    if (append) setLoadingMore(true);
-    else setLoading(true);
-
     fetch(url)
       .then(res => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -128,13 +125,13 @@ export default function DeveloperTimeline({ developerId }: DeveloperTimelineProp
   }, [developerId, authUser]);
 
   useEffect(() => {
-    setOffset(0);
     fetchEvents(filter, 0, false);
   }, [filter, fetchEvents]);
 
   const handleLoadMore = () => {
     const newOffset = offset + pageSize;
     setOffset(newOffset);
+    setLoadingMore(true);
     fetchEvents(filter, newOffset, true);
   };
 
@@ -160,11 +157,11 @@ export default function DeveloperTimeline({ developerId }: DeveloperTimelineProp
         {FILTERS.map(f => (
           <button
             key={f.key}
-            onClick={() => setFilter(f.key)}
+            onClick={() => { setFilter(f.key); setOffset(0); setLoading(true); }}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
               filter === f.key
                 ? 'bg-purple-600 text-white'
-                : 'border border-[var(--border-primary)] bg-[var(--bg-card)] text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)]'
+                : 'border border-border-primary bg-bg-card text-text-secondary hover:bg-bg-elevated'
             }`}
           >
             {f.label}
@@ -188,9 +185,9 @@ export default function DeveloperTimeline({ developerId }: DeveloperTimelineProp
 
       {!loading && !error && events.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <Activity className="w-10 h-10 text-[var(--text-muted)] mb-3" />
-          <p className="text-sm text-[var(--text-secondary)]">No activity found</p>
-          <p className="text-xs text-[var(--text-muted)] mt-1">Try changing the filter or check back later.</p>
+          <Activity className="w-10 h-10 text-text-muted mb-3" />
+          <p className="text-sm text-text-secondary">No activity found</p>
+          <p className="text-xs text-text-muted mt-1">Try changing the filter or check back later.</p>
         </div>
       )}
 
@@ -198,10 +195,10 @@ export default function DeveloperTimeline({ developerId }: DeveloperTimelineProp
         <div className="space-y-6">
           {groupedEvents.map(group => (
             <div key={group.date}>
-              <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-text-muted mb-3">
                 {formatDate(group.date)}
               </p>
-              <div className="space-y-1 border-l-2 border-[var(--border-primary)] ml-2">
+              <div className="space-y-1 border-l-2 border-border-primary ml-2">
                 {group.events.map(event => {
                   const EventIcon = EVENT_ICONS[event.eventType] ?? Activity;
                   const emoji = EVENT_EMOJIS[event.eventType] ?? '';
@@ -216,41 +213,41 @@ export default function DeveloperTimeline({ developerId }: DeveloperTimelineProp
                   return (
                     <div
                       key={event.id}
-                      className="relative pl-6 pr-3 py-2.5 hover:bg-[var(--bg-elevated)] rounded-md transition-colors ml-[-1px]"
+                      className="relative pl-6 pr-3 py-2.5 hover:bg-bg-elevated rounded-md transition-colors -ml-px"
                     >
                       {/* Dot on timeline */}
-                      <div className="absolute left-[-5px] top-4 h-2 w-2 rounded-full bg-[var(--border-hover)]" />
+                      <div className="absolute left-[-5px] top-4 h-2 w-2 rounded-full bg-border-hover" />
 
                       <div className="flex items-start gap-3">
-                        <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[var(--bg-elevated)]">
-                          <EventIcon className="h-3.5 w-3.5 text-[var(--text-muted)]" />
+                        <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-bg-elevated">
+                          <EventIcon className="h-3.5 w-3.5 text-text-muted" />
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <span className="text-xs text-[var(--text-muted)]">{formatTime(event.createdAt)}</span>
-                            <span className="text-xs text-[var(--text-muted)]">{emoji}</span>
+                            <span className="text-xs text-text-muted">{formatTime(event.createdAt)}</span>
+                            <span className="text-xs text-text-muted">{emoji}</span>
                             {score != null && (
                               <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${getScoreBadge(score)}`}>
                                 Score: {score}
                               </span>
                             )}
                           </div>
-                          <p className="text-sm text-[var(--text-primary)] mt-0.5">{event.title}</p>
+                          <p className="text-sm text-text-primary mt-0.5">{event.title}</p>
                           {event.description && (
-                            <p className="text-xs text-[var(--text-muted)] mt-0.5 line-clamp-2">{event.description}</p>
+                            <p className="text-xs text-text-muted mt-0.5 line-clamp-2">{event.description}</p>
                           )}
                           <div className="flex items-center gap-3 mt-1 flex-wrap">
                             {model && (
-                              <span className="text-[10px] text-[var(--text-muted)]">Model: {model}</span>
+                              <span className="text-[10px] text-text-muted">Model: {model}</span>
                             )}
                             {cost != null && (
-                              <span className="text-[10px] font-mono text-[var(--text-muted)]">${cost.toFixed(3)}</span>
+                              <span className="text-[10px] font-mono text-text-muted">${cost.toFixed(3)}</span>
                             )}
                             {repo && (
-                              <span className="text-[10px] text-[var(--text-muted)]">{repo}</span>
+                              <span className="text-[10px] text-text-muted">{repo}</span>
                             )}
                             {filesChanged != null && (
-                              <span className="text-[10px] text-[var(--text-muted)]">{filesChanged} files</span>
+                              <span className="text-[10px] text-text-muted">{filesChanged} files</span>
                             )}
                             {sessionId && (
                               <Link
@@ -275,7 +272,7 @@ export default function DeveloperTimeline({ developerId }: DeveloperTimelineProp
               <button
                 onClick={handleLoadMore}
                 disabled={loadingMore}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium border border-[var(--border-primary)] bg-[var(--bg-card)] rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] transition-colors disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium border border-border-primary bg-bg-card rounded-lg text-text-secondary hover:bg-bg-elevated transition-colors disabled:opacity-50"
               >
                 {loadingMore && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 {loadingMore ? 'Loading...' : 'Load more'}

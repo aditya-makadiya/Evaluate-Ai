@@ -44,10 +44,10 @@ export default function SignupPage() {
   };
 
   const inputClasses = [
-    'w-full rounded-lg border border-[var(--border-primary)] bg-[var(--bg-input)]',
-    'px-4 py-2.5 pl-10 text-sm text-[var(--text-primary)]',
-    'placeholder:text-[var(--text-muted)]',
-    'focus:border-[var(--border-focus)] focus:outline-none',
+    'w-full rounded-lg border border-border-primary bg-bg-input',
+    'px-4 py-2.5 pl-10 text-sm text-text-primary',
+    'placeholder:text-text-muted',
+    'focus:border-border-focus focus:outline-none',
     'transition-colors',
   ].join(' ');
 
@@ -61,16 +61,16 @@ export default function SignupPage() {
             <path d="M8 5.5L11.5 7.5v3L8 12.5 4.5 10.5v-3L8 5.5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" fill="rgba(255,255,255,0.25)" />
           </svg>
         </div>
-        <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
+        <h1 className="text-2xl font-bold tracking-tight text-text-primary">
           Create your account
         </h1>
-        <p className="text-sm text-[var(--text-secondary)] mt-1">
+        <p className="text-sm text-text-secondary mt-1">
           Get started with EvaluateAI
         </p>
       </div>
 
       {/* Card */}
-      <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-6">
+      <div className="bg-bg-card border border-border-primary rounded-lg p-6">
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
             <div className="flex items-center gap-2 bg-red-900/20 border border-red-800/50 rounded-lg px-4 py-3 text-red-300 text-sm">
@@ -80,11 +80,11 @@ export default function SignupPage() {
           )}
 
           <div>
-            <label htmlFor="name" className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+            <label htmlFor="name" className="block text-xs font-medium text-text-secondary mb-1.5">
               Your name
             </label>
             <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-muted)]" />
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
               <input
                 id="name"
                 type="text"
@@ -98,11 +98,11 @@ export default function SignupPage() {
           </div>
 
           <div>
-            <label htmlFor="email" className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+            <label htmlFor="email" className="block text-xs font-medium text-text-secondary mb-1.5">
               Email
             </label>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-muted)]" />
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
               <input
                 id="email"
                 type="email"
@@ -116,11 +116,11 @@ export default function SignupPage() {
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+            <label htmlFor="password" className="block text-xs font-medium text-text-secondary mb-1.5">
               Password
             </label>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-muted)]" />
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
               <input
                 id="password"
                 type="password"
@@ -150,7 +150,7 @@ export default function SignupPage() {
       </div>
 
       {/* Footer link */}
-      <p className="text-center text-sm text-[var(--text-muted)] mt-6">
+      <p className="text-center text-sm text-text-muted mt-6">
         Already have an account?{' '}
         <Link href="/auth/login" className="text-[#8b5cf6] hover:text-[#a78bfa] transition-colors">
           Sign in

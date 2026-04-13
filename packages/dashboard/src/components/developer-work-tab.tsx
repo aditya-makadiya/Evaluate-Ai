@@ -108,8 +108,8 @@ export default function DeveloperWorkTab({ codeChanges, tasks, commitsPerDay, st
     <div className="space-y-6">
       {/* Commits per day chart */}
       {chartData.length > 0 && (
-        <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-5">
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-4">
+        <div className="bg-bg-card border border-border-primary rounded-lg p-5">
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-text-muted mb-4">
             Commits / Day (30 days)
           </h3>
           <ResponsiveContainer width="100%" height={200}>
@@ -126,32 +126,32 @@ export default function DeveloperWorkTab({ codeChanges, tasks, commitsPerDay, st
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Commits list */}
-        <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-5">
+        <div className="bg-bg-card border border-border-primary rounded-lg p-5">
           <div className="flex items-center gap-2 mb-4">
-            <GitCommit className="h-4 w-4 text-[var(--text-muted)]" />
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+            <GitCommit className="h-4 w-4 text-text-muted" />
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-text-muted">
               Commits ({stats.commits})
             </h3>
           </div>
           {commitDays.length === 0 ? (
-            <p className="text-sm text-[var(--text-muted)] py-4 text-center">No commits this week</p>
+            <p className="text-sm text-text-muted py-4 text-center">No commits this week</p>
           ) : (
             <div className="space-y-4 max-h-80 overflow-y-auto">
               {commitDays.map(([day, dayCommits]) => (
                 <div key={day}>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-2">
                     {formatDay(day)}
                   </p>
                   <div className="space-y-1">
                     {dayCommits.map(c => (
-                      <div key={c.id} className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-[var(--bg-elevated)] transition-colors">
-                        <GitCommit className="h-3.5 w-3.5 text-[var(--text-muted)] mt-0.5 shrink-0" />
+                      <div key={c.id} className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-bg-elevated transition-colors">
+                        <GitCommit className="h-3.5 w-3.5 text-text-muted mt-0.5 shrink-0" />
                         <div className="min-w-0 flex-1">
-                          <p className="text-xs text-[var(--text-primary)] truncate">{c.title}</p>
+                          <p className="text-xs text-text-primary truncate">{c.title}</p>
                           <div className="flex items-center gap-2 mt-0.5">
-                            {c.repo && <span className="text-[10px] text-[var(--text-muted)]">{c.repo}</span>}
+                            {c.repo && <span className="text-[10px] text-text-muted">{c.repo}</span>}
                             {c.additions != null && c.deletions != null && (
-                              <span className="text-[10px] text-[var(--text-muted)]">
+                              <span className="text-[10px] text-text-muted">
                                 +{c.additions} -{c.deletions}
                               </span>
                             )}
@@ -168,27 +168,27 @@ export default function DeveloperWorkTab({ codeChanges, tasks, commitsPerDay, st
 
         {/* PRs + Reviews */}
         <div className="space-y-4">
-          <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-5">
+          <div className="bg-bg-card border border-border-primary rounded-lg p-5">
             <div className="flex items-center gap-2 mb-4">
-              <GitPullRequest className="h-4 w-4 text-[var(--text-muted)]" />
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+              <GitPullRequest className="h-4 w-4 text-text-muted" />
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-text-muted">
                 Pull Requests ({stats.prs})
               </h3>
             </div>
             {prs.length === 0 ? (
-              <p className="text-sm text-[var(--text-muted)] py-4 text-center">No PRs this week</p>
+              <p className="text-sm text-text-muted py-4 text-center">No PRs this week</p>
             ) : (
               <div className="space-y-2 max-h-40 overflow-y-auto">
                 {prs.map(pr => (
-                  <div key={pr.id} className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-[var(--bg-elevated)] transition-colors">
+                  <div key={pr.id} className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-bg-elevated transition-colors">
                     {pr.type === 'pr_merged' ? (
                       <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 mt-0.5 shrink-0" />
                     ) : (
                       <GitPullRequest className="h-3.5 w-3.5 text-blue-400 mt-0.5 shrink-0" />
                     )}
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs text-[var(--text-primary)] truncate">{pr.title}</p>
-                      <span className="text-[10px] text-[var(--text-muted)]">
+                      <p className="text-xs text-text-primary truncate">{pr.title}</p>
+                      <span className="text-[10px] text-text-muted">
                         {pr.type === 'pr_merged' ? 'Merged' : 'Opened'} {'\u00B7'} {formatDate(pr.createdAt)}
                       </span>
                     </div>
@@ -198,23 +198,23 @@ export default function DeveloperWorkTab({ codeChanges, tasks, commitsPerDay, st
             )}
           </div>
 
-          <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-5">
+          <div className="bg-bg-card border border-border-primary rounded-lg p-5">
             <div className="flex items-center gap-2 mb-4">
-              <Eye className="h-4 w-4 text-[var(--text-muted)]" />
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+              <Eye className="h-4 w-4 text-text-muted" />
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-text-muted">
                 Reviews ({stats.reviews})
               </h3>
             </div>
             {reviews.length === 0 ? (
-              <p className="text-sm text-[var(--text-muted)] py-4 text-center">No reviews this week</p>
+              <p className="text-sm text-text-muted py-4 text-center">No reviews this week</p>
             ) : (
               <div className="space-y-2 max-h-40 overflow-y-auto">
                 {reviews.map(r => (
-                  <div key={r.id} className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-[var(--bg-elevated)] transition-colors">
-                    <Eye className="h-3.5 w-3.5 text-[var(--text-muted)] mt-0.5 shrink-0" />
+                  <div key={r.id} className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-bg-elevated transition-colors">
+                    <Eye className="h-3.5 w-3.5 text-text-muted mt-0.5 shrink-0" />
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs text-[var(--text-primary)] truncate">{r.title}</p>
-                      <span className="text-[10px] text-[var(--text-muted)]">{formatDate(r.createdAt)}</span>
+                      <p className="text-xs text-text-primary truncate">{r.title}</p>
+                      <span className="text-[10px] text-text-muted">{formatDate(r.createdAt)}</span>
                     </div>
                   </div>
                 ))}
@@ -225,15 +225,15 @@ export default function DeveloperWorkTab({ codeChanges, tasks, commitsPerDay, st
       </div>
 
       {/* Tasks */}
-      <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-5">
+      <div className="bg-bg-card border border-border-primary rounded-lg p-5">
         <div className="flex items-center gap-2 mb-4">
-          <FileText className="h-4 w-4 text-[var(--text-muted)]" />
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+          <FileText className="h-4 w-4 text-text-muted" />
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-text-muted">
             Tasks ({stats.tasksCompleted}/{stats.tasksAssigned})
           </h3>
         </div>
         {tasks.length === 0 ? (
-          <p className="text-sm text-[var(--text-muted)] py-4 text-center">No tasks assigned</p>
+          <p className="text-sm text-text-muted py-4 text-center">No tasks assigned</p>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Completed */}
@@ -243,11 +243,11 @@ export default function DeveloperWorkTab({ codeChanges, tasks, commitsPerDay, st
                 {completedTasks.map(t => (
                   <div key={t.id} className="flex items-center gap-2 px-2 py-1.5">
                     <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                    <span className="text-xs text-[var(--text-primary)] truncate">{t.title}</span>
+                    <span className="text-xs text-text-primary truncate">{t.title}</span>
                   </div>
                 ))}
                 {completedTasks.length === 0 && (
-                  <p className="text-xs text-[var(--text-muted)] px-2">None</p>
+                  <p className="text-xs text-text-muted px-2">None</p>
                 )}
               </div>
             </div>
@@ -258,11 +258,11 @@ export default function DeveloperWorkTab({ codeChanges, tasks, commitsPerDay, st
                 {pendingTasks.map(t => (
                   <div key={t.id} className="flex items-center gap-2 px-2 py-1.5">
                     <Clock className="h-3.5 w-3.5 text-yellow-400 shrink-0" />
-                    <span className="text-xs text-[var(--text-primary)] truncate">{t.title}</span>
+                    <span className="text-xs text-text-primary truncate">{t.title}</span>
                   </div>
                 ))}
                 {pendingTasks.length === 0 && (
-                  <p className="text-xs text-[var(--text-muted)] px-2">None</p>
+                  <p className="text-xs text-text-muted px-2">None</p>
                 )}
               </div>
             </div>

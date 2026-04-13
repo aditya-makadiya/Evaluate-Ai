@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/components/auth-provider';
 import {
   BarChart,
@@ -15,17 +15,12 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
+
 } from 'recharts';
 import {
-  Loader2,
   DollarSign,
   Gauge,
   Hash,
-  TrendingUp,
-  AlertTriangle,
-  BarChart3,
-  Target,
 } from 'lucide-react';
 
 // --------------- Types ---------------
@@ -85,7 +80,7 @@ function StatCard({
   accent: string;
 }) {
   return (
-    <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-5 hover:border-[var(--border-hover)] transition-all group">
+    <div className="bg-bg-card border border-border-primary rounded-lg p-5 hover:border-border-hover transition-all group">
       <div className="flex items-center justify-between mb-3">
         <div
           className="w-10 h-10 rounded-lg flex items-center justify-center"
@@ -94,8 +89,8 @@ function StatCard({
           {icon}
         </div>
       </div>
-      <p className="text-2xl font-bold text-[var(--text-primary)] mb-1">{value}</p>
-      <p className="text-xs text-[var(--text-muted)] font-medium uppercase tracking-wider">{label}</p>
+      <p className="text-2xl font-bold text-text-primary mb-1">{value}</p>
+      <p className="text-xs text-text-muted font-medium uppercase tracking-wider">{label}</p>
     </div>
   );
 }
@@ -108,8 +103,8 @@ function ChartCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-5 hover:border-[var(--border-hover)] transition-colors">
-      <h3 className="text-sm font-semibold text-[var(--text-secondary)] mb-4 uppercase tracking-wider">{title}</h3>
+    <div className="bg-bg-card border border-border-primary rounded-lg p-5 hover:border-border-hover transition-colors">
+      <h3 className="text-sm font-semibold text-text-secondary mb-4 uppercase tracking-wider">{title}</h3>
       {children}
     </div>
   );
@@ -118,8 +113,8 @@ function ChartCard({
 function ChartSkeleton() {
   return (
     <div className="animate-pulse">
-      <div className="h-4 bg-[var(--bg-elevated)] rounded w-32 mb-4" />
-      <div className="h-[280px] bg-[var(--bg-primary)] rounded-lg" />
+      <div className="h-4 bg-bg-elevated rounded w-32 mb-4" />
+      <div className="h-[280px] bg-bg-primary rounded-lg" />
     </div>
   );
 }
@@ -159,9 +154,8 @@ export default function AnalyticsPage() {
   const [error, setError] = useState<string | null>(null);
   const [period, setPeriod] = useState<Period>('month');
 
-  useEffect(() => {
+  const fetchStats = useCallback(() => {
     if (!authUser) return;
-    setLoading(true);
     fetch('/api/stats')
       .then(async (r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -204,30 +198,34 @@ export default function AnalyticsPage() {
       .finally(() => setLoading(false));
   }, [authUser]);
 
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-[var(--bg-primary)] p-6 lg:p-8">
+      <div className="min-h-screen bg-bg-primary p-6 lg:p-8">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between mb-8">
             <div className="animate-pulse">
-              <div className="h-8 bg-[var(--bg-elevated)] rounded w-36 mb-2" />
-              <div className="h-4 bg-[var(--bg-elevated)] rounded w-56" />
+              <div className="h-8 bg-bg-elevated rounded w-36 mb-2" />
+              <div className="h-4 bg-bg-elevated rounded w-56" />
             </div>
           </div>
           {/* Stat skeletons */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-5 animate-pulse">
-                <div className="w-10 h-10 bg-[var(--bg-elevated)] rounded-lg mb-3" />
-                <div className="h-6 bg-[var(--bg-elevated)] rounded w-24 mb-2" />
-                <div className="h-3 bg-[var(--bg-elevated)] rounded w-32" />
+              <div key={i} className="bg-bg-card border border-border-primary rounded-lg p-5 animate-pulse">
+                <div className="w-10 h-10 bg-bg-elevated rounded-lg mb-3" />
+                <div className="h-6 bg-bg-elevated rounded w-24 mb-2" />
+                <div className="h-3 bg-bg-elevated rounded w-32" />
               </div>
             ))}
           </div>
           {/* Chart skeletons */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-5">
+              <div key={i} className="bg-bg-card border border-border-primary rounded-lg p-5">
                 <ChartSkeleton />
               </div>
             ))}
@@ -239,9 +237,9 @@ export default function AnalyticsPage() {
 
   if (error || !data) {
     return (
-      <div className="min-h-screen bg-[var(--bg-primary)] p-6 lg:p-8">
+      <div className="min-h-screen bg-bg-primary p-6 lg:p-8">
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-4">Analytics</h1>
+          <h1 className="text-2xl font-bold text-text-primary mb-4">Analytics</h1>
           <div className="bg-red-900/20 border border-red-800/50 rounded-lg p-5 text-red-300 text-sm">
             Failed to load analytics: {error ?? 'Unknown error'}
           </div>
@@ -262,17 +260,17 @@ export default function AnalyticsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)] p-6 lg:p-8">
+    <div className="min-h-screen bg-bg-primary p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">Analytics</h1>
-            <p className="text-sm text-[var(--text-muted)] mt-1">Track your AI usage patterns and efficiency</p>
+            <h1 className="text-2xl font-bold text-text-primary tracking-tight">Analytics</h1>
+            <p className="text-sm text-text-muted mt-1">Track your AI usage patterns and efficiency</p>
           </div>
 
           {/* Period selector pills */}
-          <div className="flex items-center bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg p-1">
+          <div className="flex items-center bg-bg-secondary border border-border-primary rounded-lg p-1">
             {(['today', 'week', 'month', 'quarter'] as Period[]).map((p) => (
               <button
                 key={p}
@@ -280,7 +278,7 @@ export default function AnalyticsPage() {
                 className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all capitalize ${
                   period === p
                     ? 'bg-purple-600 text-white shadow-sm shadow-purple-900/30'
-                    : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+                    : 'text-text-muted hover:text-text-secondary'
                 }`}
               >
                 {p}

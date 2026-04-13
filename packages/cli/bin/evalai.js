@@ -16,7 +16,7 @@ import {
   sessionsCommand,
   configCommand,
   exportCommand,
-  syncCommand,
+
   loginCommand,
   logoutCommand,
   whoamiCommand,
@@ -44,8 +44,6 @@ program.addCommand(statsCommand);
 program.addCommand(sessionsCommand);
 program.addCommand(configCommand);
 program.addCommand(exportCommand);
-program.addCommand(syncCommand);
-
 // Hook subcommand: `evalai hook <event>`
 // This is called by Claude Code hooks — it needs to be fast.
 const hookCommand = new Command('hook')

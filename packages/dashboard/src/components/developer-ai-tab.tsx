@@ -154,46 +154,46 @@ export default function DeveloperAiTab({
     <div className="space-y-6">
       {/* Stats row - 4 cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-5">
+        <div className="bg-bg-card border border-border-primary rounded-lg p-5">
           <div className="flex items-center gap-2 mb-2">
             <DollarSign className="h-4 w-4 text-yellow-400" />
-            <span className="text-xs text-[var(--text-muted)] uppercase tracking-wider">AI Cost</span>
+            <span className="text-xs text-text-muted uppercase tracking-wider">AI Cost</span>
           </div>
-          <p className="text-2xl font-bold font-mono text-[var(--text-primary)]">
+          <p className="text-2xl font-bold font-mono text-text-primary">
             ${stats.totalAiCost.toFixed(2)}
           </p>
-          <p className="text-xs text-[var(--text-muted)] mt-1">This week</p>
+          <p className="text-xs text-text-muted mt-1">This week</p>
         </div>
 
-        <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-5">
+        <div className="bg-bg-card border border-border-primary rounded-lg p-5">
           <div className="flex items-center gap-2 mb-2">
             <Zap className="h-4 w-4 text-[#8b5cf6]" />
-            <span className="text-xs text-[var(--text-muted)] uppercase tracking-wider">Avg Score</span>
+            <span className="text-xs text-text-muted uppercase tracking-wider">Avg Score</span>
           </div>
-          <p className={`text-2xl font-bold ${stats.avgPromptScore != null ? getScoreColor(stats.avgPromptScore) : 'text-[var(--text-muted)]'}`}>
+          <p className={`text-2xl font-bold ${stats.avgPromptScore != null ? getScoreColor(stats.avgPromptScore) : 'text-text-muted'}`}>
             {stats.avgPromptScore != null ? stats.avgPromptScore : '--'}
           </p>
-          <p className="text-xs text-[var(--text-muted)] mt-1">Prompt quality</p>
+          <p className="text-xs text-text-muted mt-1">Prompt quality</p>
         </div>
 
-        <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-5">
+        <div className="bg-bg-card border border-border-primary rounded-lg p-5">
           <div className="flex items-center gap-2 mb-2">
             <Bot className="h-4 w-4 text-blue-400" />
-            <span className="text-xs text-[var(--text-muted)] uppercase tracking-wider">Sessions</span>
+            <span className="text-xs text-text-muted uppercase tracking-wider">Sessions</span>
           </div>
-          <p className="text-2xl font-bold text-[var(--text-primary)]">{stats.sessionsThisWeek}</p>
-          <p className="text-xs text-[var(--text-muted)] mt-1">This week</p>
+          <p className="text-2xl font-bold text-text-primary">{stats.sessionsThisWeek}</p>
+          <p className="text-xs text-text-muted mt-1">This week</p>
         </div>
 
-        <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-5">
+        <div className="bg-bg-card border border-border-primary rounded-lg p-5">
           <div className="flex items-center gap-2 mb-2">
             <Hash className="h-4 w-4 text-cyan-400" />
-            <span className="text-xs text-[var(--text-muted)] uppercase tracking-wider">Tokens</span>
+            <span className="text-xs text-text-muted uppercase tracking-wider">Tokens</span>
           </div>
-          <p className="text-2xl font-bold font-mono text-[var(--text-primary)]">
+          <p className="text-2xl font-bold font-mono text-text-primary">
             {formatTokens(totalWeekTokens)}
           </p>
-          <p className="text-xs text-[var(--text-muted)] mt-1">
+          <p className="text-xs text-text-muted mt-1">
             ${costPerTurn > 0 ? `$${costPerTurn.toFixed(4)}/turn` : '--/turn'}
           </p>
         </div>
@@ -202,17 +202,17 @@ export default function DeveloperAiTab({
       {/* Cost trend + Score trend */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Cost trend area chart */}
-        <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-5">
+        <div className="bg-bg-card border border-border-primary rounded-lg p-5">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-text-muted">
               Cost Trend
             </h3>
-            <span className="text-xs text-[var(--text-muted)]">Last 30 days</span>
+            <span className="text-xs text-text-muted">Last 30 days</span>
           </div>
           {costTrendFormatted.length < 2 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <TrendingUp className="w-6 h-6 text-[var(--text-muted)] mb-2" />
-              <p className="text-xs text-[var(--text-muted)]">Not enough data for trend</p>
+              <TrendingUp className="w-6 h-6 text-text-muted mb-2" />
+              <p className="text-xs text-text-muted">Not enough data for trend</p>
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={180}>
@@ -243,17 +243,17 @@ export default function DeveloperAiTab({
         </div>
 
         {/* Score trend line chart */}
-        <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-5">
+        <div className="bg-bg-card border border-border-primary rounded-lg p-5">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-text-muted">
               Score Trend
             </h3>
-            <span className="text-xs text-[var(--text-muted)]">Last 30 days</span>
+            <span className="text-xs text-text-muted">Last 30 days</span>
           </div>
           {scoreTrendFormatted.length < 2 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <Zap className="w-6 h-6 text-[var(--text-muted)] mb-2" />
-              <p className="text-xs text-[var(--text-muted)]">Not enough data for trend</p>
+              <Zap className="w-6 h-6 text-text-muted mb-2" />
+              <p className="text-xs text-text-muted">Not enough data for trend</p>
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={180}>
@@ -282,12 +282,12 @@ export default function DeveloperAiTab({
       {/* Token breakdown + Model donut + Usage pattern */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Token breakdown */}
-        <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-5">
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-4">
+        <div className="bg-bg-card border border-border-primary rounded-lg p-5">
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-text-muted mb-4">
             Token Usage
           </h3>
           {totalWeekTokens === 0 ? (
-            <p className="text-sm text-[var(--text-muted)] py-8 text-center">No token data</p>
+            <p className="text-sm text-text-muted py-8 text-center">No token data</p>
           ) : (
             <div className="space-y-4">
               {/* Bar visualization */}
@@ -296,11 +296,11 @@ export default function DeveloperAiTab({
                   <div className="flex items-center justify-between mb-1.5">
                     <div className="flex items-center gap-2">
                       <ArrowUpRight className="h-3.5 w-3.5 text-[#8b5cf6]" />
-                      <span className="text-xs text-[var(--text-secondary)]">Input</span>
+                      <span className="text-xs text-text-secondary">Input</span>
                     </div>
-                    <span className="text-xs font-mono text-[var(--text-muted)]">{formatTokens(tokenStats.week.input)}</span>
+                    <span className="text-xs font-mono text-text-muted">{formatTokens(tokenStats.week.input)}</span>
                   </div>
-                  <div className="h-2 bg-[var(--bg-elevated)] rounded-full overflow-hidden">
+                  <div className="h-2 bg-bg-elevated rounded-full overflow-hidden">
                     <div className="h-full bg-[#8b5cf6] rounded-full transition-all" style={{ width: `${inputPct}%` }} />
                   </div>
                 </div>
@@ -308,31 +308,31 @@ export default function DeveloperAiTab({
                   <div className="flex items-center justify-between mb-1.5">
                     <div className="flex items-center gap-2">
                       <ArrowDownRight className="h-3.5 w-3.5 text-[#3b82f6]" />
-                      <span className="text-xs text-[var(--text-secondary)]">Output</span>
+                      <span className="text-xs text-text-secondary">Output</span>
                     </div>
-                    <span className="text-xs font-mono text-[var(--text-muted)]">{formatTokens(tokenStats.week.output)}</span>
+                    <span className="text-xs font-mono text-text-muted">{formatTokens(tokenStats.week.output)}</span>
                   </div>
-                  <div className="h-2 bg-[var(--bg-elevated)] rounded-full overflow-hidden">
+                  <div className="h-2 bg-bg-elevated rounded-full overflow-hidden">
                     <div className="h-full bg-[#3b82f6] rounded-full transition-all" style={{ width: `${outputPct}%` }} />
                   </div>
                 </div>
               </div>
 
               {/* Stats */}
-              <div className="border-t border-[var(--border-primary)] pt-3 space-y-2">
+              <div className="border-t border-border-primary pt-3 space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-xs text-[var(--text-muted)]">Total turns</span>
-                  <span className="text-xs font-mono text-[var(--text-secondary)]">{tokenStats.week.turns}</span>
+                  <span className="text-xs text-text-muted">Total turns</span>
+                  <span className="text-xs font-mono text-text-secondary">{tokenStats.week.turns}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-xs text-[var(--text-muted)]">Avg tokens/turn</span>
-                  <span className="text-xs font-mono text-[var(--text-secondary)]">
+                  <span className="text-xs text-text-muted">Avg tokens/turn</span>
+                  <span className="text-xs font-mono text-text-secondary">
                     {tokenStats.week.turns > 0 ? formatTokens(Math.round(totalWeekTokens / tokenStats.week.turns)) : '--'}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-xs text-[var(--text-muted)]">Input/Output ratio</span>
-                  <span className="text-xs font-mono text-[var(--text-secondary)]">
+                  <span className="text-xs text-text-muted">Input/Output ratio</span>
+                  <span className="text-xs font-mono text-text-secondary">
                     {inputPct}% / {outputPct}%
                   </span>
                 </div>
@@ -342,12 +342,12 @@ export default function DeveloperAiTab({
         </div>
 
         {/* Model donut */}
-        <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-5">
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-4">
+        <div className="bg-bg-card border border-border-primary rounded-lg p-5">
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-text-muted mb-4">
             Model Breakdown
           </h3>
           {donutData.length === 0 ? (
-            <p className="text-sm text-[var(--text-muted)] py-8 text-center">No model data</p>
+            <p className="text-sm text-text-muted py-8 text-center">No model data</p>
           ) : (
             <div className="flex flex-col items-center gap-4">
               <ResponsiveContainer width={140} height={140}>
@@ -373,11 +373,11 @@ export default function DeveloperAiTab({
                   <div key={d.name} className="flex items-center justify-between">
                     <div className="flex items-center gap-2 min-w-0">
                       <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
-                      <span className="text-xs text-[var(--text-secondary)] truncate">{d.name}</span>
+                      <span className="text-xs text-text-secondary truncate">{d.name}</span>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-[10px] text-[var(--text-muted)]">{d.value} sessions</span>
-                      <span className="text-xs font-mono text-[var(--text-muted)]">${d.cost.toFixed(2)}</span>
+                      <span className="text-[10px] text-text-muted">{d.value} sessions</span>
+                      <span className="text-xs font-mono text-text-muted">${d.cost.toFixed(2)}</span>
                     </div>
                   </div>
                 ))}
@@ -387,15 +387,15 @@ export default function DeveloperAiTab({
         </div>
 
         {/* Usage pattern (day of week) */}
-        <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-5">
+        <div className="bg-bg-card border border-border-primary rounded-lg p-5">
           <div className="flex items-center gap-2 mb-4">
             <Calendar className="h-4 w-4 text-cyan-400" />
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-text-muted">
               Usage Pattern
             </h3>
           </div>
           {usageByDayOfWeek.every(d => d.sessions === 0) ? (
-            <p className="text-sm text-[var(--text-muted)] py-8 text-center">No usage data</p>
+            <p className="text-sm text-text-muted py-8 text-center">No usage data</p>
           ) : (
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={usageByDayOfWeek}>
@@ -414,10 +414,10 @@ export default function DeveloperAiTab({
       </div>
 
       {/* Anti-patterns */}
-      <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-5">
+      <div className="bg-bg-card border border-border-primary rounded-lg p-5">
         <div className="flex items-center gap-2 mb-4">
           <AlertTriangle className="h-4 w-4 text-yellow-400" />
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-text-muted">
             Anti-Patterns Detected
           </h3>
           {antiPatterns.length > 0 && (
@@ -431,14 +431,14 @@ export default function DeveloperAiTab({
             <div className="w-8 h-8 rounded-full bg-emerald-900/20 flex items-center justify-center mb-2">
               <Zap className="w-4 h-4 text-emerald-400" />
             </div>
-            <p className="text-sm text-[var(--text-secondary)]">No anti-patterns detected</p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">Clean AI usage this week</p>
+            <p className="text-sm text-text-secondary">No anti-patterns detected</p>
+            <p className="text-xs text-text-muted mt-1">Clean AI usage this week</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
             {antiPatterns.map(ap => (
-              <div key={ap.pattern} className="flex items-center justify-between px-3 py-2.5 bg-[var(--bg-primary)] rounded-lg border border-[var(--bg-elevated)]">
-                <span className="text-xs text-[var(--text-secondary)]">{ap.pattern.replace(/_/g, ' ')}</span>
+              <div key={ap.pattern} className="flex items-center justify-between px-3 py-2.5 bg-bg-primary rounded-lg border border-bg-elevated">
+                <span className="text-xs text-text-secondary">{ap.pattern.replace(/_/g, ' ')}</span>
                 <span className="text-xs font-semibold bg-yellow-900/30 text-yellow-400 px-2 py-0.5 rounded-full">
                   {ap.count}x
                 </span>
@@ -449,20 +449,20 @@ export default function DeveloperAiTab({
       </div>
 
       {/* Sessions list */}
-      <div className="bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg p-5">
+      <div className="bg-bg-card border border-border-primary rounded-lg p-5">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-text-muted">
             Sessions This Week
           </h3>
           {sessions.length > 0 && (
-            <span className="text-xs text-[var(--text-muted)]">{sessions.length} sessions</span>
+            <span className="text-xs text-text-muted">{sessions.length} sessions</span>
           )}
         </div>
         {sessions.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
-            <Bot className="w-8 h-8 text-[var(--text-muted)] mb-2" />
-            <p className="text-sm text-[var(--text-secondary)]">No AI sessions this week</p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">Sessions will appear here once the developer uses AI tools</p>
+            <Bot className="w-8 h-8 text-text-muted mb-2" />
+            <p className="text-sm text-text-secondary">No AI sessions this week</p>
+            <p className="text-xs text-text-muted mt-1">Sessions will appear here once the developer uses AI tools</p>
           </div>
         ) : (
           <div className="space-y-1 max-h-[420px] overflow-y-auto">
@@ -470,24 +470,24 @@ export default function DeveloperAiTab({
               const totalTokens = (s.inputTokens ?? 0) + (s.outputTokens ?? 0);
               return (
                 <Link key={s.id} href={`/sessions/${s.id}`}>
-                  <div className="flex items-center justify-between px-3 py-3 rounded-lg hover:bg-[var(--bg-elevated)] transition-colors cursor-pointer group">
+                  <div className="flex items-center justify-between px-3 py-3 rounded-lg hover:bg-bg-elevated transition-colors cursor-pointer group">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded-lg bg-[var(--bg-elevated)] group-hover:bg-[var(--bg-card)] flex items-center justify-center shrink-0">
-                        <Bot className="h-4 w-4 text-[var(--text-muted)]" />
+                      <div className="w-8 h-8 rounded-lg bg-bg-elevated group-hover:bg-bg-card flex items-center justify-center shrink-0">
+                        <Bot className="h-4 w-4 text-text-muted" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-sm text-[var(--text-primary)] truncate" title={s.firstPrompt ?? `Session ${s.id}`}>
+                        <p className="text-sm text-text-primary truncate" title={s.firstPrompt ?? `Session ${s.id}`}>
                           {s.firstPrompt
                             ? s.firstPrompt.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim().slice(0, 70) || `Session ${s.id.slice(0, 8)}`
                             : `Session ${s.id.slice(0, 8)}`}
                         </p>
                         <div className="flex items-center gap-2 mt-0.5">
                           {s.model && (
-                            <span className="text-[10px] text-[var(--text-muted)] bg-[var(--bg-elevated)] px-1.5 py-0.5 rounded">
+                            <span className="text-[10px] text-text-muted bg-bg-elevated px-1.5 py-0.5 rounded">
                               {s.model}
                             </span>
                           )}
-                          <div className="flex items-center gap-1 text-[10px] text-[var(--text-muted)]">
+                          <div className="flex items-center gap-1 text-[10px] text-text-muted">
                             <Clock className="h-2.5 w-2.5" />
                             {formatTime(s.startedAt)}
                           </div>
@@ -496,10 +496,10 @@ export default function DeveloperAiTab({
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
                       {s.turns != null && (
-                        <span className="text-[10px] text-[var(--text-muted)]">{s.turns} turns</span>
+                        <span className="text-[10px] text-text-muted">{s.turns} turns</span>
                       )}
                       {totalTokens > 0 && (
-                        <span className="text-[10px] font-mono text-[var(--text-muted)]">
+                        <span className="text-[10px] font-mono text-text-muted">
                           {formatTokens(totalTokens)}
                         </span>
                       )}
@@ -509,7 +509,7 @@ export default function DeveloperAiTab({
                         </span>
                       )}
                       {s.cost != null && (
-                        <span className="text-xs font-mono text-[var(--text-muted)]">${s.cost.toFixed(3)}</span>
+                        <span className="text-xs font-mono text-text-muted">${s.cost.toFixed(3)}</span>
                       )}
                     </div>
                   </div>

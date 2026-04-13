@@ -1,18 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/components/auth-provider';
 import {
-  Bell,
   AlertTriangle,
   AlertCircle,
-  Info,
   Trophy,
   Clock,
   DollarSign,
   UserX,
   Target,
-  Zap,
   Check,
   X,
   CheckCircle2,
@@ -100,9 +97,8 @@ export default function AlertsPage() {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterType>('all');
 
-  const fetchAlerts = () => {
+  const fetchAlerts = useCallback(() => {
     if (!authUser) return;
-    setLoading(true);
     fetch('/api/alerts?limit=50')
       .then(res => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -116,12 +112,11 @@ export default function AlertsPage() {
         setError(err.message);
         setLoading(false);
       });
-  };
+  }, [authUser]);
 
   useEffect(() => {
-    if (!authUser) return;
     fetchAlerts();
-  }, [authUser]);
+  }, [fetchAlerts]);
 
   const handleAction = async (alertId: string, action: 'read' | 'dismiss') => {
     try {
@@ -155,7 +150,7 @@ export default function AlertsPage() {
       {/* Header */}
       <header className="mb-8 animate-section">
         <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
+          <h1 className="text-2xl font-bold tracking-tight text-text-primary">
             Alerts
           </h1>
           {unreadCount > 0 && (
@@ -164,7 +159,7 @@ export default function AlertsPage() {
             </span>
           )}
         </div>
-        <p className="mt-1 text-sm text-[var(--text-muted)]">
+        <p className="mt-1 text-sm text-text-muted">
           Automated alerts for your team
         </p>
       </header>
@@ -176,7 +171,7 @@ export default function AlertsPage() {
           const baseClass = 'px-4 py-1.5 rounded-full text-sm font-medium transition-colors cursor-pointer';
           const activeClass = isActive
             ? 'bg-purple-600 text-white'
-            : 'bg-[var(--bg-card)] border border-[var(--border-primary)] text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]';
+            : 'bg-bg-card border border-border-primary text-text-secondary hover:bg-bg-elevated hover:text-text-primary';
           return (
             <button
               key={pill.key}
@@ -201,10 +196,10 @@ export default function AlertsPage() {
       {!loading && !error && filtered.length === 0 && (
         <div className="animate-section flex flex-col items-center justify-center py-16 text-center">
           <CheckCircle2 className="w-10 h-10 text-emerald-400 mb-3" />
-          <p className="text-sm text-[var(--text-secondary)]">
+          <p className="text-sm text-text-secondary">
             No alerts — your team is on track!
           </p>
-          <p className="text-xs text-[var(--text-muted)] mt-1">
+          <p className="text-xs text-text-muted mt-1">
             Alerts are generated daily by the cron system
           </p>
         </div>
@@ -221,28 +216,28 @@ export default function AlertsPage() {
             return (
               <div
                 key={alert.id}
-                className={`border border-[var(--border-primary)] border-l-4 rounded-lg p-4 hover:border-[var(--border-hover)] transition-colors ${severityStyle} ${cardOpacity}`}
+                className={`border border-border-primary border-l-4 rounded-lg p-4 hover:border-border-hover transition-colors ${severityStyle} ${cardOpacity}`}
               >
                 <div className="flex items-start gap-3">
                   <div className={`mt-0.5 shrink-0 ${iconColor}`}>
                     <Icon className="h-5 w-5" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-[var(--text-primary)]">
+                    <p className="text-sm font-semibold text-text-primary">
                       {alert.title}
                     </p>
                     {alert.description && (
-                      <p className="text-xs text-[var(--text-secondary)] mt-1">
+                      <p className="text-xs text-text-secondary mt-1">
                         {alert.description}
                       </p>
                     )}
                     <div className="flex items-center gap-3 mt-2">
                       {alert.developerName && (
-                        <span className="text-xs text-[var(--text-muted)]">
+                        <span className="text-xs text-text-muted">
                           {alert.developerName}
                         </span>
                       )}
-                      <span className="text-xs text-[var(--text-muted)]">
+                      <span className="text-xs text-text-muted">
                         {timeAgo(alert.createdAt)}
                       </span>
                     </div>
@@ -251,7 +246,7 @@ export default function AlertsPage() {
                     {!alert.isRead && (
                       <button
                         onClick={() => handleAction(alert.id, 'read')}
-                        className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors"
+                        className="p-1.5 rounded-md text-text-muted hover:text-text-primary hover:bg-bg-elevated transition-colors"
                         title="Mark as read"
                       >
                         <Check className="h-4 w-4" />
@@ -259,7 +254,7 @@ export default function AlertsPage() {
                     )}
                     <button
                       onClick={() => handleAction(alert.id, 'dismiss')}
-                      className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-red-400 hover:bg-[var(--bg-elevated)] transition-colors"
+                      className="p-1.5 rounded-md text-text-muted hover:text-red-400 hover:bg-bg-elevated transition-colors"
                       title="Dismiss"
                     >
                       <X className="h-4 w-4" />

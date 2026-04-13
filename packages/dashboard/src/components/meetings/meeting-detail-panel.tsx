@@ -7,7 +7,6 @@ import {
   Clock,
   Users,
   CheckCircle2,
-  Check,
   Folder,
   GitCommit,
   User,
@@ -76,13 +75,13 @@ export interface OverallStats {
 const STATUS_META: Record<string, { color: string; label: string; icon: typeof Circle }> = {
   completed: { color: 'text-emerald-400', label: 'Done', icon: CheckCircle2 },
   in_progress: { color: 'text-sky-400', label: 'In Progress', icon: CircleDot },
-  pending: { color: 'text-[var(--text-muted)]', label: 'Todo', icon: Circle },
+  pending: { color: 'text-text-muted', label: 'Todo', icon: Circle },
 };
 
 const PRIORITY_META: Record<string, { color: string; icon: typeof SignalHigh }> = {
   high: { color: 'text-orange-400', icon: SignalHigh },
   medium: { color: 'text-amber-400', icon: SignalMedium },
-  low: { color: 'text-[var(--text-muted)]', icon: SignalLow },
+  low: { color: 'text-text-muted', icon: SignalLow },
 };
 
 export const STATUS_FLOW: Record<string, string> = {
@@ -119,13 +118,13 @@ function PanelTaskRow({ task, teamId, onTaskUpdated }: { task: TaskItem; teamId:
   }
 
   return (
-    <div className={`flex items-center gap-2.5 py-2 px-3 rounded-lg hover:bg-[var(--bg-elevated)]/40 transition-colors ${updating ? 'opacity-50' : ''}`}>
+    <div className={`flex items-center gap-2.5 py-2 px-3 rounded-lg hover:bg-bg-elevated/40 transition-colors ${updating ? 'opacity-50' : ''}`}>
       <button onClick={handleStatusClick} disabled={updating} className={`shrink-0 transition-colors hover:scale-110 ${meta.color}`}
         title={`Mark as ${STATUS_META[nextStatus]?.label}`}>
         <StatusIcon className="h-3.5 w-3.5" />
       </button>
       <PriorityIcon className={`h-3 w-3 shrink-0 ${pMeta.color}`} />
-      <span className={`flex-1 text-xs truncate ${done ? 'line-through text-[var(--text-muted)]' : 'text-[var(--text-primary)]'}`}>
+      <span className={`flex-1 text-xs truncate ${done ? 'line-through text-text-muted' : 'text-text-primary'}`}>
         {task.title}
       </span>
       <div className="flex items-center gap-2 shrink-0">
@@ -140,12 +139,12 @@ function PanelTaskRow({ task, teamId, onTaskUpdated }: { task: TaskItem; teamId:
           </span>
         )}
         {task.assigneeName ? (
-          <span className="h-4 w-4 rounded-full bg-[var(--accent-purple)]/15 border border-[var(--accent-purple)]/25 flex items-center justify-center text-[8px] font-bold text-[var(--accent-purple)]" title={task.assigneeName}>
+          <span className="h-4 w-4 rounded-full bg-accent-purple/15 border border-accent-purple/25 flex items-center justify-center text-[8px] font-bold text-accent-purple" title={task.assigneeName}>
             {task.assigneeName.charAt(0).toUpperCase()}
           </span>
         ) : (
-          <span className="h-4 w-4 rounded-full bg-[var(--bg-elevated)] border border-[var(--border-primary)] flex items-center justify-center opacity-40">
-            <User className="h-2 w-2 text-[var(--text-muted)]" />
+          <span className="h-4 w-4 rounded-full bg-bg-elevated border border-border-primary flex items-center justify-center opacity-40">
+            <User className="h-2 w-2 text-text-muted" />
           </span>
         )}
       </div>
@@ -170,13 +169,13 @@ export default function MeetingDetailPanel({ meeting, teamId, onTaskUpdated, onC
   const deliveryBg = meeting.stats.deliveryRate >= 70 ? 'bg-emerald-500/10' : meeting.stats.deliveryRate >= 40 ? 'bg-amber-500/10' : 'bg-red-500/10';
 
   return (
-    <div className="h-full flex flex-col bg-[var(--bg-card)] border-l border-[var(--border-primary)]">
+    <div className="h-full flex flex-col bg-bg-card border-l border-border-primary">
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border-primary)] shrink-0">
-        <span className="text-[9px] font-semibold uppercase tracking-wider text-[var(--accent-purple)] bg-[var(--accent-purple)]/10 rounded px-1.5 py-0.5">
+      <div className="flex items-center justify-between px-5 py-3 border-b border-border-primary shrink-0">
+        <span className="text-[9px] font-semibold uppercase tracking-wider text-accent-purple bg-accent-purple/10 rounded px-1.5 py-0.5">
           {meeting.source}
         </span>
-        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--bg-elevated)] transition-colors text-[var(--text-muted)] hover:text-[var(--text-primary)]">
+        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-bg-elevated transition-colors text-text-muted hover:text-text-primary">
           <X className="h-4 w-4" />
         </button>
       </div>
@@ -185,10 +184,10 @@ export default function MeetingDetailPanel({ meeting, teamId, onTaskUpdated, onC
       <div className="flex-1 overflow-y-auto">
         <div className="px-5 pt-5 pb-6 space-y-5">
           {/* Title */}
-          <h2 className="text-base font-semibold text-[var(--text-primary)] leading-snug">{meeting.title}</h2>
+          <h2 className="text-base font-semibold text-text-primary leading-snug">{meeting.title}</h2>
 
           {/* Meta row */}
-          <div className="flex items-center gap-4 text-[11px] text-[var(--text-muted)]">
+          <div className="flex items-center gap-4 text-[11px] text-text-muted">
             <span className="flex items-center gap-1">
               <Calendar className="h-3 w-3 opacity-60" />
               {new Date(meeting.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
@@ -209,23 +208,23 @@ export default function MeetingDetailPanel({ meeting, teamId, onTaskUpdated, onC
               <TrendingUp className={`h-4 w-4 ${deliveryColor}`} />
               <div>
                 <span className={`text-sm font-bold ${deliveryColor}`}>{meeting.stats.deliveryRate}%</span>
-                <span className="text-[11px] text-[var(--text-muted)] ml-1.5">{meeting.stats.completedTasks}/{meeting.stats.totalTasks} tasks delivered</span>
+                <span className="text-[11px] text-text-muted ml-1.5">{meeting.stats.completedTasks}/{meeting.stats.totalTasks} tasks delivered</span>
               </div>
             </div>
           )}
 
           {/* Summary */}
           {meeting.summary && (
-            <div className="border-t border-[var(--border-primary)] pt-4">
-              <h3 className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)] mb-2">Summary</h3>
-              <p className="text-sm text-[var(--text-secondary)] leading-relaxed whitespace-pre-line">{meeting.summary}</p>
+            <div className="border-t border-border-primary pt-4">
+              <h3 className="text-[10px] font-semibold uppercase tracking-widest text-text-muted mb-2">Summary</h3>
+              <p className="text-sm text-text-secondary leading-relaxed whitespace-pre-line">{meeting.summary}</p>
             </div>
           )}
 
           {/* Keywords */}
           {meeting.keywords?.length > 0 && (
             <div>
-              <h3 className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)] mb-2">Topics</h3>
+              <h3 className="text-[10px] font-semibold uppercase tracking-widest text-text-muted mb-2">Topics</h3>
               <div className="flex flex-wrap gap-1.5">
                 {meeting.keywords.map((kw, i) => (
                   <span key={i} className="text-[10px] font-medium text-sky-400/80 bg-sky-500/8 border border-sky-500/15 rounded-md px-2 py-0.5">{kw}</span>
@@ -237,17 +236,17 @@ export default function MeetingDetailPanel({ meeting, teamId, onTaskUpdated, onC
           {/* Participants */}
           {meeting.participants && meeting.participants.length > 0 && (
             <div>
-              <h3 className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)] mb-2">Participants</h3>
+              <h3 className="text-[10px] font-semibold uppercase tracking-widest text-text-muted mb-2">Participants</h3>
               <div className="flex flex-wrap gap-1.5">
                 {meeting.participants.map((p, i) => {
                   const isMember = !!p.member_id;
                   const cls = isMember
-                    ? 'text-[var(--accent-purple)] bg-[var(--accent-purple)]/8 border-[var(--accent-purple)]/15'
-                    : 'text-[var(--text-muted)] bg-[var(--bg-elevated)] border-[var(--border-primary)]';
+                    ? 'text-accent-purple bg-accent-purple/8 border-accent-purple/15'
+                    : 'text-text-muted bg-bg-elevated border-border-primary';
                   return (
                     <span key={i} className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-medium border ${cls}`}>
                       {isMember && (
-                        <span className="h-3.5 w-3.5 rounded-full bg-[var(--accent-purple)]/15 flex items-center justify-center text-[7px] font-bold">
+                        <span className="h-3.5 w-3.5 rounded-full bg-accent-purple/15 flex items-center justify-center text-[7px] font-bold">
                           {p.name.charAt(0).toUpperCase()}
                         </span>
                       )}
@@ -260,11 +259,11 @@ export default function MeetingDetailPanel({ meeting, teamId, onTaskUpdated, onC
           )}
 
           {/* Action Items */}
-          <div className="border-t border-[var(--border-primary)] pt-4">
-            <h3 className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)] mb-3 flex items-center gap-2">
+          <div className="border-t border-border-primary pt-4">
+            <h3 className="text-[10px] font-semibold uppercase tracking-widest text-text-muted mb-3 flex items-center gap-2">
               Action Items
               {meeting.tasks.length > 0 && (
-                <span className="bg-[var(--accent-purple)]/10 text-[var(--accent-purple)] text-[9px] font-bold rounded px-1.5 py-0.5 normal-case tracking-normal">
+                <span className="bg-accent-purple/10 text-accent-purple text-[9px] font-bold rounded px-1.5 py-0.5 normal-case tracking-normal">
                   {meeting.tasks.length}
                 </span>
               )}
@@ -276,9 +275,9 @@ export default function MeetingDetailPanel({ meeting, teamId, onTaskUpdated, onC
                 ))}
               </div>
             ) : (
-              <div className="flex items-center gap-2 py-3 px-3 rounded-lg border border-dashed border-[var(--border-primary)]">
-                <CheckCircle2 className="h-3.5 w-3.5 text-[var(--text-muted)] opacity-40" />
-                <span className="text-xs text-[var(--text-muted)]">No action items extracted</span>
+              <div className="flex items-center gap-2 py-3 px-3 rounded-lg border border-dashed border-border-primary">
+                <CheckCircle2 className="h-3.5 w-3.5 text-text-muted opacity-40" />
+                <span className="text-xs text-text-muted">No action items extracted</span>
               </div>
             )}
           </div>
