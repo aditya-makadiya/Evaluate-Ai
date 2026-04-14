@@ -66,10 +66,8 @@ EvaluateAI uses Claude Code's native **hook system**. After `evalai init`, hooks
 ```
 SessionStart      -> Create session in Supabase
 UserPromptSubmit  -> Score prompt, show suggestion if low, write turn to Supabase
-PreToolUse        -> Log tool usage to Supabase
-PostToolUse       -> Track file changes
-Stop              -> Record response tokens (from transcript)
-SessionEnd        -> Calculate efficiency, finalize session in Supabase
+Stop              -> Update tokens/cost/tool counts from transcript
+SessionEnd        -> Finalize session with tool usage summary from transcript
 ```
 
 All data goes directly to Supabase. There is no local SQLite database.

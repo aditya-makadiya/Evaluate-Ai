@@ -526,6 +526,24 @@ export default function TurnDetailPage() {
     });
   }, []);
 
+  // Keyboard navigation: left/right arrow keys for prev/next turn
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't navigate if user is typing in an input/textarea
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (!data) return;
+
+      if (e.key === 'ArrowLeft' && turnNumber > 1) {
+        router.push(`/sessions/${sessionId}/turns/${turnNumber - 1}`);
+      } else if (e.key === 'ArrowRight' && turnNumber < data.session.totalTurns) {
+        router.push(`/sessions/${sessionId}/turns/${turnNumber + 1}`);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [data, turnNumber, sessionId, router]);
+
   if (loading) return <LoadingSkeleton />;
 
   if (error || !data) {
@@ -618,10 +636,37 @@ export default function TurnDetailPage() {
           {/* Left: Turn info */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 mb-4">
-              <h1 className="text-3xl font-bold text-text-primary tracking-tight">
-                Turn {turn.turnNumber}
-              </h1>
-              <span className="text-sm text-text-muted font-medium">of {session.totalTurns}</span>
+              {/* Prev/Next navigation inline with turn title */}
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => router.push(`/sessions/${sessionId}/turns/${turnNumber - 1}`)}
+                  disabled={turnNumber <= 1}
+                  title="Previous turn (← arrow key)"
+                  className={`p-1.5 rounded-md transition-all ${
+                    turnNumber <= 1
+                      ? 'text-text-muted/30 cursor-not-allowed'
+                      : 'text-text-muted hover:text-text-primary hover:bg-bg-elevated'
+                  }`}
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
+                <h1 className="text-3xl font-bold text-text-primary tracking-tight">
+                  Turn {turn.turnNumber}
+                </h1>
+                <span className="text-sm text-text-muted font-medium">of {session.totalTurns}</span>
+                <button
+                  onClick={() => router.push(`/sessions/${sessionId}/turns/${turnNumber + 1}`)}
+                  disabled={turnNumber >= session.totalTurns}
+                  title="Next turn (→ arrow key)"
+                  className={`p-1.5 rounded-md transition-all ${
+                    turnNumber >= session.totalTurns
+                      ? 'text-text-muted/30 cursor-not-allowed'
+                      : 'text-text-muted hover:text-text-primary hover:bg-bg-elevated'
+                  }`}
+                >
+                  <ArrowRight className="w-5 h-5" />
+                </button>
+              </div>
               {turn.wasRetry && (
                 <span className="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-orange-900/40 text-orange-400 border border-orange-800/50 uppercase tracking-wider">
                   Retry
@@ -1043,15 +1088,19 @@ export default function TurnDetailPage() {
             }`}
           >
             <ArrowLeft className="w-4 h-4" />
-            Previous Turn
+            <span>Previous</span>
+            <kbd className="hidden sm:inline-block text-[10px] text-text-muted bg-bg-elevated px-1.5 py-0.5 rounded border border-border-primary font-mono">←</kbd>
           </button>
 
-          <button
-            onClick={() => router.push(`/sessions/${sessionId}`)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm text-text-muted hover:text-text-primary hover:bg-bg-card border border-bg-elevated hover:border-border-primary transition-all"
-          >
-            All Turns
-          </button>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-text-muted font-mono">{turnNumber} / {session.totalTurns}</span>
+            <button
+              onClick={() => router.push(`/sessions/${sessionId}`)}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm text-text-muted hover:text-text-primary hover:bg-bg-card border border-bg-elevated hover:border-border-primary transition-all"
+            >
+              All Turns
+            </button>
+          </div>
 
           <button
             onClick={() => router.push(`/sessions/${sessionId}/turns/${turnNumber + 1}`)}
@@ -1062,7 +1111,8 @@ export default function TurnDetailPage() {
                 : 'text-text-secondary hover:text-text-primary hover:bg-bg-card border border-border-primary hover:border-border-hover'
             }`}
           >
-            Next Turn
+            <span>Next</span>
+            <kbd className="hidden sm:inline-block text-[10px] text-text-muted bg-bg-elevated px-1.5 py-0.5 rounded border border-border-primary font-mono">→</kbd>
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>

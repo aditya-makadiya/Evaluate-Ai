@@ -18,7 +18,7 @@ Entry point: `bin/evalai.js` (JavaScript, not TypeScript — runs directly via `
 
 ## Hook Handler Rules — CRITICAL
 
-Hooks are called by Claude Code on every prompt/tool/response. They MUST:
+Hooks are called by Claude Code on every prompt/response. They MUST:
 
 1. **NEVER crash** — wrap everything in try/catch → exit 0
 2. **NEVER block** — complete sync work in < 50ms
@@ -53,7 +53,6 @@ Hooks receive JSON on stdin. Key fields:
 - `transcript_path` — path to session JSONL file (use for exact token data)
 - `cwd` — working directory
 - `prompt` — user's prompt text (UserPromptSubmit only)
-- `tool_name` — tool being used (PreToolUse/PostToolUse only)
 
 ### Transcript Parsing
 
@@ -69,6 +68,7 @@ Always prefer transcript data over estimates.
 ### Database
 - All data writes go directly to Supabase — no local SQLite
 - Hooks write to Supabase on every event (session-start, prompt-submit, stop, session-end)
+- Tool usage is computed from transcript at Stop/SessionEnd (no per-tool API calls)
 - If Supabase is unreachable, log error but never crash (exit 0)
 - Requires SUPABASE_URL and SUPABASE_ANON_KEY in ~/.evaluateai-v2/.env
 

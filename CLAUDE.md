@@ -12,7 +12,7 @@ Developer Productivity Intelligence Platform. Connects meeting decisions → ass
 
 ```
 packages/
-  core/        — Scoring engine, DB (SQLite + Supabase), transcript parser, types
+  core/        — Scoring engine, DB (Supabase), transcript parser, types
   cli/         — CLI commands + Claude Code hook handlers
   dashboard/   — Next.js 15 web dashboard
   proxy/       — API proxy for non-Claude tools (planned)

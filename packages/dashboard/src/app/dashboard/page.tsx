@@ -420,7 +420,7 @@ function ActivityFeedItem({ event }: { event: TimelineEvent }) {
             )}
             {sessionId && (
               <Link
-                href={`/dashboard/sessions/${sessionId}`}
+                href={`/sessions/${sessionId}`}
                 className="text-[10px] text-[#8b5cf6] hover:underline"
               >
                 View session

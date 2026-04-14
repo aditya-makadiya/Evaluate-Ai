@@ -56,7 +56,7 @@ export async function GET(
 
     // AI sessions (paginated, filtered by days)
     let sessionsQ = supabase.from('ai_sessions')
-      .select('id, model, total_cost_usd, avg_prompt_score, total_turns, total_input_tokens, total_output_tokens, started_at', { count: 'exact' })
+      .select('id, model, total_cost_usd, avg_prompt_score, total_turns, total_input_tokens, total_output_tokens, started_at, work_summary, work_tags, work_category', { count: 'exact' })
       .eq('developer_id', devId)
       .order('started_at', { ascending: false })
       .range(sessionOffset, sessionOffset + sessionLimit - 1);
@@ -312,6 +312,9 @@ export async function GET(
         outputTokens: s.total_output_tokens,
         startedAt: s.started_at,
         firstPrompt: sessionFirstPrompts[s.id] ?? null,
+        workSummary: s.work_summary ?? null,
+        workTags: s.work_tags ?? [],
+        workCategory: s.work_category ?? null,
       })),
       sessionTotal: totalSessionCount ?? 0,
       codeChanges: (weekCode ?? []).map(c => ({

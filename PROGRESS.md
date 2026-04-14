@@ -2,7 +2,7 @@
 
 ## Current Status: Phase 1-4 Complete. MVP Ready.
 
-*Last updated: 2026-04-07*
+*Last updated: 2026-04-13*
 
 ---
 
@@ -12,7 +12,7 @@
 |---|------|--------|-------|
 | 1.1 | Create new Supabase schema | ✅ DONE | 14 tables, 22 indexes, 1 view — all created |
 | 1.2 | Rewrite core/db — Supabase only | ✅ DONE | Removed better-sqlite3, drizzle-orm |
-| 1.3 | Rewrite CLI hooks for Supabase | ✅ DONE | All 6 hooks write directly to Supabase |
+| 1.3 | Rewrite CLI hooks for Supabase | ✅ DONE | 4 hooks (SessionStart, UserPromptSubmit, Stop, SessionEnd) write to Supabase. Tool usage computed from transcript. |
 | 1.4 | Rewrite dashboard API routes | ✅ DONE | All API routes query Supabase |
 | 1.5 | Add `evalai init --team` command | ✅ DONE | Links developer to team in Supabase |
 | 1.6 | Transcript parser | ✅ DONE | Reads Claude Code JSONL for exact tokens |
@@ -115,7 +115,7 @@
 ## Completed Features Summary
 
 ### CLI (evaluateai npm package)
-- ✅ 6 Claude Code hooks (auto-capture prompts/responses)
+- ✅ 4 Claude Code hooks (auto-capture prompts/responses, tool usage from transcript)
 - ✅ Intent-aware scoring (7 types, 10 anti-patterns, 4+ signals)
 - ✅ Transcript parsing (exact tokens from JSONL)
 - ✅ Direct Supabase writes (no local SQLite)

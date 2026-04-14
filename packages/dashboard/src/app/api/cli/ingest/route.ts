@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createHash, randomBytes } from 'node:crypto';
 import { getSupabaseAdmin } from '@/lib/supabase-server';
 import { matchBranchToTask } from '@/lib/services/task-matcher';
+import { summarizeAndMatchSession } from '@/lib/services/session-summarizer';
 
 function generateId(): string {
   return Date.now().toString(36) + randomBytes(8).toString('hex');
@@ -261,6 +262,10 @@ export async function POST(request: Request) {
           is_ai_assisted: true,
           occurred_at: data.ended_at || new Date().toISOString(),
         }).then(() => {});
+
+        // Fire-and-forget: generate AI work summary + prompt-based task matching
+        summarizeAndMatchSession(data.session_id, ctx.teamId, ctx.memberId)
+          .catch(() => {}); // non-critical — sessions work fine without summaries
 
         break;
       }

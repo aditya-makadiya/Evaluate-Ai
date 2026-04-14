@@ -894,7 +894,7 @@ Settings
    → Browser shows "Success! You can close this tab."
    → CLI shows "✓ Logged in as jake@acme.dev (Acme Engineering)"
 3. Runs: evalai init
-   → "✓ 6 hooks installed into Claude Code"
+   → "✓ 4 hooks installed into Claude Code"
    → "✓ Ready. Your AI usage will sync automatically."
 4. Uses Claude Code normally — hooks fire in background
 ```

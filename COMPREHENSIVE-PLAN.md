@@ -414,9 +414,9 @@ ALL DATA IN SUPABASE (Cloud — Single Source of Truth):
   ├── alerts                       ← Notifications
   │
   │── (FROM NPM PACKAGE — auto-synced):
-  ├── ai_sessions                  ← Developer AI sessions
+  ├── ai_sessions                  ← Developer AI sessions (includes tool_usage_summary JSONB)
   ├── ai_turns                     ← Individual prompts + responses
-  ├── ai_tool_events              ← AI tool usage
+  ├── ai_tool_events              ← AI tool usage (deprecated — tool data now in ai_sessions.tool_usage_summary)
   └── ai_scoring_calls            ← Scoring API costs
 ```
 

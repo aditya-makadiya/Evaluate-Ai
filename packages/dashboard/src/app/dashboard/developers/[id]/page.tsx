@@ -54,6 +54,9 @@ interface DeveloperData {
     outputTokens: number | null;
     startedAt: string;
     firstPrompt: string | null;
+    workSummary: string | null;
+    workTags: string[];
+    workCategory: string | null;
   }[];
   sessionTotal: number;
   codeChanges: {

@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from('ai_sessions')
-      .select('id, tool, model, started_at, ended_at, last_activity_at, total_turns, total_input_tokens, total_output_tokens, total_cost_usd, avg_prompt_score, efficiency_score, project_dir, git_branch, developer_id, team_id', { count: 'exact' });
+      .select('id, tool, model, started_at, ended_at, last_activity_at, total_turns, total_input_tokens, total_output_tokens, total_cost_usd, avg_prompt_score, efficiency_score, project_dir, git_branch, developer_id, team_id, work_summary, work_tags, work_category', { count: 'exact' });
 
     if (teamId) query = query.eq('team_id', teamId);
     if (developerId) query = query.eq('developer_id', developerId);
@@ -85,6 +85,9 @@ export async function GET(request: NextRequest) {
       projectDir: s.project_dir,
       gitBranch: s.git_branch,
       firstPrompt: firstPrompts[s.id] ?? null,
+      workSummary: s.work_summary ?? null,
+      workTags: s.work_tags ?? [],
+      workCategory: s.work_category ?? null,
     };
     });
 

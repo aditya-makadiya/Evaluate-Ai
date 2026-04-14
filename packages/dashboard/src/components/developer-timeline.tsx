@@ -106,6 +106,9 @@ function TimelineEventItem({ event }: { event: TimelineEvent }) {
   const projectDir = meta.project_dir as string | undefined;
   const sha = meta.sha as string | undefined;
 
+  const workSummary = meta.work_summary as string | undefined;
+  const workTags = meta.work_tags as string[] | undefined;
+
   const isSessionEnd = event.eventType === 'ai_session_end';
   const isSessionStart = event.eventType === 'ai_session_start';
   const isCommit = event.eventType === 'commit';
@@ -145,12 +148,25 @@ function TimelineEventItem({ event }: { event: TimelineEvent }) {
           {/* Session completed — rich card */}
           {isSessionEnd && (
             <>
-              <p className="text-sm text-text-primary mt-0.5">
-                AI session completed
-                {projectName && (
-                  <span className="text-text-muted font-normal"> in {projectName}</span>
-                )}
-              </p>
+              {workSummary ? (
+                <p className="text-sm text-text-primary mt-0.5 leading-relaxed">{workSummary}</p>
+              ) : (
+                <p className="text-sm text-text-primary mt-0.5">
+                  AI session completed
+                  {projectName && (
+                    <span className="text-text-muted font-normal"> in {projectName}</span>
+                  )}
+                </p>
+              )}
+              {workTags && workTags.length > 0 && (
+                <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                  {workTags.slice(0, 5).map((tag) => (
+                    <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-purple-900/20 text-purple-400">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
               <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                 {totalTurns != null && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-bg-elevated text-text-secondary">
@@ -180,7 +196,7 @@ function TimelineEventItem({ event }: { event: TimelineEvent }) {
               </div>
               {sessionId && (
                 <Link
-                  href={`/dashboard/sessions/${sessionId}`}
+                  href={`/sessions/${sessionId}`}
                   className="inline-block mt-1.5 text-[11px] text-[#8b5cf6] hover:underline"
                 >
                   View session details

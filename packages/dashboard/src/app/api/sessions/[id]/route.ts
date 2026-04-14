@@ -203,6 +203,10 @@ export async function GET(
       analyzedAt: session.analyzed_at,
       developerId: session.developer_id,
       developerName,
+      workSummary: session.work_summary ?? null,
+      workTags: session.work_tags ?? [],
+      workCategory: session.work_category ?? null,
+      matchedTaskId: session.matched_task_id ?? null,
     };
 
     // Transform turns to camelCase, parse JSONB fields

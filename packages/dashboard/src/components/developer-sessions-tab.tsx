@@ -23,6 +23,9 @@ interface Session {
   outputTokens: number | null;
   startedAt: string;
   firstPrompt: string | null;
+  workSummary: string | null;
+  workTags: string[];
+  workCategory: string | null;
 }
 
 const DAY_FILTERS = [
@@ -242,11 +245,22 @@ export default function DeveloperSessionsTab({ developerId, initialSessions, ini
                               <Bot className="h-4 w-4 text-text-muted" />
                             </div>
                             <div className="min-w-0">
-                              <p className="text-sm text-text-primary truncate" title={s.firstPrompt ?? `Session ${s.id}`}>
-                                {s.firstPrompt
-                                  ? s.firstPrompt.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim().slice(0, 70) || `Session ${s.id.slice(0, 8)}`
-                                  : `Session ${s.id.slice(0, 8)}`}
+                              <p className="text-sm text-text-primary truncate" title={s.workSummary ?? s.firstPrompt ?? `Session ${s.id}`}>
+                                {s.workSummary
+                                  ? s.workSummary.slice(0, 90)
+                                  : s.firstPrompt
+                                    ? s.firstPrompt.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim().slice(0, 70) || `Session ${s.id.slice(0, 8)}`
+                                    : `Session ${s.id.slice(0, 8)}`}
                               </p>
+                              {s.workTags && s.workTags.length > 0 && (
+                                <div className="flex items-center gap-1 mt-0.5">
+                                  {s.workTags.slice(0, 3).map((tag) => (
+                                    <span key={tag} className="text-[9px] px-1 py-px rounded bg-purple-900/20 text-purple-400">
+                                      {tag}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
                               <div className="flex items-center gap-2 mt-0.5">
                                 {s.model && (
                                   <span className="text-[10px] text-text-muted bg-bg-primary px-1.5 py-0.5 rounded" title="AI model used for this session">

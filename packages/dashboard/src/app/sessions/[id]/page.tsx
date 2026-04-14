@@ -20,6 +20,8 @@ import {
   ChevronRight,
   TrendingUp,
   Info,
+  FileText,
+  Tag,
 } from 'lucide-react';
 import {
   BarChart,
@@ -84,6 +86,10 @@ interface SessionDetail {
   turns: TurnData[];
   developerId: string | null;
   developerName: string | null;
+  workSummary: string | null;
+  workTags: string[];
+  workCategory: string | null;
+  matchedTaskId: string | null;
 }
 
 // --------------- Design tokens ---------------
@@ -729,6 +735,36 @@ export default function SessionDetailPage() {
 
           {/* RIGHT: Session Metrics */}
           <div className="lg:w-[40%] space-y-4">
+            {/* Work Summary Card */}
+            {session.workSummary && (
+              <div className="bg-bg-card border border-border-primary rounded-xl p-6">
+                <h2 className="text-lg font-medium text-text-primary mb-4 flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-purple-900/30 flex items-center justify-center">
+                    <FileText className="w-4 h-4 text-purple-400" />
+                  </div>
+                  Work Summary
+                </h2>
+                <p className="text-sm text-text-primary leading-relaxed">{session.workSummary}</p>
+                {session.workTags && session.workTags.length > 0 && (
+                  <div className="flex items-center gap-2 mt-4 flex-wrap">
+                    <Tag className="w-3 h-3 text-text-muted" />
+                    {session.workTags.map((tag) => (
+                      <span key={tag} className="text-xs px-2 py-0.5 rounded-full bg-purple-900/20 text-purple-400 border border-purple-800/30">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {session.workCategory && (
+                  <div className="mt-3">
+                    <span className={`text-xs px-2 py-0.5 rounded ${INTENT_STYLES[session.workCategory]?.bg ?? 'bg-bg-elevated'} ${INTENT_STYLES[session.workCategory]?.text ?? 'text-text-secondary'}`}>
+                      {session.workCategory}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
             <h2 className="text-lg font-medium text-text-primary mb-2">Session Metrics</h2>
 
             {/* Efficiency score ring */}
