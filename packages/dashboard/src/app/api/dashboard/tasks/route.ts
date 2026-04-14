@@ -60,6 +60,24 @@ export async function GET(request: NextRequest) {
       (meetingResult.data ?? []).map((m) => [m.id, { title: m.title, date: m.date }])
     );
 
+    // Fetch AI cost per task (sessions matched to tasks)
+    const taskIds = (tasks ?? []).map((t) => t.id);
+    const aiCostMap = new Map<string, { cost: number; sessions: number }>();
+    if (taskIds.length > 0) {
+      const { data: aiSessionRows } = await supabase
+        .from('ai_sessions')
+        .select('matched_task_id, total_cost_usd')
+        .in('matched_task_id', taskIds);
+
+      for (const row of aiSessionRows ?? []) {
+        const tid = row.matched_task_id as string;
+        const entry = aiCostMap.get(tid) ?? { cost: 0, sessions: 0 };
+        entry.cost += row.total_cost_usd ?? 0;
+        entry.sessions++;
+        aiCostMap.set(tid, entry);
+      }
+    }
+
     // Fetch linked code change details
     const allChangeIds = (tasks ?? [])
       .flatMap((t) => (t.matched_changes as string[]) ?? [])
@@ -112,6 +130,8 @@ export async function GET(request: NextRequest) {
         alignmentScore: task.alignment_score,
         source: task.source,
         createdAt: task.created_at,
+        aiCost: aiCostMap.get(task.id)?.cost ?? 0,
+        aiSessions: aiCostMap.get(task.id)?.sessions ?? 0,
       };
     });
 

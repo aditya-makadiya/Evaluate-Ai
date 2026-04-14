@@ -56,7 +56,7 @@ export async function GET(
 
     // AI sessions (paginated, filtered by days)
     let sessionsQ = supabase.from('ai_sessions')
-      .select('id, model, total_cost_usd, avg_prompt_score, total_turns, total_input_tokens, total_output_tokens, started_at, work_summary, work_tags, work_category', { count: 'exact' })
+      .select('id, model, total_cost_usd, avg_prompt_score, total_turns, total_input_tokens, total_output_tokens, started_at, ended_at, work_summary, work_tags, work_category', { count: 'exact' })
       .eq('developer_id', devId)
       .order('started_at', { ascending: false })
       .range(sessionOffset, sessionOffset + sessionLimit - 1);
@@ -244,6 +244,35 @@ export async function GET(
       insights.push(`Hasn't used AI tools this week — may not have evaluateai installed`);
     }
 
+    // ── Coaching tips: personalized advice based on top anti-patterns ──
+    const ANTI_PATTERN_TIPS: Record<string, { label: string; tip: string; severity: 'high' | 'medium' | 'low' }> = {
+      vague_verb: { label: 'Vague commands', tip: 'Add which file, what specific behavior, and what error you see. Example: "Fix the login redirect in src/auth/callback.ts — getting 401 after token refresh" instead of "fix login".', severity: 'high' },
+      paraphrased_error: { label: 'Paraphrased errors', tip: 'Paste the exact error message in backticks instead of describing it. The AI needs the precise error text to diagnose accurately.', severity: 'high' },
+      too_short: { label: 'Too short prompts', tip: 'Add context: which file, what you expect, and what went wrong. Even 2-3 extra sentences dramatically improve AI response quality.', severity: 'high' },
+      retry_detected: { label: 'Repeated prompts', tip: 'When retrying, explain what was wrong with the previous answer. "Try again" wastes tokens — "The previous fix broke X because Y, instead do Z" gets better results.', severity: 'high' },
+      no_file_ref: { label: 'Missing file references', tip: 'Always specify the file path and function name. The AI can\'t find code in large projects without explicit paths like src/components/Auth.tsx:handleLogin.', severity: 'medium' },
+      multi_question: { label: 'Multiple questions at once', tip: 'Ask one question per prompt. Multiple questions cause the AI to give shallow answers to all instead of a thorough answer to one.', severity: 'medium' },
+      overlong_prompt: { label: 'Overly long prompts', tip: 'Split into a clear task description + separate context. Put large code blocks in files and reference them by path instead of pasting inline.', severity: 'medium' },
+      no_expected_output: { label: 'No expected outcome', tip: 'Describe what success looks like: "should return a JSON array of users" or "the button should redirect to /dashboard after login".', severity: 'medium' },
+      unanchored_ref: { label: 'Ambiguous references', tip: 'Re-state what "it" or "the issue" refers to — the AI loses context across turns. Say "the auth middleware" instead of "it".', severity: 'low' },
+      filler_words: { label: 'Filler words', tip: 'Words like "please", "could you kindly" cost tokens without improving results. This is minor but adds up over hundreds of prompts.', severity: 'low' },
+    };
+
+    const coachingTips = antiPatterns.slice(0, 5).map(ap => {
+      const tipInfo = ANTI_PATTERN_TIPS[ap.pattern] ?? {
+        label: ap.pattern.replace(/_/g, ' '),
+        tip: 'Review this pattern and consider how to avoid it.',
+        severity: 'medium' as const,
+      };
+      return {
+        pattern: ap.pattern,
+        count: ap.count,
+        label: tipInfo.label,
+        tip: tipInfo.tip,
+        severity: tipInfo.severity,
+      };
+    });
+
     // Cost trend (daily cost over 30 days)
     const costByDay: Record<string, number> = {};
     for (const s of monthSessions ?? []) {
@@ -311,6 +340,10 @@ export async function GET(
         inputTokens: s.total_input_tokens,
         outputTokens: s.total_output_tokens,
         startedAt: s.started_at,
+        endedAt: s.ended_at ?? null,
+        durationMin: s.ended_at && s.started_at
+          ? Math.round((new Date(s.ended_at as string).getTime() - new Date(s.started_at as string).getTime()) / 60_000)
+          : null,
         firstPrompt: sessionFirstPrompts[s.id] ?? null,
         workSummary: s.work_summary ?? null,
         workTags: s.work_tags ?? [],
@@ -344,6 +377,7 @@ export async function GET(
       tokenStats: { week: weekTokens, month: monthTokens },
       usageByDayOfWeek,
       insights,
+      coachingTips,
     });
   } catch (err) {
     console.error('Developer detail API error:', err);

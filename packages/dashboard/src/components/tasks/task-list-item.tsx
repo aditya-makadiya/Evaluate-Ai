@@ -5,6 +5,7 @@ import {
   Folder,
   User,
   GitCommit,
+  Bot,
 } from 'lucide-react';
 import { type TaskItem, STATUS_META, PRIORITY_META, STATUS_FLOW } from './task-detail-panel';
 
@@ -83,6 +84,11 @@ export default function TaskListItem({ task, isSelected, onSelect, onStatusToggl
         {task.deadline && !overdue && (
           <span className="hidden sm:inline text-[10px] text-text-muted">
             {new Date(task.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+          </span>
+        )}
+        {task.aiCost > 0 && (
+          <span className="hidden sm:inline-flex items-center gap-0.5 text-[10px] text-yellow-400 font-mono font-medium" title="AI cost for this task">
+            <Bot className="h-3 w-3" />${task.aiCost.toFixed(2)}
           </span>
         )}
         {task.matchedChanges.length > 0 && (

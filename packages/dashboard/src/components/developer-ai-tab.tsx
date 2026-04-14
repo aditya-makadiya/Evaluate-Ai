@@ -39,6 +39,8 @@ interface Session {
   inputTokens: number | null;
   outputTokens: number | null;
   startedAt: string;
+  endedAt: string | null;
+  durationMin: number | null;
   firstPrompt: string | null;
 }
 

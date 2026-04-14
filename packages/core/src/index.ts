@@ -40,5 +40,5 @@ export { getModelPricing, calculateCost, recommendModel, normalizeModelId } from
 export { analyzeSession } from './analysis/session-analyzer.js';
 
 // Transcript
-export { getLatestResponse, getSessionSummary } from './transcript/parser.js';
-export type { TranscriptEntry, TranscriptUsage, TranscriptResponse, TranscriptSummary } from './transcript/parser.js';
+export { getLatestResponse, getSessionSummary, getPerTurnSummary } from './transcript/parser.js';
+export type { TranscriptEntry, TranscriptUsage, TranscriptResponse, TranscriptSummary, PerTurnData } from './transcript/parser.js';

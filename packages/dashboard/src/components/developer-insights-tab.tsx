@@ -7,6 +7,8 @@ import {
   DollarSign,
   AlertTriangle,
   Info,
+  GraduationCap,
+  ChevronRight,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -23,9 +25,18 @@ interface ScoreTrendPoint {
   score: number;
 }
 
+interface CoachingTip {
+  pattern: string;
+  count: number;
+  label: string;
+  tip: string;
+  severity: 'high' | 'medium' | 'low';
+}
+
 interface DeveloperInsightsTabProps {
   insights: string[];
   scoreTrend: ScoreTrendPoint[];
+  coachingTips: CoachingTip[];
   stats: {
     totalAiCost: number;
     avgPromptScore: number | null;
@@ -59,11 +70,19 @@ function getInsightColor(insight: string): string {
   return 'border-border-primary bg-bg-card';
 }
 
+function getSeverityStyle(severity: 'high' | 'medium' | 'low') {
+  switch (severity) {
+    case 'high': return { border: 'border-red-800/50', bg: 'bg-red-950/20', badge: 'bg-red-900/30 text-red-400', dot: 'bg-red-400' };
+    case 'medium': return { border: 'border-yellow-800/50', bg: 'bg-yellow-950/20', badge: 'bg-yellow-900/30 text-yellow-400', dot: 'bg-yellow-400' };
+    case 'low': return { border: 'border-blue-800/50', bg: 'bg-blue-950/20', badge: 'bg-blue-900/30 text-blue-400', dot: 'bg-blue-400' };
+  }
+}
+
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-export default function DeveloperInsightsTab({ insights, scoreTrend, stats }: DeveloperInsightsTabProps) {
+export default function DeveloperInsightsTab({ insights, scoreTrend, coachingTips, stats }: DeveloperInsightsTabProps) {
   const chartData = scoreTrend.map(d => ({
     date: formatDate(d.date),
     score: d.score,
@@ -96,7 +115,47 @@ export default function DeveloperInsightsTab({ insights, scoreTrend, stats }: De
         </div>
       )}
 
-      {/* Insights */}
+      {/* Coaching Tips */}
+      {coachingTips.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <GraduationCap className="h-5 w-5 text-purple-400" />
+            <h3 className="text-lg font-semibold text-text-primary">Coaching Tips</h3>
+            <span className="text-xs text-text-muted ml-auto">Based on your most common anti-patterns</span>
+          </div>
+
+          <div className="space-y-3">
+            {coachingTips.map((tip) => {
+              const style = getSeverityStyle(tip.severity);
+              return (
+                <div
+                  key={tip.pattern}
+                  className={`rounded-lg border p-4 ${style.border} ${style.bg}`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`w-2 h-2 rounded-full mt-2 shrink-0 ${style.dot}`} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="text-sm font-semibold text-text-primary">{tip.label}</span>
+                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${style.badge}`}>
+                          {tip.count}x this month
+                        </span>
+                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${style.badge}`}>
+                          {tip.severity}
+                        </span>
+                      </div>
+                      <p className="text-sm text-text-secondary leading-relaxed">{tip.tip}</p>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-text-muted shrink-0 mt-1" />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Auto-generated Insights */}
       <div>
         <div className="flex items-center gap-2 mb-4">
           <Lightbulb className="h-5 w-5 text-yellow-400" />

@@ -11,6 +11,7 @@ import {
   ArrowRight,
   Loader2,
   ChevronDown,
+  Timer,
 } from 'lucide-react';
 
 interface Session {
@@ -22,6 +23,8 @@ interface Session {
   inputTokens: number | null;
   outputTokens: number | null;
   startedAt: string;
+  endedAt: string | null;
+  durationMin: number | null;
   firstPrompt: string | null;
   workSummary: string | null;
   workTags: string[];
@@ -76,6 +79,15 @@ function formatTime(dateStr: string): string {
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr);
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function formatDuration(minutes: number | null): string | null {
+  if (minutes == null || minutes < 0) return null;
+  if (minutes < 1) return '<1m';
+  if (minutes < 60) return `${minutes}m`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
 function groupByDate(sessions: Session[]): Record<string, Session[]> {
@@ -275,6 +287,11 @@ export default function DeveloperSessionsTab({ developerId, initialSessions, ini
                             </div>
                           </div>
                           <div className="flex items-center gap-3 shrink-0">
+                            {formatDuration(s.durationMin) && (
+                              <span className="text-[10px] text-text-muted" title="Session duration">
+                                <Timer className="h-2.5 w-2.5 inline mr-0.5" />{formatDuration(s.durationMin)}
+                              </span>
+                            )}
                             {s.turns != null && (
                               <span className="text-[10px] text-text-muted" title="Number of prompt-response exchanges in this session">
                                 <Hash className="h-2.5 w-2.5 inline mr-0.5" />{s.turns}

@@ -53,6 +53,8 @@ interface DeveloperData {
     inputTokens: number | null;
     outputTokens: number | null;
     startedAt: string;
+    endedAt: string | null;
+    durationMin: number | null;
     firstPrompt: string | null;
     workSummary: string | null;
     workTags: string[];
@@ -91,6 +93,7 @@ interface DeveloperData {
   };
   usageByDayOfWeek: { day: string; sessions: number }[];
   insights: string[];
+  coachingTips: { pattern: string; count: number; label: string; tip: string; severity: 'high' | 'medium' | 'low' }[];
 }
 
 const TABS: { key: Tab; label: string; icon: typeof Activity }[] = [
@@ -308,6 +311,7 @@ export default function DeveloperDetailPage() {
               <DeveloperInsightsTab
                 insights={data.insights}
                 scoreTrend={data.scoreTrend}
+                coachingTips={data.coachingTips ?? []}
                 stats={{
                   totalAiCost: data.stats.totalAiCost,
                   avgPromptScore: data.stats.avgPromptScore,

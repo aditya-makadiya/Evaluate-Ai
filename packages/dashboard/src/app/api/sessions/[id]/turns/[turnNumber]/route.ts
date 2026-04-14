@@ -3,6 +3,7 @@ import { getAuthContext } from '@/lib/auth';
 import { getSupabaseAdmin } from '@/lib/supabase-server';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { execSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 
@@ -104,108 +105,160 @@ function findTranscriptFile(sessionId: string): string | null {
   return null;
 }
 
-function parseTranscriptForTurn(transcriptPath: string, turnNumber: number): {
+/**
+ * Extract user prompt text from a transcript entry's content.
+ */
+function extractUserPromptText(content: unknown): string {
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) {
+    for (const block of content) {
+      if (block?.type === 'text' && typeof block.text === 'string') return block.text;
+    }
+  }
+  return '';
+}
+
+/**
+ * SHA-256 hash — matches the CLI's hashText() so we can compare prompt_hash values.
+ */
+function hashText(text: string): string {
+  return createHash('sha256').update(text).digest('hex');
+}
+
+/**
+ * Parse transcript entries from a JSONL file.
+ */
+function parseTranscriptEntries(transcriptPath: string): Array<{ message: TranscriptEntry['message'] }> {
+  const content = readFileSync(transcriptPath, 'utf-8');
+  const lines = content.trim().split('\n');
+  const entries: Array<{ message: TranscriptEntry['message'] }> = [];
+  for (const line of lines) {
+    try {
+      const parsed = JSON.parse(line);
+      const msg = parsed.message ?? parsed;
+      if (msg.role) entries.push({ message: msg });
+    } catch { continue; }
+  }
+  return entries;
+}
+
+/**
+ * Collect all assistant response indices between a user turn and the next user turn.
+ */
+function collectAssistantIndices(entries: Array<{ message: TranscriptEntry['message'] }>, userIndex: number): number[] {
+  const indices: number[] = [];
+  for (let j = userIndex + 1; j < entries.length; j++) {
+    const e = entries[j];
+    if (e.message.role === 'user') {
+      const c = e.message.content;
+      const isTool = Array.isArray(c) && c.length > 0 && c[0]?.type === 'tool_result';
+      if (!isTool) break;
+    }
+    if (e.message.role === 'assistant') {
+      indices.push(j);
+    }
+  }
+  return indices;
+}
+
+/**
+ * Extract response data from a set of assistant message indices.
+ */
+function extractResponseFromIndices(
+  entries: Array<{ message: TranscriptEntry['message'] }>,
+  assistantIndices: number[]
+): {
+  text: string;
+  toolCalls: string[];
+  usage: { inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheWriteTokens: number; model: string };
+  costUsd: number;
+} {
+  const allTextParts: string[] = [];
+  const allToolCalls: string[] = [];
+  let totalInput = 0, totalOutput = 0, totalCacheRead = 0, totalCacheWrite = 0;
+  let model = 'unknown';
+
+  for (const idx of assistantIndices) {
+    const msg = entries[idx].message;
+    if (msg.model) model = normalizeModelId(msg.model);
+
+    for (const c of (msg.content ?? [])) {
+      if (c.type === 'text' && c.text) {
+        allTextParts.push(c.text);
+      } else if (c.type === 'tool_use' && c.name) {
+        allToolCalls.push(c.name);
+        const inputStr = c.input ? JSON.stringify(c.input, null, 2) : '';
+        const summary = inputStr.length > 500 ? inputStr.slice(0, 500) + '...' : inputStr;
+        allTextParts.push(`**Tool: ${c.name}**\n\`\`\`json\n${summary}\n\`\`\``);
+      }
+    }
+
+    if (msg.usage) {
+      totalInput += msg.usage.input_tokens ?? 0;
+      totalOutput += msg.usage.output_tokens ?? 0;
+      totalCacheRead += msg.usage.cache_read_input_tokens ?? 0;
+      totalCacheWrite += msg.usage.cache_creation_input_tokens ?? 0;
+    }
+  }
+
+  const usage = { inputTokens: totalInput, outputTokens: totalOutput, cacheReadTokens: totalCacheRead, cacheWriteTokens: totalCacheWrite, model };
+  const costUsd = calculateCost(usage.inputTokens, usage.outputTokens, usage.model, usage.cacheReadTokens, usage.cacheWriteTokens);
+
+  return { text: allTextParts.join('\n\n'), toolCalls: [...new Set(allToolCalls)], usage, costUsd };
+}
+
+/**
+ * Parse transcript for a specific turn, matching by prompt_hash to avoid
+ * position misalignment caused by interrupted turns in the transcript.
+ * Falls back to position-based matching if hash matching fails.
+ */
+function parseTranscriptForTurn(
+  transcriptPath: string,
+  turnNumber: number,
+  promptHash?: string | null
+): {
   text: string;
   toolCalls: string[];
   usage: { inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheWriteTokens: number; model: string };
   costUsd: number;
 } | null {
   try {
-    const content = readFileSync(transcriptPath, 'utf-8');
-    const lines = content.trim().split('\n');
+    const entries = parseTranscriptEntries(transcriptPath);
 
-    let userTurnCount = 0;
-    let targetAssistantIndex = -1;
-
-    const entries: Array<{ message: TranscriptEntry['message'] }> = [];
-    for (const line of lines) {
-      try {
-        const parsed = JSON.parse(line);
-        const msg = parsed.message ?? parsed;
-        if (msg.role) entries.push({ message: msg });
-      } catch { continue; }
-    }
-
-    let allAssistantIndices: number[] = [];
-
+    // Build list of all user turns (non-tool-result) with their indices
+    const userTurns: Array<{ index: number; promptHash: string }> = [];
     for (let i = 0; i < entries.length; i++) {
       const entry = entries[i];
       if (entry.message.role === 'user') {
-        const content = entry.message.content;
-        const isToolResult = Array.isArray(content) && content.length > 0 && content[0]?.type === 'tool_result';
+        const c = entry.message.content;
+        const isToolResult = Array.isArray(c) && c.length > 0 && c[0]?.type === 'tool_result';
         if (isToolResult) continue;
+        const promptText = extractUserPromptText(c);
+        userTurns.push({ index: i, promptHash: hashText(promptText) });
+      }
+    }
 
-        userTurnCount++;
-        if (userTurnCount === turnNumber) {
-          const assistantIndices: number[] = [];
-          for (let j = i + 1; j < entries.length; j++) {
-            const e = entries[j];
-            if (e.message.role === 'user') {
-              const c = e.message.content;
-              const isTool = Array.isArray(c) && c.length > 0 && c[0]?.type === 'tool_result';
-              if (!isTool) break;
-            }
-            if (e.message.role === 'assistant') {
-              assistantIndices.push(j);
-            }
-          }
-          if (assistantIndices.length > 0) {
-            targetAssistantIndex = assistantIndices[0];
-          }
-          allAssistantIndices = assistantIndices;
-          break;
+    // Strategy 1: Match by prompt_hash (reliable, handles interrupted turns)
+    if (promptHash) {
+      const matched = userTurns.find(t => t.promptHash === promptHash);
+      if (matched) {
+        const assistantIndices = collectAssistantIndices(entries, matched.index);
+        if (assistantIndices.length > 0) {
+          return extractResponseFromIndices(entries, assistantIndices);
         }
       }
     }
 
-    if (targetAssistantIndex === -1) return null;
-
-    const indices = allAssistantIndices.length > 0 ? allAssistantIndices : [targetAssistantIndex];
-    const allTextParts: string[] = [];
-    const allToolCalls: string[] = [];
-    let totalInput = 0, totalOutput = 0, totalCacheRead = 0, totalCacheWrite = 0;
-    let model = 'unknown';
-
-    for (const idx of indices) {
-      const msg = entries[idx].message;
-      if (msg.model) model = normalizeModelId(msg.model);
-
-      for (const c of (msg.content ?? [])) {
-        if (c.type === 'text' && c.text) {
-          allTextParts.push(c.text);
-        } else if (c.type === 'tool_use' && c.name) {
-          allToolCalls.push(c.name);
-          const inputStr = c.input ? JSON.stringify(c.input, null, 2) : '';
-          const summary = inputStr.length > 500 ? inputStr.slice(0, 500) + '...' : inputStr;
-          allTextParts.push(`**Tool: ${c.name}**\n\`\`\`json\n${summary}\n\`\`\``);
-        }
-      }
-
-      if (msg.usage) {
-        totalInput += msg.usage.input_tokens ?? 0;
-        totalOutput += msg.usage.output_tokens ?? 0;
-        totalCacheRead += msg.usage.cache_read_input_tokens ?? 0;
-        totalCacheWrite += msg.usage.cache_creation_input_tokens ?? 0;
+    // Strategy 2: Fall back to position-based matching (legacy behavior)
+    if (turnNumber >= 1 && turnNumber <= userTurns.length) {
+      const fallback = userTurns[turnNumber - 1];
+      const assistantIndices = collectAssistantIndices(entries, fallback.index);
+      if (assistantIndices.length > 0) {
+        return extractResponseFromIndices(entries, assistantIndices);
       }
     }
 
-    const responseText = allTextParts.join('\n\n');
-    const toolCalls = [...new Set(allToolCalls)];
-
-    const usage = {
-      inputTokens: totalInput,
-      outputTokens: totalOutput,
-      cacheReadTokens: totalCacheRead,
-      cacheWriteTokens: totalCacheWrite,
-      model,
-    };
-
-    const costUsd = calculateCost(
-      usage.inputTokens, usage.outputTokens, usage.model,
-      usage.cacheReadTokens, usage.cacheWriteTokens,
-    );
-
-    return { text: responseText, toolCalls, usage, costUsd };
+    return null;
   } catch {
     return null;
   }
@@ -394,11 +447,13 @@ export async function GET(
     const promptText = (turn.prompt_text as string) || '';
     const score = (turn.heuristic_score as number) ?? (turn.llm_score as number) ?? 50;
 
-    // Try to find transcript and parse response for this turn
+    // Try to find transcript and parse response for this turn.
+    // Use prompt_hash to match the correct transcript turn (avoids off-by-one
+    // when interrupted turns exist in the transcript but not in the DB).
     let response = null;
     const transcriptPath = findTranscriptFile(id);
     if (transcriptPath) {
-      const parsed = parseTranscriptForTurn(transcriptPath, turnNumber);
+      const parsed = parseTranscriptForTurn(transcriptPath, turnNumber, turn.prompt_hash);
       if (parsed) {
         response = parsed;
       }

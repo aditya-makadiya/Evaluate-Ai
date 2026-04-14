@@ -22,6 +22,7 @@ import {
   Info,
   FileText,
   Tag,
+  RefreshCw,
 } from 'lucide-react';
 import {
   BarChart,
@@ -569,9 +570,11 @@ export default function SessionDetailPage() {
   const [session, setSession] = useState<SessionDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetch(`/api/sessions/${sessionId}`)
+  const fetchSession = () => {
+    return fetch(`/api/sessions/${sessionId}`)
       .then(async (r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
@@ -583,9 +586,37 @@ export default function SessionDetailPage() {
           turns: data.turns ?? [],
         };
         setSession(merged);
-      })
+      });
+  };
+
+  const handleSync = async () => {
+    setSyncing(true);
+    setSyncResult(null);
+    try {
+      const res = await fetch(`/api/sessions/${sessionId}/sync`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        setSyncResult(data.error || 'Sync failed');
+        return;
+      }
+      const s = data.synced;
+      setSyncResult(
+        `Synced: ${s.userTurns} turns, ${s.turnsUpdated} turns updated, ${formatTokens(s.totalOutputTokens)} output tokens${s.sessionClosed ? ', session closed' : ''}`
+      );
+      // Reload session data to show updated values
+      await fetchSession();
+    } catch (e) {
+      setSyncResult(e instanceof Error ? e.message : 'Sync failed');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSession()
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
   if (loading) {
@@ -699,7 +730,22 @@ export default function SessionDetailPage() {
             <span className="text-xs text-text-muted flex items-center gap-1" title="Total session duration from first to last turn">
               <Clock className="w-3 h-3" /> {formatDuration(session.startedAt, session.endedAt)}
             </span>
+            {/* Sync Now */}
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-full border border-border-primary bg-bg-card hover:bg-bg-elevated disabled:opacity-50 text-text-secondary transition-colors"
+              title="Re-sync session data from local transcript file"
+            >
+              <RefreshCw className={`w-3 h-3 ${syncing ? 'animate-spin' : ''}`} />
+              {syncing ? 'Syncing...' : 'Sync Now'}
+            </button>
           </div>
+          {syncResult && (
+            <p className={`text-xs mt-2 ${syncResult.startsWith('Synced') ? 'text-emerald-400' : 'text-red-400'}`}>
+              {syncResult}
+            </p>
+          )}
         </div>
 
         {/* Two-column layout (60/40) */}
@@ -953,14 +999,33 @@ export default function SessionDetailPage() {
                   <p className="text-sm text-yellow-300/90 leading-relaxed">{analysis.topTip}</p>
                 </div>
               </div>
-              <div>
-                <p className="text-xs text-text-muted uppercase tracking-wider font-medium mb-2">Rewritten First Prompt</p>
-                <div className="bg-bg-primary border border-border-primary rounded-lg p-4">
-                  <p className="text-sm text-text-primary italic leading-relaxed">
-                    {analysis.rewrittenFirstPrompt}
-                  </p>
+              {analysis.rewrittenFirstPrompt && (
+                <div>
+                  <p className="text-xs text-text-muted uppercase tracking-wider font-medium mb-3">Prompt Replay: Before / After</p>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                    <div className="bg-red-950/10 border border-red-900/30 rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-2 h-2 rounded-full bg-red-400" />
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-red-400">Original</span>
+                      </div>
+                      <p className="text-sm text-text-secondary leading-relaxed">
+                        {turns.length > 0 && turns[0].promptText
+                          ? turns[0].promptText.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim().slice(0, 500)
+                          : 'First prompt not available'}
+                      </p>
+                    </div>
+                    <div className="bg-emerald-950/10 border border-emerald-900/30 rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400">Improved</span>
+                      </div>
+                      <p className="text-sm text-text-primary leading-relaxed">
+                        {analysis.rewrittenFirstPrompt}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           ) : (
             <HeuristicAnalysis turns={turns} session={session} />

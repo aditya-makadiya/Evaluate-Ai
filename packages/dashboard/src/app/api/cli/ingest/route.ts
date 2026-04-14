@@ -204,6 +204,8 @@ export async function POST(request: Request) {
 
       // session_update: mid-session metric refresh (from Stop hook).
       // Updates tokens/cost/turns + last_activity_at but does NOT set ended_at.
+      // Also updates per-turn response data (response_tokens_est, tool_calls)
+      // when per_turn_data is provided.
       case 'session_update': {
         if (!data.session_id) {
           return NextResponse.json({ error: 'session_id required' }, { status: 400 });
@@ -220,6 +222,60 @@ export async function POST(request: Request) {
           .eq('id', data.session_id);
 
         if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+        // Update per-turn response data if provided (non-blocking).
+        // Each item has { promptHash, responseTokens, toolCalls }.
+        const perTurnData = data.per_turn_data;
+        if (Array.isArray(perTurnData) && perTurnData.length > 0) {
+          (async () => {
+            try {
+              // Fetch all turns for this session that are missing response data
+              const { data: turns } = await admin
+                .from('ai_turns')
+                .select('id, prompt_hash, response_tokens_est, tool_calls')
+                .eq('session_id', data.session_id);
+
+              if (!turns) return;
+
+              // Build hash → turn data map for quick lookup
+              const turnMap = new Map<string, { promptHash: string; responseTokens: number; toolCalls: string[] }>();
+              for (const item of perTurnData) {
+                if (item?.promptHash) {
+                  turnMap.set(item.promptHash, item);
+                }
+              }
+
+              for (const turn of turns) {
+                const hash = turn.prompt_hash as string | null;
+                if (!hash) continue;
+
+                const transcriptTurn = turnMap.get(hash);
+                if (!transcriptTurn) continue;
+
+                // Only update if DB values are missing
+                const needsUpdate =
+                  turn.response_tokens_est == null ||
+                  !turn.tool_calls ||
+                  (Array.isArray(turn.tool_calls) && turn.tool_calls.length === 0);
+
+                if (needsUpdate) {
+                  const turnUpdate: Record<string, unknown> = {};
+                  if (turn.response_tokens_est == null) {
+                    turnUpdate.response_tokens_est = transcriptTurn.responseTokens;
+                  }
+                  if (!turn.tool_calls || (Array.isArray(turn.tool_calls) && turn.tool_calls.length === 0)) {
+                    turnUpdate.tool_calls = transcriptTurn.toolCalls;
+                  }
+                  if (Object.keys(turnUpdate).length > 0) {
+                    await admin.from('ai_turns').update(turnUpdate).eq('id', turn.id);
+                  }
+                }
+              }
+            } catch {
+              // Non-critical — per-turn data update is best-effort
+            }
+          })().catch(() => {});
+        }
         break;
       }
 

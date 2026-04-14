@@ -116,6 +116,36 @@ NPM_TOKEN=npm_...                       # For publishing (CI only)
 
 Loaded from: `~/.evaluateai-v2/.env` (auto-loaded by CLI via dotenv)
 
+## Dashboard Features
+
+### Analytics Page (`/analytics`)
+- **Period selector**: today/week/month/quarter — filters all charts via `?period=` param
+- **Intent distribution**: Real data from `ai_turns.intent` — shows research/debug/feature/etc breakdown
+- **Token waste**: Computed from `ai_turns.was_retry` — shows retry rate, wasted tokens
+- **Model optimization**: Cross-references `ai_sessions.model` with `work_category` intent to recommend cheaper models with dollar savings
+- **Cost/score trends**: Area and line charts filtered by selected period
+- **Score distribution**: Histogram of prompt quality scores
+
+### Developer Detail Page (`/dashboard/developers/[id]`)
+- **5 tabs**: Sessions, Timeline, Work, AI Usage, Insights
+- **Coaching tips**: Personalized tips based on top anti-patterns from `heuristic.ts` hints — shows pattern name, count, severity, and actionable advice
+- **Session duration**: Computed from `ended_at - started_at`, displayed on session cards
+
+### Tasks Page (`/dashboard/tasks`)
+- **AI cost per task**: Shows total AI spend via `ai_sessions.matched_task_id` join — visible in task list and detail panel
+- **Auto-status updates**: Tasks auto-transition pending→in_progress→completed based on code changes
+
+### Session Detail (`/sessions/[id]`)
+- **Prompt replay**: Side-by-side before/after comparison of original first prompt vs AI-rewritten version from `SessionAnalysis.rewrittenFirstPrompt`
+- **Duration**: Computed and displayed in session header and metadata cards
+
+### API Conventions
+- `/api/stats?period=today|week|month|quarter` — All stats respect period filter
+- `/api/stats` returns: `intentDistribution`, `tokenWaste`, `modelOptimization` alongside existing fields
+- `/api/dashboard/developers/[id]` returns: `coachingTips`, `durationMin` per session
+- `/api/dashboard/tasks` returns: `aiCost`, `aiSessions` per task
+- `/api/sessions/[id]` returns: `durationMin` in session object
+
 ## Git Workflow
 
 - Main branch: `main`

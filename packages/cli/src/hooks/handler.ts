@@ -384,7 +384,7 @@ async function handleStop(payload: Record<string, unknown>): Promise<void> {
     // Fire-and-forget: parse transcript and update metrics in background
     (async () => {
       try {
-        const { getSessionSummary } = await import('evaluateai-core');
+        const { getSessionSummary, getPerTurnSummary } = await import('evaluateai-core');
         const summary = getSessionSummary(transcriptPath);
         if (!summary) return;
 
@@ -398,6 +398,10 @@ async function handleStop(payload: Record<string, unknown>): Promise<void> {
           }
         }
 
+        // Extract per-turn response data (response_tokens, tool_calls) keyed by prompt_hash.
+        // This fills gaps where the DB only has prompt data but no response data per turn.
+        const perTurnData = getPerTurnSummary(transcriptPath);
+
         await sendToApi('session_update', {
           session_id: sid,
           model: summary.model,
@@ -408,6 +412,7 @@ async function handleStop(payload: Record<string, unknown>): Promise<void> {
           total_tool_calls: totalToolCalls,
           tool_usage_summary: toolCounts,
           last_activity_at: new Date().toISOString(),
+          per_turn_data: perTurnData ?? undefined,
         });
       } catch {
         // Non-critical — next Stop will retry

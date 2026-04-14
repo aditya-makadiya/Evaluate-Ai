@@ -76,6 +76,11 @@ export async function GET(request: NextRequest) {
       model: s.model,
       startedAt: s.started_at,
       endedAt: s.ended_at ?? (isStale ? (s.last_activity_at || s.started_at) : null),
+      durationMin: (() => {
+        const end = s.ended_at ?? (isStale ? (s.last_activity_at || null) : null);
+        if (!end || !s.started_at) return null;
+        return Math.round((new Date(end).getTime() - new Date(s.started_at).getTime()) / 60_000);
+      })(),
       totalTurns: s.total_turns,
       totalInputTokens: s.total_input_tokens,
       totalOutputTokens: s.total_output_tokens,

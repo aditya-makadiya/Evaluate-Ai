@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { calculateCost, normalizeModelId } from '../models/pricing.js';
 
 /**
@@ -52,6 +53,15 @@ export interface TranscriptResponse {
   toolCalls: string[];        // tool names called
   usage: TranscriptUsage;
   stopReason: string | null;
+}
+
+/**
+ * Per-turn summary keyed by prompt hash.
+ */
+export interface PerTurnData {
+  promptHash: string;
+  responseTokens: number;
+  toolCalls: string[];
 }
 
 /**
@@ -230,6 +240,103 @@ export function getSessionSummary(transcriptPath: string): TranscriptSummary | n
       responses,
       totalCostUsd: calculateExactCost(summaryUsage),
     };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Extract user prompt text from a transcript entry's content.
+ */
+function extractUserPromptText(content: unknown): string {
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) {
+    for (const block of content) {
+      if (block?.type === 'text' && typeof block.text === 'string') return block.text;
+    }
+  }
+  return '';
+}
+
+/**
+ * SHA-256 hash — matches the CLI hook's hashText() function.
+ */
+function hashText(text: string): string {
+  return createHash('sha256').update(text).digest('hex');
+}
+
+/**
+ * Get per-turn summary from a transcript file.
+ * Groups assistant responses by user turn and returns per-turn
+ * response token counts and tool calls, keyed by prompt hash.
+ *
+ * This enables the CLI Stop hook to update individual turns
+ * in the database with response data that would otherwise be missing.
+ */
+export function getPerTurnSummary(transcriptPath: string): PerTurnData[] | null {
+  try {
+    const content = readFileSync(transcriptPath, 'utf-8');
+    const lines = content.trim().split('\n');
+
+    // Parse all entries
+    const entries: Array<{ role: string; model?: string; content?: unknown[]; usage?: { output_tokens?: number } }> = [];
+    for (const line of lines) {
+      try {
+        const parsed = JSON.parse(line);
+        const msg = parsed?.message ?? parsed;
+        if (msg?.role) entries.push(msg);
+      } catch { continue; }
+    }
+
+    const result: PerTurnData[] = [];
+    let i = 0;
+    while (i < entries.length) {
+      const entry = entries[i];
+      if (entry.role === 'user') {
+        const c = entry.content;
+        const isToolResult = Array.isArray(c) && c.length > 0 && (c[0] as Record<string, unknown>)?.type === 'tool_result';
+        if (!isToolResult) {
+          const promptText = extractUserPromptText(c);
+          const hash = hashText(promptText);
+
+          let responseTokens = 0;
+          const toolCalls: string[] = [];
+
+          let j = i + 1;
+          while (j < entries.length) {
+            const e = entries[j];
+            if (e.role === 'user') {
+              const uc = e.content;
+              const isTool = Array.isArray(uc) && uc.length > 0 && (uc[0] as Record<string, unknown>)?.type === 'tool_result';
+              if (!isTool) break;
+            }
+            if (e.role === 'assistant') {
+              if (e.usage) {
+                responseTokens += e.usage.output_tokens ?? 0;
+              }
+              if (Array.isArray(e.content)) {
+                for (const block of e.content) {
+                  const b = block as Record<string, unknown>;
+                  if (b?.type === 'tool_use' && b?.name) {
+                    toolCalls.push(b.name as string);
+                  }
+                }
+              }
+            }
+            j++;
+          }
+
+          result.push({
+            promptHash: hash,
+            responseTokens,
+            toolCalls: [...new Set(toolCalls)],
+          });
+        }
+      }
+      i++;
+    }
+
+    return result;
   } catch {
     return null;
   }

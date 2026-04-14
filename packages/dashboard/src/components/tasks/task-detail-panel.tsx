@@ -54,6 +54,8 @@ export interface TaskItem {
   alignmentScore: number | null;
   source: string;
   createdAt: string;
+  aiCost: number;
+  aiSessions: number;
 }
 
 export interface TaskStats {
@@ -322,6 +324,16 @@ export default function TaskDetailPanel({ task, teamMembers, onUpdate, onClose }
                 <div className="flex-1 text-xs text-text-muted border border-border-primary rounded-lg px-2.5 py-1.5 capitalize">{task.source}</div>
               )}
             </div>
+            {/* AI Cost */}
+            {task.aiCost > 0 && (
+              <div className="flex items-center gap-3">
+                <span className="text-[11px] text-text-muted w-20 shrink-0">AI Cost</span>
+                <div className="flex items-center gap-2 flex-1 text-xs border border-border-primary rounded-lg px-2.5 py-1.5">
+                  <span className="font-mono font-semibold text-yellow-400">${task.aiCost.toFixed(2)}</span>
+                  <span className="text-text-muted">across {task.aiSessions} session{task.aiSessions !== 1 ? 's' : ''}</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Code Activity */}

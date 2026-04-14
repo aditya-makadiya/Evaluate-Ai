@@ -10,6 +10,7 @@ export interface SessionItem {
   cost: number;
   score: number | null;
   startedAt: string;
+  durationMin?: number | null;
 }
 
 interface SessionListProps {
