@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
-const PUBLIC_ROUTES = ['/auth/login', '/auth/signup', '/auth/callback', '/onboarding'];
+const PUBLIC_ROUTES = ['/auth/login', '/auth/signup', '/auth/callback', '/auth/forgot-password', '/auth/reset-password', '/onboarding'];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -18,6 +18,9 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/api/integrations/fireflies/webhook') ||
     pathname.startsWith('/api/integrations/fireflies/callback') ||
     (pathname.startsWith('/api/') && hasBearerToken);
+
+  // Admin routes require authentication (role check happens in API routes / layout)
+  const isAdminRoute = pathname.startsWith('/admin') || pathname.startsWith('/api/admin');
 
   const response = NextResponse.next({
     request: { headers: request.headers },

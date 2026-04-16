@@ -44,6 +44,22 @@ export async function GET(
 
     const devId = member.id;
 
+    // Backfill: if member has sessions but evaluateai_installed is false, fix it
+    if (!member.evaluateai_installed) {
+      const { count: sessionCount } = await supabase
+        .from('ai_sessions')
+        .select('id', { count: 'exact', head: true })
+        .eq('developer_id', devId)
+        .limit(1);
+      if (sessionCount && sessionCount > 0) {
+        supabase.from('team_members')
+          .update({ evaluateai_installed: true })
+          .eq('id', devId)
+          .then(() => {});
+        member.evaluateai_installed = true;
+      }
+    }
+
     // Parse session filter params
     const sessionDays = parseInt(request.nextUrl.searchParams.get('sessionDays') ?? '7', 10);
     const sessionLimit = Math.min(parseInt(request.nextUrl.searchParams.get('sessionLimit') ?? '20', 10), 100);
@@ -79,6 +95,14 @@ export async function GET(
         }
       }
     }
+
+    // All-time cost (for profile)
+    let allTimeCostQ = supabase.from('ai_sessions')
+      .select('total_cost_usd')
+      .eq('developer_id', devId);
+    if (teamId) allTimeCostQ = allTimeCostQ.eq('team_id', teamId);
+    const { data: allTimeSessions } = await allTimeCostQ;
+    const allTimeCost = (allTimeSessions ?? []).reduce((s, r) => s + (r.total_cost_usd ?? 0), 0);
 
     // AI sessions this week (for stats)
     let weekQ = supabase.from('ai_sessions')
@@ -323,6 +347,8 @@ export async function GET(
       },
       stats: {
         totalAiCost,
+        allTimeCost,
+        totalSessions: totalSessionCount ?? 0,
         avgPromptScore,
         commits: commitsWeek,
         prs: prsWeek,

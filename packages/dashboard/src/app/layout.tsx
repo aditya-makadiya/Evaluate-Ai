@@ -21,6 +21,7 @@ import {
   Moon,
   LogOut,
   User,
+  Shield,
 } from "lucide-react";
 import { AuthProvider, useAuth, useCanAccess } from "@/components/auth-provider";
 import "./globals.css";
@@ -65,16 +66,29 @@ function AppShell({ children }: { children: React.ReactNode }) {
   });
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
   const [syncMessage, setSyncMessage] = useState('');
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
 
   const isAuthPage = pathname.startsWith('/auth');
   const isMarketingPage = pathname === '/';
   const isOnboarding = pathname.startsWith('/onboarding');
+  const isAdminPage = pathname.startsWith('/admin');
   const isPublicPage = isAuthPage || isMarketingPage || isOnboarding;
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('evaluateai-theme', theme);
   }, [theme]);
+
+  // Check platform admin status (non-blocking, fire-and-forget)
+  useEffect(() => {
+    if (!user) {
+      setIsPlatformAdmin(false);
+      return;
+    }
+    fetch('/api/admin/me')
+      .then((res) => setIsPlatformAdmin(res.ok))
+      .catch(() => setIsPlatformAdmin(false));
+  }, [user]);
 
   const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
 
@@ -113,7 +127,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
     }
   };
 
-  if (isPublicPage) {
+  if (isPublicPage || isAdminPage) {
     return <main className="flex-1 min-h-screen">{children}</main>;
   }
 
@@ -124,7 +138,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
         {/* Logo + Theme Toggle */}
         <div className="flex h-14 items-center justify-between px-5 border-b border-border-primary">
           <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-[#8b5cf6] to-[#6d28d9] flex items-center justify-center shadow-[0_0_12px_rgba(139,92,246,0.3)]">
+            <div className="h-8 w-8 rounded-lg bg-linear-to-br from-[#8b5cf6] to-[#6d28d9] flex items-center justify-center shadow-[0_0_12px_rgba(139,92,246,0.3)]">
               <svg
                 width="16"
                 height="16"
@@ -177,8 +191,8 @@ function AppShell({ children }: { children: React.ReactNode }) {
                   group relative flex items-center gap-3 rounded-md px-3 py-2 text-[13px] font-medium transition-all duration-150
                   ${
                     isActive
-                      ? "bg-white/[0.06] text-text-primary"
-                      : "text-text-muted hover:bg-white/[0.04] hover:text-text-secondary"
+                      ? "bg-white/6 text-text-primary"
+                      : "text-text-muted hover:bg-white/4 hover:text-text-secondary"
                   }
                 `}
               >
@@ -191,6 +205,21 @@ function AppShell({ children }: { children: React.ReactNode }) {
               </Link>
             );
           })}
+
+          {/* Admin Panel link — only visible to platform admins */}
+          {isPlatformAdmin && (
+            <>
+              <div className="mx-2 my-2 h-px bg-border-primary" />
+              <Link
+                href="/admin"
+                className="group relative flex items-center gap-3 rounded-md px-3 py-2 text-[13px] font-medium transition-all duration-150 bg-red-900/20 border border-red-500/20 text-red-400 hover:bg-red-900/30 hover:border-red-500/30 hover:text-red-300"
+              >
+                <Shield className="h-4 w-4 shrink-0" />
+                Admin Panel
+                <span className="ml-auto h-1.5 w-1.5 rounded-full bg-red-400 animate-pulse" />
+              </Link>
+            </>
+          )}
         </nav>
 
         {/* Bottom section */}
@@ -198,17 +227,19 @@ function AppShell({ children }: { children: React.ReactNode }) {
           {/* User info */}
           {user && (
             <div className="flex items-center gap-3 px-1 py-2">
-              <div className="h-7 w-7 rounded-full bg-purple-600/20 border border-purple-500/30 flex items-center justify-center shrink-0">
-                <User className="h-3.5 w-3.5 text-purple-400" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-text-primary truncate">
-                  {user.name}
-                </p>
-                <p className="text-[10px] text-text-muted truncate">
-                  {user.email}
-                </p>
-              </div>
+              <Link href="/profile" className="flex items-center gap-3 flex-1 min-w-0 group">
+                <div className="h-7 w-7 rounded-full bg-purple-600/20 border border-purple-500/30 flex items-center justify-center shrink-0 group-hover:border-purple-400/50 transition-colors">
+                  <User className="h-3.5 w-3.5 text-purple-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-text-primary truncate group-hover:text-purple-400 transition-colors">
+                    {user.name}
+                  </p>
+                  <p className="text-[10px] text-text-muted truncate">
+                    {user.email}
+                  </p>
+                </div>
+              </Link>
               <button
                 onClick={signOut}
                 className="h-6 w-6 rounded flex items-center justify-center text-text-muted hover:text-red-400 hover:bg-red-900/20 transition-colors"
@@ -228,7 +259,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
                     ? 'border-emerald-500/30 bg-emerald-900/20 text-emerald-300'
                     : syncStatus === 'error'
                       ? 'border-red-500/30 bg-red-900/20 text-red-300 hover:bg-red-900/30'
-                      : 'border-border-primary bg-white/[0.03] text-text-secondary hover:bg-white/[0.06] hover:text-text-primary hover:border-border-hover'
+                      : 'border-border-primary bg-white/3 text-text-secondary hover:bg-white/6 hover:text-text-primary hover:border-border-hover'
               }`}
               onClick={handleSync}
               disabled={syncStatus === 'syncing'}
@@ -238,7 +269,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
             </button>
           ) : (
             <button
-              className="flex w-full items-center justify-center gap-2 rounded-md border border-border-primary bg-white/[0.03] px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:bg-white/[0.06] hover:text-text-primary hover:border-border-hover"
+              className="flex w-full items-center justify-center gap-2 rounded-md border border-border-primary bg-white/3 px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:bg-white/6 hover:text-text-primary hover:border-border-hover"
               onClick={() => window.location.reload()}
             >
               <RefreshCw className="h-3 w-3" />
@@ -261,7 +292,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
       {/* Main content */}
       <main className="ml-60 flex-1 min-h-screen relative">
         {/* Purple gradient top border */}
-        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-[#8b5cf6]/50 via-[#8b5cf6]/20 to-transparent" />
+        <div className="absolute top-0 left-0 right-0 h-px bg-linear-to-r from-[#8b5cf6]/50 via-[#8b5cf6]/20 to-transparent" />
 
         {/* Atmospheric purple glow */}
         <div className="pointer-events-none absolute top-0 left-0 w-[600px] h-[400px] bg-[radial-gradient(ellipse_at_top_left,rgba(139,92,246,0.06)_0%,transparent_70%)]" />

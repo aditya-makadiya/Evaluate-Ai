@@ -135,6 +135,13 @@ export async function POST(request: Request) {
 
         if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+        // Mark CLI as installed for this member (fire-and-forget, idempotent)
+        admin.from('team_members')
+          .update({ evaluateai_installed: true })
+          .eq('id', ctx.memberId)
+          .eq('evaluateai_installed', false)
+          .then(() => {});
+
         // Branch-to-task matching (fire-and-forget)
         if (data.git_branch && data.session_id) {
           (async () => {
