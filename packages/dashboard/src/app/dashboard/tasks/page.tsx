@@ -5,7 +5,6 @@ import { useAuth } from '@/components/auth-provider';
 import {
   CheckSquare,
   AlertTriangle,
-  ArrowUpRight,
   TrendingUp,
   Clock,
   ChevronLeft,
@@ -38,10 +37,9 @@ function StatsRow({ stats }: { stats: TaskStats }) {
     { label: 'Total', value: stats.total, icon: CheckSquare, accent: 'text-accent-purple' },
     { label: 'Pending', value: stats.pending, icon: Clock, accent: 'text-amber-400', sub: stats.highPriority > 0 ? `${stats.highPriority} urgent` : undefined },
     { label: 'Done', value: stats.completed, icon: TrendingUp, accent: 'text-emerald-400' },
-    { label: 'Delivery', value: `${stats.deliveryRate}%`, icon: ArrowUpRight, accent: stats.deliveryRate >= 70 ? 'text-emerald-400' : stats.deliveryRate >= 40 ? 'text-amber-400' : 'text-red-400', sub: `${stats.completed}/${stats.total}` },
   ];
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5 animate-section">
+    <div className="grid grid-cols-3 gap-3 mb-5 animate-section">
       {items.map((c) => {
         const Icon = c.icon;
         return (

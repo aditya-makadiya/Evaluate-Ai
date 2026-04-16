@@ -10,20 +10,6 @@ import {
   GraduationCap,
   ChevronRight,
 } from 'lucide-react';
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-} from 'recharts';
-
-interface ScoreTrendPoint {
-  date: string;
-  score: number;
-}
 
 interface CoachingTip {
   pattern: string;
@@ -35,25 +21,8 @@ interface CoachingTip {
 
 interface DeveloperInsightsTabProps {
   insights: string[];
-  scoreTrend: ScoreTrendPoint[];
   coachingTips: CoachingTip[];
-  stats: {
-    totalAiCost: number;
-    avgPromptScore: number | null;
-    commits: number;
-    prs: number;
-    tasksCompleted: number;
-    tasksAssigned: number;
-  };
 }
-
-const chartTooltipStyle = {
-  backgroundColor: 'var(--bg-card)',
-  border: '1px solid var(--border-primary)',
-  borderRadius: 8,
-  color: 'var(--text-primary)',
-  fontSize: 12,
-};
 
 function getInsightIcon(insight: string) {
   if (insight.includes('save') || insight.includes('cost') || insight.includes('$')) return DollarSign;
@@ -78,43 +47,9 @@ function getSeverityStyle(severity: 'high' | 'medium' | 'low') {
   }
 }
 
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
-
-export default function DeveloperInsightsTab({ insights, scoreTrend, coachingTips, stats }: DeveloperInsightsTabProps) {
-  const chartData = scoreTrend.map(d => ({
-    date: formatDate(d.date),
-    score: d.score,
-  }));
-
+export default function DeveloperInsightsTab({ insights, coachingTips }: DeveloperInsightsTabProps) {
   return (
     <div className="space-y-6">
-      {/* Score trend chart */}
-      {chartData.length > 1 && (
-        <div className="bg-bg-card border border-border-primary rounded-lg p-5">
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-text-muted mb-4">
-            Prompt Score Trend (30 days)
-          </h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" />
-              <XAxis dataKey="date" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
-              <YAxis domain={[0, 100]} tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
-              <Tooltip contentStyle={chartTooltipStyle} />
-              <Line
-                type="monotone"
-                dataKey="score"
-                stroke="#8b5cf6"
-                strokeWidth={2}
-                dot={{ fill: '#8b5cf6', r: 3 }}
-                activeDot={{ r: 5 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-
       {/* Coaching Tips */}
       {coachingTips.length > 0 && (
         <div>
@@ -186,26 +121,6 @@ export default function DeveloperInsightsTab({ insights, scoreTrend, coachingTip
           </div>
         )}
       </div>
-
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <SummaryCard label="AI Spend" value={`$${stats.totalAiCost.toFixed(2)}`} mono />
-        <SummaryCard label="Avg Score" value={stats.avgPromptScore != null ? String(stats.avgPromptScore) : '--'} />
-        <SummaryCard label="Commits" value={String(stats.commits)} />
-        <SummaryCard
-          label="Tasks"
-          value={`${stats.tasksCompleted}/${stats.tasksAssigned}`}
-        />
-      </div>
-    </div>
-  );
-}
-
-function SummaryCard({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
-  return (
-    <div className="bg-bg-card border border-border-primary rounded-lg p-4 text-center">
-      <p className="text-xs text-text-muted uppercase tracking-wider mb-1">{label}</p>
-      <p className={`text-lg font-bold text-text-primary ${mono ? 'font-mono' : ''}`}>{value}</p>
     </div>
   );
 }

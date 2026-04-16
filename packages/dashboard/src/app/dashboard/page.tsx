@@ -5,14 +5,13 @@ import Link from 'next/link';
 import { useAuth } from '@/components/auth-provider';
 import {
   Users,
-  GitPullRequest,
   CheckCircle2,
-  DollarSign,
   AlertTriangle,
   Activity,
   Bot,
   GitCommit,
   GitMerge,
+  GitPullRequest,
   Eye,
   Calendar,
   ArrowRight,
@@ -248,7 +247,7 @@ export default function DashboardPage() {
               <p className="mt-2 text-xs text-text-muted">Team Health Score</p>
             </div>
 
-            <div className="flex-1 grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="flex-1 grid grid-cols-2 gap-4">
               <StatCard
                 icon={Users}
                 label="Active Devs"
@@ -256,23 +255,10 @@ export default function DashboardPage() {
                 color="text-[#8b5cf6]"
               />
               <StatCard
-                icon={GitPullRequest}
-                label="PRs Merged"
-                value={String(data.stats.prsMerged)}
-                color="text-blue-400"
-              />
-              <StatCard
                 icon={CheckCircle2}
                 label="Tasks Done"
                 value={`${data.stats.tasksDone}/${data.stats.tasksTotal}`}
                 color="text-emerald-400"
-              />
-              <StatCard
-                icon={DollarSign}
-                label="AI Spend"
-                value={`$${data.stats.aiSpend.toFixed(2)}`}
-                color="text-yellow-400"
-                mono
               />
             </div>
           </div>
@@ -356,9 +342,6 @@ function ActivityFeedItem({ event }: { event: TimelineEvent }) {
 
   const sessionId = meta.session_id as string | undefined;
   const totalTurns = meta.total_turns as number | undefined;
-  const cost = (meta.total_cost_usd ?? meta.cost) as number | undefined;
-  const model = meta.model as string | undefined;
-  const score = (meta.avg_prompt_score ?? meta.score) as number | undefined;
   const repo = meta.repo as string | undefined;
   const filesChanged = meta.files_changed as number | undefined;
   const isSessionEnd = event.eventType === 'ai_session_end';
@@ -369,11 +352,6 @@ function ActivityFeedItem({ event }: { event: TimelineEvent }) {
   // Extract project name from description for session starts
   const projectName = isSessionStart && event.description
     ? event.description.replace('Claude Code session in ', '')
-    : null;
-
-  // Shorter model display
-  const shortModel = model
-    ? model.replace('claude-', '').replace('-20251001', '').replace('-20250301', '')
     : null;
 
   return (
@@ -396,26 +374,6 @@ function ActivityFeedItem({ event }: { event: TimelineEvent }) {
             {totalTurns != null && (
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-bg-elevated text-text-secondary">
                 {totalTurns} turns
-              </span>
-            )}
-            {cost != null && cost > 0 && (
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-bg-elevated text-text-secondary">
-                ${cost.toFixed(2)}
-              </span>
-            )}
-            {shortModel && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-bg-elevated text-text-secondary">
-                {shortModel}
-              </span>
-            )}
-            {score != null && (
-              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
-                score >= 80 ? 'bg-emerald-900/30 text-emerald-400' :
-                score >= 60 ? 'bg-blue-900/30 text-blue-400' :
-                score >= 40 ? 'bg-yellow-900/30 text-yellow-400' :
-                'bg-red-900/30 text-red-400'
-              }`}>
-                {Math.round(score)}
               </span>
             )}
             {sessionId && (

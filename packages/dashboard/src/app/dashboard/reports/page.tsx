@@ -6,11 +6,8 @@ import {
   FileBarChart,
   GitCommit,
   GitPullRequest,
-  Bot,
-  DollarSign,
   CheckCircle2,
   Eye,
-  Code2,
   Calendar,
   ChevronLeft,
   ChevronRight,
@@ -83,20 +80,6 @@ interface WeeklyData {
     description: string | null;
     createdAt: string;
   }>;
-}
-
-function getScoreColor(score: number): string {
-  if (score >= 80) return 'text-emerald-400';
-  if (score >= 60) return 'text-blue-400';
-  if (score >= 40) return 'text-yellow-400';
-  return 'text-red-400';
-}
-
-function getScoreBg(score: number): string {
-  if (score >= 80) return 'bg-emerald-900/30';
-  if (score >= 60) return 'bg-blue-900/30';
-  if (score >= 40) return 'bg-yellow-900/30';
-  return 'bg-red-900/30';
 }
 
 function formatDate(dateStr: string): string {
@@ -371,25 +354,13 @@ export default function ReportsPage() {
 }
 
 function DailyReportCard({ report }: { report: DailyReport }) {
-  const scoreColor = report.aiAvgPromptScore != null
-    ? getScoreColor(report.aiAvgPromptScore)
-    : 'text-text-muted';
-  const scoreBg = report.aiAvgPromptScore != null
-    ? getScoreBg(report.aiAvgPromptScore)
-    : 'bg-bg-elevated';
-
   return (
     <div className="bg-bg-card border border-border-primary rounded-lg p-5 hover:border-border-hover transition-colors">
-      {/* Developer name and score */}
-      <div className="flex items-center justify-between mb-3">
+      {/* Developer name */}
+      <div className="mb-3">
         <h3 className="text-sm font-semibold text-text-primary">
           {report.developerName}
         </h3>
-        {report.aiAvgPromptScore != null && (
-          <span className={`px-2 py-0.5 rounded-full text-xs font-mono font-bold ${scoreColor} ${scoreBg}`}>
-            {Math.round(report.aiAvgPromptScore)}
-          </span>
-        )}
       </div>
 
       {/* AI Summary */}
@@ -400,23 +371,12 @@ function DailyReportCard({ report }: { report: DailyReport }) {
       )}
 
       {/* Stats grid */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <MiniStat icon={GitCommit} label="Commits" value={report.commitsCount} />
         <MiniStat icon={GitPullRequest} label="PRs" value={report.prsOpened + report.prsMerged} />
         <MiniStat icon={Eye} label="Reviews" value={report.reviewsGiven} />
-        <MiniStat icon={Bot} label="AI Sessions" value={report.aiSessionsCount} />
-        <MiniStat icon={DollarSign} label="AI Cost" value={`$${report.aiTotalCost.toFixed(2)}`} mono />
         <MiniStat icon={CheckCircle2} label="Tasks Done" value={`${report.tasksCompleted}/${report.tasksAssigned}`} />
       </div>
-
-      {/* Lines changed */}
-      {(report.linesAdded > 0 || report.linesRemoved > 0) && (
-        <div className="mt-3 pt-3 border-t border-border-primary flex items-center gap-3">
-          <Code2 className="h-3.5 w-3.5 text-text-muted" />
-          <span className="text-xs font-mono text-emerald-400">+{report.linesAdded}</span>
-          <span className="text-xs font-mono text-red-400">-{report.linesRemoved}</span>
-        </div>
-      )}
     </div>
   );
 }
@@ -451,7 +411,7 @@ function WeeklyReport({ data }: { data: WeeklyData }) {
   return (
     <div className="space-y-6">
       {/* Team overview stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         <WeeklyStatCard
           icon={GitCommit}
           label="Total Commits"
@@ -469,13 +429,6 @@ function WeeklyReport({ data }: { data: WeeklyData }) {
           label="Tasks Done"
           value={String(teamStats.totalTasksCompleted)}
           color="text-emerald-400"
-        />
-        <WeeklyStatCard
-          icon={DollarSign}
-          label="AI Spend"
-          value={`$${teamStats.totalAiCost.toFixed(2)}`}
-          color="text-yellow-400"
-          mono
         />
       </div>
 
@@ -521,26 +474,16 @@ function WeeklyReport({ data }: { data: WeeklyData }) {
                   {dev.daysActive}/7 days active
                 </span>
               </div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <MiniStat icon={GitCommit} label="Commits" value={dev.commits} />
                 <MiniStat icon={GitPullRequest} label="PRs" value={dev.prsMerged} />
                 <MiniStat icon={Eye} label="Reviews" value={dev.reviews} />
-                <MiniStat icon={Bot} label="AI Sessions" value={dev.aiSessions} />
-                <MiniStat icon={DollarSign} label="AI Cost" value={`$${dev.aiCost.toFixed(2)}`} mono />
                 <MiniStat
                   icon={CheckCircle2}
                   label="Tasks"
                   value={`${dev.tasksCompleted}/${dev.tasksAssigned}`}
                 />
               </div>
-              {dev.aiAvgPromptScore != null && (
-                <div className="mt-3 pt-3 border-t border-border-primary flex items-center gap-2">
-                  <span className="text-xs text-text-muted">Avg Prompt Score:</span>
-                  <span className={`text-xs font-mono font-bold ${getScoreColor(dev.aiAvgPromptScore)}`}>
-                    {dev.aiAvgPromptScore}
-                  </span>
-                </div>
-              )}
             </div>
           ))}
         </div>

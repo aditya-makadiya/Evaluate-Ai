@@ -5,10 +5,6 @@ import Link from 'next/link';
 import { useAuth } from '@/components/auth-provider';
 import {
   Users,
-  GitCommit,
-  GitPullRequest,
-  Eye,
-  DollarSign,
   CheckCircle2,
   XCircle,
   ArrowUpDown,
@@ -201,45 +197,6 @@ function DeveloperCard({ developer: dev }: { developer: Developer }) {
           <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${getScoreColor(dev.alignmentScore)}`}>
             {dev.alignmentScore}
           </span>
-        </div>
-
-        {/* This week stats */}
-        <div className="grid grid-cols-3 gap-3 mb-4">
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-1 mb-0.5">
-              <GitCommit className="h-3 w-3 text-text-muted" />
-              <span className="text-sm font-semibold text-text-primary">{dev.commits}</span>
-            </div>
-            <span className="text-[10px] text-text-muted uppercase">Commits</span>
-          </div>
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-1 mb-0.5">
-              <GitPullRequest className="h-3 w-3 text-text-muted" />
-              <span className="text-sm font-semibold text-text-primary">{dev.prs}</span>
-            </div>
-            <span className="text-[10px] text-text-muted uppercase">PRs</span>
-          </div>
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-1 mb-0.5">
-              <Eye className="h-3 w-3 text-text-muted" />
-              <span className="text-sm font-semibold text-text-primary">{dev.reviews}</span>
-            </div>
-            <span className="text-[10px] text-text-muted uppercase">Reviews</span>
-          </div>
-        </div>
-
-        {/* AI cost + prompt score */}
-        <div className="flex items-center justify-between mb-3 text-xs">
-          <div className="flex items-center gap-1 text-text-secondary">
-            <DollarSign className="h-3 w-3" />
-            <span className="font-mono">${dev.aiCost.toFixed(2)}</span>
-            <span className="text-text-muted">AI cost</span>
-          </div>
-          {dev.avgPromptScore != null && (
-            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${getScoreColor(dev.avgPromptScore)}`}>
-              Avg {dev.avgPromptScore}
-            </span>
-          )}
         </div>
 
         {/* Bottom: installed + status */}

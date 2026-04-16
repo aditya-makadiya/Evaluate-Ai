@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Users,
@@ -36,9 +36,16 @@ interface FoundTeam {
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { refresh } = useAuth();
+  const { user, loading: authLoading, refresh } = useAuth();
   const [step, setStep] = useState(1);
   const [mode, setMode] = useState<'create' | 'join' | null>(null);
+
+  // Redirect users who already have a team to dashboard
+  useEffect(() => {
+    if (!authLoading && user?.teamId) {
+      router.replace('/dashboard');
+    }
+  }, [authLoading, user, router]);
 
   // Create team state
   const [teamName, setTeamName] = useState('');

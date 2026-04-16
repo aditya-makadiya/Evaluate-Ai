@@ -97,6 +97,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
       if (data.reportsGenerated > 0) parts.push(`${data.reportsGenerated} reports`);
       if (data.alertsGenerated > 0) parts.push(`${data.alertsGenerated} alerts`);
       if (data.staleSessionsClosed > 0) parts.push(`${data.staleSessionsClosed} stale sessions cleaned`);
+      if (data.summariesBackfilled > 0) parts.push(`${data.summariesBackfilled} session summaries generated`);
 
       setSyncStatus('success');
       setSyncMessage(parts.length > 0 ? `Generated ${parts.join(', ')}` : 'Up to date — no new data');

@@ -10,19 +10,16 @@ import {
   CheckCircle2,
   XCircle,
   Activity,
-  Code,
-  Bot,
   Lightbulb,
   MessageSquare,
 } from 'lucide-react';
 import DeveloperSessionsTab from '@/components/developer-sessions-tab';
 import DeveloperTimeline from '@/components/developer-timeline';
 import DeveloperWorkTab from '@/components/developer-work-tab';
-import DeveloperAiTab from '@/components/developer-ai-tab';
 import DeveloperInsightsTab from '@/components/developer-insights-tab';
 import LinkAccountsSection from '@/components/link-accounts-section';
 
-type Tab = 'sessions' | 'timeline' | 'work' | 'ai' | 'insights';
+type Tab = 'sessions' | 'activity' | 'insights';
 
 interface DeveloperData {
   developer: {
@@ -98,9 +95,7 @@ interface DeveloperData {
 
 const TABS: { key: Tab; label: string; icon: typeof Activity }[] = [
   { key: 'sessions', label: 'Sessions', icon: MessageSquare },
-  { key: 'timeline', label: 'Activity Timeline', icon: Activity },
-  { key: 'work', label: 'Work', icon: Code },
-  { key: 'ai', label: 'AI Usage', icon: Bot },
+  { key: 'activity', label: 'Activity', icon: Activity },
   { key: 'insights', label: 'Insights', icon: Lightbulb },
 ];
 
@@ -220,11 +215,6 @@ export default function DeveloperDetailPage() {
                       {data.developer.githubUsername}
                     </span>
                   )}
-                  {data.stats.avgPromptScore != null && (
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${getScoreBadge(data.stats.avgPromptScore)}`}>
-                      Score: {data.stats.avgPromptScore}
-                    </span>
-                  )}
                 </div>
               </div>
             </div>
@@ -274,52 +264,27 @@ export default function DeveloperDetailPage() {
                 }}
               />
             )}
-            {activeTab === 'timeline' && (
-              <DeveloperTimeline developerId={id} />
-            )}
-            {activeTab === 'work' && (
-              <DeveloperWorkTab
-                codeChanges={data.codeChanges}
-                tasks={data.tasks}
-                commitsPerDay={data.commitsPerDay}
-                stats={{
-                  commits: data.stats.commits,
-                  prs: data.stats.prs,
-                  reviews: data.stats.reviews,
-                  tasksCompleted: data.stats.tasksCompleted,
-                  tasksAssigned: data.stats.tasksAssigned,
-                }}
-              />
-            )}
-            {activeTab === 'ai' && (
-              <DeveloperAiTab
-                sessions={data.sessions}
-                modelUsage={data.modelUsage}
-                antiPatterns={data.antiPatterns}
-                costTrend={data.costTrend}
-                tokenStats={data.tokenStats}
-                usageByDayOfWeek={data.usageByDayOfWeek}
-                scoreTrend={data.scoreTrend}
-                stats={{
-                  totalAiCost: data.stats.totalAiCost,
-                  avgPromptScore: data.stats.avgPromptScore,
-                  sessionsThisWeek: data.stats.sessionsThisWeek,
-                }}
-              />
+            {activeTab === 'activity' && (
+              <div className="space-y-8">
+                <DeveloperTimeline developerId={id} />
+                <DeveloperWorkTab
+                  codeChanges={data.codeChanges}
+                  tasks={data.tasks}
+                  commitsPerDay={data.commitsPerDay}
+                  stats={{
+                    commits: data.stats.commits,
+                    prs: data.stats.prs,
+                    reviews: data.stats.reviews,
+                    tasksCompleted: data.stats.tasksCompleted,
+                    tasksAssigned: data.stats.tasksAssigned,
+                  }}
+                />
+              </div>
             )}
             {activeTab === 'insights' && (
               <DeveloperInsightsTab
                 insights={data.insights}
-                scoreTrend={data.scoreTrend}
                 coachingTips={data.coachingTips ?? []}
-                stats={{
-                  totalAiCost: data.stats.totalAiCost,
-                  avgPromptScore: data.stats.avgPromptScore,
-                  commits: data.stats.commits,
-                  prs: data.stats.prs,
-                  tasksCompleted: data.stats.tasksCompleted,
-                  tasksAssigned: data.stats.tasksAssigned,
-                }}
               />
             )}
           </div>

@@ -91,17 +91,7 @@ export default function InsightsPage() {
       {!loading && !error && data && (
         <div className="space-y-6">
           {/* Stats row */}
-          <div className="grid grid-cols-3 gap-4 animate-section">
-            <div className="bg-bg-card border border-border-primary rounded-lg p-5">
-              <p className="text-xs font-semibold uppercase tracking-wider text-text-muted mb-1">Total Prompts</p>
-              <p className="text-2xl font-bold font-mono text-text-primary">{data.totalTurns.toLocaleString()}</p>
-            </div>
-            <div className="bg-bg-card border border-border-primary rounded-lg p-5">
-              <p className="text-xs font-semibold uppercase tracking-wider text-text-muted mb-1">Anti-patterns Found</p>
-              <p className="text-2xl font-bold font-mono text-text-primary">
-                {data.antiPatterns.reduce((s, p) => s + p.count, 0).toLocaleString()}
-              </p>
-            </div>
+          <div className="grid grid-cols-1 gap-4 animate-section max-w-xs">
             <div className="bg-bg-card border border-border-primary rounded-lg p-5">
               <p className="text-xs font-semibold uppercase tracking-wider text-text-muted mb-1">Retry Rate</p>
               <p className={`text-2xl font-bold font-mono ${

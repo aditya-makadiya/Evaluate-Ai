@@ -5,8 +5,6 @@ import { useAuth } from '@/components/auth-provider';
 import {
   BarChart,
   Bar,
-  LineChart,
-  Line,
   PieChart,
   Pie,
   Cell,
@@ -58,17 +56,6 @@ type Period = 'today' | 'week' | 'month' | 'quarter';
 // --------------- Constants ---------------
 
 const PIE_COLORS = ['#8b5cf6', '#3b82f6', '#06b6d4', '#22c55e', '#f59e0b', '#ec4899', '#f97316', '#6366f1'];
-
-const INTENT_COLORS: Record<string, string> = {
-  research: '#8b5cf6',
-  debug: '#ef4444',
-  feature: '#22c55e',
-  refactor: '#3b82f6',
-  review: '#eab308',
-  generate: '#06b6d4',
-  config: '#f97316',
-  general: '#6b7280',
-};
 
 const CHART_TOOLTIP_STYLE = {
   backgroundColor: 'var(--bg-card)',
@@ -223,10 +210,9 @@ export default function AnalyticsPage() {
     );
   }
 
-  const { thisMonth, costTrend, scoreTrend, modelUsage, topAntiPatterns, intentDistribution, tokenWaste, modelOptimization } = data;
+  const { thisMonth, costTrend, scoreTrend, modelUsage, tokenWaste, modelOptimization } = data;
   const scoreDistribution = buildScoreDistribution(scoreTrend);
   const costByDay = costTrend.map(d => ({ ...d, date: d.date?.slice(5) ?? '' }));
-  const efficiencyTrend = scoreTrend.map(d => ({ date: d.date?.slice(5) ?? '', score: d.score }));
   const totalSavings = modelOptimization.reduce((s, m) => s + m.savings, 0);
 
   return (
@@ -370,8 +356,8 @@ export default function AnalyticsPage() {
           </ChartCard>
         </div>
 
-        {/* Row 2: Model Usage + Anti-Pattern Ranking */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+        {/* Row 2: Model Usage */}
+        <div className="grid grid-cols-1 gap-4 mb-4">
           <ChartCard title="Model Usage">
             {modelUsage.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -403,159 +389,48 @@ export default function AnalyticsPage() {
               </ResponsiveContainer>
             )}
           </ChartCard>
-
-          <ChartCard title="Anti-Pattern Ranking">
-            {topAntiPatterns.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <Activity className="w-8 h-8 text-text-muted mb-2" />
-                <p className="text-sm text-text-muted">No anti-patterns detected</p>
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={topAntiPatterns} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-elevated)" />
-                  <XAxis type="number" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
-                  <YAxis
-                    type="category"
-                    dataKey="pattern"
-                    tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-                    width={120}
-                    tickFormatter={(v: string) => v.replace(/_/g, ' ')}
-                  />
-                  <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value: number) => [value, 'Occurrences']} />
-                  <Bar dataKey="count" fill="#f59e0b" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </ChartCard>
         </div>
 
-        {/* Row 3: Efficiency Trend + Intent Distribution (REAL DATA) */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-          <ChartCard title="Efficiency Trend">
-            {efficiencyTrend.length < 2 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <Activity className="w-8 h-8 text-text-muted mb-2" />
-                <p className="text-sm text-text-muted">Not enough data for trend</p>
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height={280}>
-                <LineChart data={efficiencyTrend}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-elevated)" />
-                  <XAxis dataKey="date" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} tickFormatter={(v: string) => v.slice(3)} />
-                  <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 11 }} domain={[0, 100]} />
-                  <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value: number) => [`${Math.round(value)}/100`, 'Score']} />
-                  <Line type="monotone" dataKey="score" stroke="#8b5cf6" strokeWidth={2.5} dot={{ fill: '#8b5cf6', r: 3, strokeWidth: 0 }} activeDot={{ fill: '#8b5cf6', r: 5, strokeWidth: 2, stroke: 'var(--bg-card)' }} />
-                </LineChart>
-              </ResponsiveContainer>
-            )}
-          </ChartCard>
-
-          <ChartCard title="Intent Distribution">
-            {intentDistribution.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <Activity className="w-8 h-8 text-text-muted mb-2" />
-                <p className="text-sm text-text-muted">No intent data for this period</p>
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height={280}>
-                <PieChart>
-                  <Pie
-                    data={intentDistribution}
-                    dataKey="count"
-                    nameKey="intent"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={95}
-                    innerRadius={55}
-                    label={({ intent, percent }: { intent: string; percent: number }) =>
-                      `${intent} ${(percent * 100).toFixed(0)}%`
-                    }
-                    labelLine={{ stroke: 'var(--border-hover)' }}
-                  >
-                    {intentDistribution.map((entry) => (
-                      <Cell key={entry.intent} fill={INTENT_COLORS[entry.intent] ?? '#6b7280'} />
-                    ))}
-                  </Pie>
-                  <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value: number, name: string) => [value, name]} />
-                </PieChart>
-              </ResponsiveContainer>
-            )}
-          </ChartCard>
-        </div>
-
-        {/* Row 4: Token Waste Summary */}
+        {/* Row 3: Token Waste Summary */}
         {tokenWaste.totalTurns > 0 && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="bg-bg-card border border-border-primary rounded-lg p-5">
-              <h3 className="text-sm font-semibold text-text-secondary mb-3 uppercase tracking-wider">Token Waste</h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-text-muted">Retry turns</span>
-                  <span className={`text-sm font-mono font-semibold ${tokenWaste.retryRate <= 5 ? 'text-emerald-400' : tokenWaste.retryRate <= 15 ? 'text-yellow-400' : 'text-red-400'}`}>
-                    {tokenWaste.retryTurns}/{tokenWaste.totalTurns}
-                  </span>
+          <div className="bg-bg-card border border-border-primary rounded-lg p-5">
+            <h3 className="text-sm font-semibold text-text-secondary mb-3 uppercase tracking-wider">Token Waste</h3>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-text-muted">Retry turns</span>
+                <span className={`text-sm font-mono font-semibold ${tokenWaste.retryRate <= 5 ? 'text-emerald-400' : tokenWaste.retryRate <= 15 ? 'text-yellow-400' : 'text-red-400'}`}>
+                  {tokenWaste.retryTurns}/{tokenWaste.totalTurns}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-text-muted">Retry rate</span>
+                <span className={`text-sm font-mono font-semibold ${tokenWaste.retryRate <= 5 ? 'text-emerald-400' : tokenWaste.retryRate <= 15 ? 'text-yellow-400' : 'text-red-400'}`}>
+                  {tokenWaste.retryRate}%
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-text-muted">Wasted tokens (est.)</span>
+                <span className="text-sm font-mono text-text-secondary">
+                  {formatTokens(tokenWaste.estimatedWastedTokens)}
+                </span>
+              </div>
+              {/* Visual bar */}
+              <div className="pt-2">
+                <div className="h-3 bg-bg-elevated rounded-full overflow-hidden flex">
+                  <div
+                    className="h-full bg-emerald-500 rounded-l-full transition-all"
+                    style={{ width: `${100 - tokenWaste.retryRate}%` }}
+                  />
+                  <div
+                    className="h-full bg-red-500 rounded-r-full transition-all"
+                    style={{ width: `${tokenWaste.retryRate}%` }}
+                  />
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-text-muted">Retry rate</span>
-                  <span className={`text-sm font-mono font-semibold ${tokenWaste.retryRate <= 5 ? 'text-emerald-400' : tokenWaste.retryRate <= 15 ? 'text-yellow-400' : 'text-red-400'}`}>
-                    {tokenWaste.retryRate}%
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-text-muted">Wasted tokens (est.)</span>
-                  <span className="text-sm font-mono text-text-secondary">
-                    {formatTokens(tokenWaste.estimatedWastedTokens)}
-                  </span>
-                </div>
-                {/* Visual bar */}
-                <div className="pt-2">
-                  <div className="h-3 bg-bg-elevated rounded-full overflow-hidden flex">
-                    <div
-                      className="h-full bg-emerald-500 rounded-l-full transition-all"
-                      style={{ width: `${100 - tokenWaste.retryRate}%` }}
-                    />
-                    <div
-                      className="h-full bg-red-500 rounded-r-full transition-all"
-                      style={{ width: `${tokenWaste.retryRate}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between mt-1">
-                    <span className="text-[10px] text-emerald-400">Useful</span>
-                    <span className="text-[10px] text-red-400">Wasted</span>
-                  </div>
+                <div className="flex justify-between mt-1">
+                  <span className="text-[10px] text-emerald-400">Useful</span>
+                  <span className="text-[10px] text-red-400">Wasted</span>
                 </div>
               </div>
-            </div>
-
-            {/* Intent breakdown table */}
-            <div className="lg:col-span-2 bg-bg-card border border-border-primary rounded-lg p-5">
-              <h3 className="text-sm font-semibold text-text-secondary mb-3 uppercase tracking-wider">Intent Breakdown</h3>
-              {intentDistribution.length === 0 ? (
-                <p className="text-sm text-text-muted py-4 text-center">No data</p>
-              ) : (
-                <div className="space-y-2">
-                  {intentDistribution.map((item) => {
-                    const total = intentDistribution.reduce((s, i) => s + i.count, 0);
-                    const pct = total > 0 ? Math.round((item.count / total) * 100) : 0;
-                    return (
-                      <div key={item.intent} className="flex items-center gap-3">
-                        <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: INTENT_COLORS[item.intent] ?? '#6b7280' }} />
-                        <span className="text-sm text-text-secondary w-20">{item.intent}</span>
-                        <div className="flex-1 h-2 bg-bg-elevated rounded-full overflow-hidden">
-                          <div
-                            className="h-full rounded-full transition-all"
-                            style={{ width: `${pct}%`, backgroundColor: INTENT_COLORS[item.intent] ?? '#6b7280' }}
-                          />
-                        </div>
-                        <span className="text-xs font-mono text-text-muted w-16 text-right">
-                          {item.count} ({pct}%)
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
             </div>
           </div>
         )}

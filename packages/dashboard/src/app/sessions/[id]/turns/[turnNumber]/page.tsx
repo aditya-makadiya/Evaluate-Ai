@@ -430,16 +430,31 @@ function TabBar({
     { key: 'response' as const, label: 'AI Response' },
     { key: 'tokens' as const, label: 'Token Breakdown' },
   ];
-  const activeIndex = tabs.findIndex((t) => t.key === activeTab);
 
-  const tabRefs = tabs.map(() => ({ ref: null as HTMLButtonElement | null }));
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const [indicator, setIndicator] = useState({ left: 0, width: 0 });
+
+  useEffect(() => {
+    const activeIndex = tabs.findIndex((t) => t.key === activeTab);
+    const el = tabRefs.current[activeIndex];
+    if (el) {
+      const parent = el.parentElement;
+      if (parent) {
+        setIndicator({
+          left: el.offsetLeft,
+          width: el.offsetWidth,
+        });
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   return (
     <div className="relative flex border-b border-border-primary">
       {tabs.map((tab, i) => (
         <button
           key={tab.key}
-          ref={(el) => { tabRefs[i].ref = el; }}
+          ref={(el) => { tabRefs.current[i] = el; }}
           onClick={() => setActiveTab(tab.key)}
           className={`relative px-5 py-3.5 text-sm font-medium transition-colors z-10 ${
             activeTab === tab.key
@@ -450,12 +465,12 @@ function TabBar({
           {tab.label}
         </button>
       ))}
-      {/* Sliding purple underline */}
+      {/* Sliding purple underline — tracks actual tab width */}
       <div
         className="absolute bottom-0 h-[2px] bg-[#8b5cf6] transition-all duration-300 ease-out rounded-full"
         style={{
-          width: `${100 / tabs.length}%`,
-          transform: `translateX(${activeIndex * 100}%)`,
+          left: indicator.left,
+          width: indicator.width,
         }}
       />
     </div>

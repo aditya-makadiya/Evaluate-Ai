@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthContext } from '@/lib/auth';
 import { getSupabaseAdmin } from '@/lib/supabase-server';
 import { normalizeModelId, calculateCost } from '@/lib/pricing';
+import { summarizeAndMatchSession } from '@/lib/services/session-summarizer';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { execSync } from 'node:child_process';
@@ -123,8 +124,6 @@ export async function POST(
     const toolCounts: Record<string, number> = {};
     let model = session.model || 'unknown';
     let userTurnCount = 0;
-    let lastAssistantTimestamp: string | null = null;
-
     // Per-turn data keyed by prompt_hash
     const turnDataByHash: Map<string, {
       responseTokens: number;
@@ -278,6 +277,18 @@ export async function POST(
       }
     }
 
+    // Generate work summary if missing (catches sessions where SessionEnd hook
+    // failed — Ctrl+C, crash, network error, or stale-closed sessions)
+    let summaryGenerated = false;
+    if (!session.work_summary && session.developer_id && ctx.teamId && userTurnCount > 0) {
+      try {
+        await summarizeAndMatchSession(id, ctx.teamId, session.developer_id);
+        summaryGenerated = true;
+      } catch {
+        // Non-critical — sync still succeeds without summary
+      }
+    }
+
     return NextResponse.json({
       success: true,
       synced: {
@@ -291,6 +302,7 @@ export async function POST(
         turnsUpdated,
         sessionClosed: isStale,
         avgPromptScore: sessionUpdate.avg_prompt_score ?? null,
+        summaryGenerated,
       },
     });
   } catch (err) {

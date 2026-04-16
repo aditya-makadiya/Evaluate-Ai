@@ -1,4 +1,5 @@
 import { SupabaseClient } from '@supabase/supabase-js';
+import { summarizeAndMatchSession } from '@/lib/services/session-summarizer';
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -42,6 +43,7 @@ export interface GenerateReportsResult {
   reportsGenerated: number;
   alertsGenerated: number;
   staleSessionsClosed: number;
+  summariesBackfilled: number;
   date: string;
 }
 
@@ -104,10 +106,57 @@ export async function cleanupStaleSessions(
         is_ai_assisted: true,
         occurred_at: endedAt,
       });
+
+      // Generate work summary for auto-closed sessions (fire-and-forget).
+      // These sessions missed the SessionEnd hook (Ctrl+C, crash, terminal close)
+      // so they never got a summary. Generate one now.
+      if (row.developer_id && (row.total_turns ?? 0) > 0) {
+        summarizeAndMatchSession(row.id, teamId, row.developer_id)
+          .catch(() => {}); // non-critical
+      }
     }),
   );
 
   return stale.length;
+}
+
+// ── Backfill missing session summaries ─────────────────────────────
+
+/**
+ * Find closed sessions that have turns but never got a work summary
+ * (e.g. SessionEnd hook failed, Ctrl+C killed the process, network error).
+ * Generate summaries for up to `limit` sessions per run to avoid overload.
+ */
+async function backfillMissingSummaries(
+  supabase: SupabaseClient,
+  teamId: string,
+  limit: number = 10,
+): Promise<number> {
+  const { data: unsummarized } = await supabase
+    .from('ai_sessions')
+    .select('id, developer_id, total_turns')
+    .eq('team_id', teamId)
+    .not('ended_at', 'is', null)
+    .is('work_summary', null)
+    .is('summarized_at', null)
+    .gt('total_turns', 0)
+    .order('ended_at', { ascending: false })
+    .limit(limit);
+
+  if (!unsummarized || unsummarized.length === 0) return 0;
+
+  let count = 0;
+  for (const session of unsummarized) {
+    if (!session.developer_id) continue;
+    try {
+      await summarizeAndMatchSession(session.id, teamId, session.developer_id);
+      count++;
+    } catch {
+      // Non-critical — skip this session, will retry next sync
+    }
+  }
+
+  return count;
 }
 
 // ── Per-member aggregation ─────────────────────────────────────────
@@ -694,8 +743,16 @@ export async function generateTeamReports(
     .eq('team_id', teamId)
     .eq('is_active', true);
 
+  // Backfill work summaries for closed sessions that missed SessionEnd
+  let summariesBackfilled = 0;
+  try {
+    summariesBackfilled = await backfillMissingSummaries(supabase, teamId);
+  } catch {
+    // Non-critical
+  }
+
   if (!members || members.length === 0) {
-    return { reportsGenerated: 0, alertsGenerated: 0, staleSessionsClosed, date: reportDate };
+    return { reportsGenerated: 0, alertsGenerated: 0, staleSessionsClosed, summariesBackfilled, date: reportDate };
   }
 
   // Aggregate all member reports in parallel
@@ -732,5 +789,5 @@ export async function generateTeamReports(
     now,
   );
 
-  return { reportsGenerated, alertsGenerated, staleSessionsClosed, date: reportDate };
+  return { reportsGenerated, alertsGenerated, staleSessionsClosed, summariesBackfilled, date: reportDate };
 }
