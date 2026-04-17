@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/components/auth-provider';
 import {
@@ -9,150 +9,126 @@ import {
   Trello,
   MessageSquare,
   Check,
-  ExternalLink,
-  Plug,
-  Loader2,
   AlertCircle,
-  Key,
-  X,
-  RefreshCw,
-  Unplug,
+  Plug,
   Search,
-  GitBranch,
-  Lock,
-  Building2,
-  User,
-  Users,
+  Code2,
+  Video,
 } from 'lucide-react';
+import { IntegrationCard } from '@/components/integrations/integration-card';
+import { ManageModal } from '@/components/integrations/manage-modal';
+import {
+  FirefliesConnectModal,
+  DisconnectModal,
+} from '@/components/integrations/connect-modals';
+import { RepoPickerModal } from '@/components/integrations/repo-picker-modal';
+import type {
+  Integration,
+  IntegrationCardDef,
+  Repo,
+  RepoGroup,
+  DiscoverRepo,
+} from '@/components/integrations/types';
 
-// ---------- Types ----------
+// ---------- Card Definitions ----------
 
-interface Repo {
-  name: string;
-  fullName: string;
-  defaultBranch: string;
-  language: string | null;
-  private: boolean;
-}
-
-interface Integration {
-  id: string;
-  provider: string;
-  status: string;
-  config: {
-    repos?: Array<{
-      name: string;
-      full_name: string;
-      default_branch: string;
-      language: string | null;
-    }>;
-    connected_at?: string;
-    tracked_repos?: string[];
-    oauth_user?: string;
-  };
-  lastSyncAt: string | null;
-}
-
-interface DiscoverRepo {
-  name: string;
-  fullName: string;
-  defaultBranch: string;
-  language: string | null;
-  private: boolean;
-  updatedAt: string;
-  ownerLogin: string;
-  ownerType: string;
-  tracked: boolean;
-}
-
-interface RepoGroup {
-  label: string;
-  repos: DiscoverRepo[];
-}
-
-// ---------- Constants ----------
-
-const integrationCards = [
+const integrationCards: IntegrationCardDef[] = [
   {
     id: 'github',
     name: 'GitHub',
-    description: 'Track commits, pull requests, and code reviews',
+    description: 'Track commits, pull requests, and code reviews from your repositories.',
     icon: Github,
     available: true,
-  },
-  {
-    id: 'fireflies',
-    name: 'Fireflies.ai',
-    description: 'Auto-capture meeting transcripts and action items',
-    icon: Mic,
-    available: true,
+    category: 'code',
   },
   {
     id: 'jira',
     name: 'Jira',
-    description: 'Sync tasks, sprints, and project tracking',
+    description: 'Sync tasks, sprints, and project tracking across your team.',
     icon: Trello,
     available: false,
+    category: 'code',
+  },
+  {
+    id: 'fireflies',
+    name: 'Fireflies.ai',
+    description: 'Auto-capture meeting transcripts and extract action items.',
+    icon: Mic,
+    available: true,
+    category: 'meetings',
   },
   {
     id: 'slack',
     name: 'Slack',
-    description: 'Daily digests, alerts, and team notifications',
+    description: 'Daily digests, alerts, and team notifications in your channels.',
     icon: MessageSquare,
     available: false,
+    category: 'meetings',
   },
 ];
 
-// ---------- Language Colors ----------
+const categories = [
+  {
+    id: 'code',
+    label: 'Code & Development',
+    icon: Code2,
+  },
+  {
+    id: 'meetings',
+    label: 'Meetings & Communication',
+    icon: Video,
+  },
+] as const;
 
-const languageColors: Record<string, string> = {
-  TypeScript: 'bg-blue-400',
-  JavaScript: 'bg-yellow-400',
-  Python: 'bg-green-400',
-  Rust: 'bg-orange-400',
-  Go: 'bg-cyan-400',
-  Java: 'bg-red-400',
-  Ruby: 'bg-red-500',
-  PHP: 'bg-purple-400',
-  'C#': 'bg-green-500',
-  'C++': 'bg-pink-400',
-  Swift: 'bg-orange-500',
-  Kotlin: 'bg-purple-500',
-};
-
-// ---------- Component ----------
+// ---------- Wrapper ----------
 
 export default function IntegrationsPageWrapper() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin h-8 w-8 border-2 border-purple-500 border-t-transparent rounded-full" /></div>}>
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="animate-spin h-8 w-8 border-2 border-purple-500 border-t-transparent rounded-full" />
+        </div>
+      }
+    >
       <IntegrationsPage />
     </Suspense>
   );
 }
+
+// ---------- Main Page ----------
 
 function IntegrationsPage() {
   const searchParams = useSearchParams();
   const { user: authUser } = useAuth();
   const teamId = authUser?.teamId ?? '';
 
+  // Integration state
   const [githubIntegration, setGithubIntegration] = useState<Integration | null>(null);
   const [firefliesIntegration, setFirefliesIntegration] = useState<Integration | null>(null);
   const [repos, setRepos] = useState<Repo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [oauthUser, setOauthUser] = useState<string | null>(null);
+
+  // Messages
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Sync state
+  const [githubSyncing, setGithubSyncing] = useState(false);
+  const [githubLastSyncAt, setGithubLastSyncAt] = useState<string | null>(null);
+  const [firefliesSyncing, setFirefliesSyncing] = useState(false);
+  const [firefliesLastSyncAt, setFirefliesLastSyncAt] = useState<string | null>(null);
+
+  // Modal state
+  const [manageModalId, setManageModalId] = useState<string | null>(null);
   const [showFirefliesModal, setShowFirefliesModal] = useState(false);
   const [firefliesApiKey, setFirefliesApiKey] = useState('');
   const [firefliesConnecting, setFirefliesConnecting] = useState(false);
-  const [firefliesSyncing, setFirefliesSyncing] = useState(false);
-  const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
-  const [githubSyncing, setGithubSyncing] = useState(false);
-  const [githubLastSyncAt, setGithubLastSyncAt] = useState<string | null>(null);
-  const [disconnecting, setDisconnecting] = useState<string | null>(null);
   const [confirmDisconnect, setConfirmDisconnect] = useState<string | null>(null);
-  const [oauthUser, setOauthUser] = useState<string | null>(null);
+  const [disconnecting, setDisconnecting] = useState<string | null>(null);
 
-  // Repo picker state
+  // Repo picker
   const [showRepoPicker, setShowRepoPicker] = useState(false);
   const [repoGroups, setRepoGroups] = useState<RepoGroup[]>([]);
   const [selectedRepos, setSelectedRepos] = useState<Set<string>>(new Set());
@@ -160,7 +136,29 @@ function IntegrationsPage() {
   const [repoPickerSaving, setRepoPickerSaving] = useState(false);
   const [repoSearchQuery, setRepoSearchQuery] = useState('');
 
-  // Check URL params for success/error messages
+  // Search
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Derived
+  const isGitHubConnected = githubIntegration !== null;
+  const isFirefliesConnected = firefliesIntegration !== null;
+  const connectedCount = (isGitHubConnected ? 1 : 0) + (isFirefliesConnected ? 1 : 0);
+
+  const filteredCards = useMemo(() => {
+    if (!searchQuery.trim()) return integrationCards;
+    const q = searchQuery.toLowerCase();
+    return integrationCards.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.description.toLowerCase().includes(q)
+    );
+  }, [searchQuery]);
+
+  function isConnected(id: string) {
+    return (id === 'github' && isGitHubConnected) || (id === 'fireflies' && isFirefliesConnected);
+  }
+
+  // ---------- URL param handling ----------
   useEffect(() => {
     const success = searchParams.get('success');
     const error = searchParams.get('error');
@@ -181,7 +179,7 @@ function IntegrationsPage() {
     }
   }, [searchParams]);
 
-  // Fetch integration statuses
+  // ---------- Fetch integration statuses ----------
   useEffect(() => {
     if (!teamId) {
       setLoading(false);
@@ -203,7 +201,6 @@ function IntegrationsPage() {
             lastSyncAt: null,
           });
 
-          // Auto-open repo picker if connected but no repos tracked yet
           if ((data.repos ?? []).length === 0) {
             handleOpenRepoPicker();
           }
@@ -220,7 +217,7 @@ function IntegrationsPage() {
               config: { connected_at: data.connectedAt },
               lastSyncAt: data.lastSyncAt,
             });
-            setLastSyncAt(data.lastSyncAt ?? null);
+            setFirefliesLastSyncAt(data.lastSyncAt ?? null);
           }
         }
       } catch {
@@ -231,14 +228,26 @@ function IntegrationsPage() {
     }
 
     fetchIntegrations();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teamId]);
 
-  function handleConnectGitHub() {
-    window.location.href = `/api/integrations/github/connect?team_id=${teamId}`;
+  // ---------- Handlers ----------
+
+  function handleConnect(id: string) {
+    if (id === 'github') {
+      window.location.href = `/api/integrations/github/connect?team_id=${teamId}`;
+    } else if (id === 'fireflies') {
+      setShowFirefliesModal(true);
+      setFirefliesApiKey('');
+    }
+  }
+
+  function handleManage(id: string) {
+    setManageModalId(id);
   }
 
   async function handleOpenRepoPicker() {
+    setManageModalId(null);
     setShowRepoPicker(true);
     setRepoPickerLoading(true);
     setRepoSearchQuery('');
@@ -255,7 +264,6 @@ function IntegrationsPage() {
       const data = await res.json();
       setRepoGroups(data.groups ?? []);
 
-      // Pre-select already tracked repos
       const tracked = new Set<string>();
       for (const group of (data.groups as RepoGroup[]) ?? []) {
         for (const repo of group.repos) {
@@ -274,28 +282,8 @@ function IntegrationsPage() {
   function toggleRepo(fullName: string) {
     setSelectedRepos((prev) => {
       const next = new Set(prev);
-      if (next.has(fullName)) {
-        next.delete(fullName);
-      } else {
-        next.add(fullName);
-      }
-      return next;
-    });
-  }
-
-  function toggleGroup(group: RepoGroup) {
-    const filtered = getFilteredRepos(group.repos);
-    const allSelected = filtered.every((r) => selectedRepos.has(r.fullName));
-
-    setSelectedRepos((prev) => {
-      const next = new Set(prev);
-      for (const repo of filtered) {
-        if (allSelected) {
-          next.delete(repo.fullName);
-        } else {
-          next.add(repo.fullName);
-        }
-      }
+      if (next.has(fullName)) next.delete(fullName);
+      else next.add(fullName);
       return next;
     });
   }
@@ -311,6 +299,19 @@ function IntegrationsPage() {
     );
   }
 
+  function toggleGroup(group: RepoGroup) {
+    const filtered = getFilteredRepos(group.repos);
+    const allSelected = filtered.every((r) => selectedRepos.has(r.fullName));
+    setSelectedRepos((prev) => {
+      const next = new Set(prev);
+      for (const repo of filtered) {
+        if (allSelected) next.delete(repo.fullName);
+        else next.add(repo.fullName);
+      }
+      return next;
+    });
+  }
+
   async function handleSaveTrackedRepos() {
     setRepoPickerSaving(true);
     try {
@@ -321,17 +322,17 @@ function IntegrationsPage() {
       });
 
       const data = await res.json();
-
       if (!res.ok) {
         setErrorMsg(data.error ?? 'Failed to save repo selection');
         return;
       }
 
       setShowRepoPicker(false);
-      setSuccessMsg(`Now tracking ${data.trackedCount} repositor${data.trackedCount === 1 ? 'y' : 'ies'}.`);
+      setSuccessMsg(
+        `Now tracking ${data.trackedCount} repositor${data.trackedCount === 1 ? 'y' : 'ies'}.`
+      );
       setTimeout(() => setSuccessMsg(null), 5000);
 
-      // Refresh the repo list
       const ghReposRes = await fetch(`/api/integrations/github/repos?team_id=${teamId}`);
       if (ghReposRes.ok) {
         const repoData = await ghReposRes.json();
@@ -342,83 +343,6 @@ function IntegrationsPage() {
     } finally {
       setRepoPickerSaving(false);
     }
-  }
-
-  async function handleDisconnect(provider: string) {
-    setConfirmDisconnect(null);
-    setDisconnecting(provider);
-    setErrorMsg(null);
-    try {
-      const res = await fetch('/api/integrations/disconnect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ team_id: teamId, provider }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setErrorMsg(data.error ?? 'Failed to disconnect');
-        return;
-      }
-
-      if (provider === 'github') {
-        setGithubIntegration(null);
-        setRepos([]);
-        setOauthUser(null);
-      } else if (provider === 'fireflies') {
-        setFirefliesIntegration(null);
-        setLastSyncAt(null);
-      }
-
-      setSuccessMsg(`${provider === 'github' ? 'GitHub' : 'Fireflies.ai'} disconnected successfully.`);
-      setTimeout(() => setSuccessMsg(null), 5000);
-    } catch {
-      setErrorMsg('Failed to disconnect. Please try again.');
-    } finally {
-      setDisconnecting(null);
-    }
-  }
-
-  async function handleGithubSync() {
-    setGithubSyncing(true);
-    setErrorMsg(null);
-    try {
-      const res = await fetch('/api/integrations/github/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ team_id: teamId }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setErrorMsg(data.error ?? 'GitHub sync failed');
-        return;
-      }
-
-      setGithubLastSyncAt(data.syncedAt);
-
-      const parts: string[] = [];
-      if (data.commitsProcessed > 0) parts.push(`${data.commitsProcessed} commit${data.commitsProcessed !== 1 ? 's' : ''}`);
-      if (data.prsProcessed > 0) parts.push(`${data.prsProcessed} PR${data.prsProcessed !== 1 ? 's' : ''}`);
-
-      if (parts.length > 0) {
-        setSuccessMsg(`Synced ${parts.join(' and ')} from ${data.reposSynced} repo${data.reposSynced !== 1 ? 's' : ''}.`);
-      } else {
-        setSuccessMsg('All data already synced. No new commits or PRs found.');
-      }
-      setTimeout(() => setSuccessMsg(null), 7000);
-    } catch {
-      setErrorMsg('Failed to sync GitHub data. Please try again.');
-    } finally {
-      setGithubSyncing(false);
-    }
-  }
-
-  function handleConnectFireflies() {
-    setShowFirefliesModal(true);
-    setFirefliesApiKey('');
   }
 
   async function handleSaveFirefliesKey() {
@@ -436,7 +360,6 @@ function IntegrationsPage() {
       });
 
       const data = await res.json();
-
       if (!res.ok) {
         setErrorMsg(data.error ?? 'Failed to connect Fireflies');
         return;
@@ -464,6 +387,83 @@ function IntegrationsPage() {
     }
   }
 
+  async function handleDisconnect(provider: string) {
+    setConfirmDisconnect(null);
+    setManageModalId(null);
+    setDisconnecting(provider);
+    setErrorMsg(null);
+    try {
+      const res = await fetch('/api/integrations/disconnect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ team_id: teamId, provider }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setErrorMsg(data.error ?? 'Failed to disconnect');
+        return;
+      }
+
+      if (provider === 'github') {
+        setGithubIntegration(null);
+        setRepos([]);
+        setOauthUser(null);
+      } else if (provider === 'fireflies') {
+        setFirefliesIntegration(null);
+        setFirefliesLastSyncAt(null);
+      }
+
+      setSuccessMsg(
+        `${provider === 'github' ? 'GitHub' : 'Fireflies.ai'} disconnected successfully.`
+      );
+      setTimeout(() => setSuccessMsg(null), 5000);
+    } catch {
+      setErrorMsg('Failed to disconnect. Please try again.');
+    } finally {
+      setDisconnecting(null);
+    }
+  }
+
+  async function handleGithubSync() {
+    setGithubSyncing(true);
+    setErrorMsg(null);
+    try {
+      const res = await fetch('/api/integrations/github/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ team_id: teamId }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setErrorMsg(data.error ?? 'GitHub sync failed');
+        return;
+      }
+
+      setGithubLastSyncAt(data.syncedAt);
+
+      const parts: string[] = [];
+      if (data.commitsProcessed > 0)
+        parts.push(`${data.commitsProcessed} commit${data.commitsProcessed !== 1 ? 's' : ''}`);
+      if (data.prsProcessed > 0)
+        parts.push(`${data.prsProcessed} PR${data.prsProcessed !== 1 ? 's' : ''}`);
+
+      if (parts.length > 0) {
+        setSuccessMsg(
+          `Synced ${parts.join(' and ')} from ${data.reposSynced} repo${data.reposSynced !== 1 ? 's' : ''}.`
+        );
+      } else {
+        setSuccessMsg('All data already synced. No new commits or PRs found.');
+      }
+      setTimeout(() => setSuccessMsg(null), 7000);
+    } catch {
+      setErrorMsg('Failed to sync GitHub data. Please try again.');
+    } finally {
+      setGithubSyncing(false);
+    }
+  }
+
   async function handleFirefliesSync() {
     setFirefliesSyncing(true);
     setErrorMsg(null);
@@ -475,24 +475,27 @@ function IntegrationsPage() {
       });
 
       const data = await res.json();
-
       if (!res.ok) {
         setErrorMsg(data.error ?? 'Sync failed');
         return;
       }
 
-      setLastSyncAt(data.syncedAt);
+      setFirefliesLastSyncAt(data.syncedAt);
 
       if (data.meetingsProcessed > 0) {
         setSuccessMsg(
           `Synced ${data.meetingsProcessed} new meeting${data.meetingsProcessed !== 1 ? 's' : ''}` +
-          (data.tasksExtracted > 0 ? ` with ${data.tasksExtracted} action item${data.tasksExtracted !== 1 ? 's' : ''} extracted` : '') +
-          `. ${data.meetingsSkipped > 0 ? `${data.meetingsSkipped} already synced.` : ''}`
+            (data.tasksExtracted > 0
+              ? ` with ${data.tasksExtracted} action item${data.tasksExtracted !== 1 ? 's' : ''} extracted`
+              : '') +
+            `. ${data.meetingsSkipped > 0 ? `${data.meetingsSkipped} already synced.` : ''}`
         );
       } else if (data.meetingsFound === 0) {
         setSuccessMsg('No new meetings found since last sync.');
       } else {
-        setSuccessMsg(`All ${data.meetingsSkipped} meeting${data.meetingsSkipped !== 1 ? 's' : ''} already synced.`);
+        setSuccessMsg(
+          `All ${data.meetingsSkipped} meeting${data.meetingsSkipped !== 1 ? 's' : ''} already synced.`
+        );
       }
       setTimeout(() => setSuccessMsg(null), 7000);
     } catch {
@@ -502,30 +505,64 @@ function IntegrationsPage() {
     }
   }
 
-  const isGitHubConnected = githubIntegration !== null;
-  const isFirefliesConnected = firefliesIntegration !== null;
+  // Get data for the manage modal
+  const managedCard = manageModalId
+    ? integrationCards.find((c) => c.id === manageModalId)
+    : null;
 
-  // Count total filtered repos across all groups
-  const totalFilteredRepos = repoGroups.reduce(
-    (sum, g) => sum + getFilteredRepos(g.repos).length,
-    0
-  );
+  const disconnectMessages: Record<string, { name: string; description: string }> = {
+    github: {
+      name: 'GitHub',
+      description:
+        'This will stop tracking commits, pull requests, and code reviews from your GitHub repositories.',
+    },
+    fireflies: {
+      name: 'Fireflies.ai',
+      description:
+        'This will stop syncing meeting transcripts and extracting action items from Fireflies.ai.',
+    },
+  };
 
   // ---------- Render ----------
 
   return (
-    <div className="max-w-4xl">
+    <div className="max-w-5xl">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight text-text-primary">
-          Integrations
-        </h1>
-        <p className="mt-1 text-sm text-text-secondary">
-          Connect your tools to track developer activity automatically
-        </p>
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-text-primary">
+              Integrations
+            </h1>
+            <p className="mt-1 text-sm text-text-secondary">
+              Connect your tools to track developer activity automatically
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 rounded-full bg-bg-card border border-border-primary px-3 py-1.5">
+              <Plug className="h-3.5 w-3.5 text-purple-400" />
+              <span className="text-xs font-medium text-text-secondary">
+                <span className="text-text-primary">{connectedCount}</span> of{' '}
+                {integrationCards.filter((c) => c.available).length} connected
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Search Bar */}
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search integrations..."
+            className="w-full rounded-lg border border-border-primary bg-bg-card pl-10 pr-4 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:border-purple-500 focus:outline-none transition-colors"
+          />
+        </div>
       </div>
 
-      {/* Success/Error Messages */}
+      {/* Messages */}
       {successMsg && (
         <div className="mb-6 flex items-center gap-2 rounded-lg border border-emerald-800/50 bg-emerald-900/20 px-4 py-3 text-sm text-emerald-300">
           <Check className="h-4 w-4 shrink-0" />
@@ -539,508 +576,116 @@ function IntegrationsPage() {
         </div>
       )}
 
-      {/* Fireflies API Key Modal */}
-      {showFirefliesModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="bg-bg-card border border-border-primary rounded-lg p-6 w-full max-w-md mx-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-text-primary">
-                Connect Fireflies.ai
-              </h3>
-              <button
-                onClick={() => setShowFirefliesModal(false)}
-                className="text-text-muted hover:text-text-primary transition-colors"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
+      {/* Category Sections */}
+      <div className="space-y-8">
+        {categories.map((category) => {
+          const CategoryIcon = category.icon;
+          const cardsInCategory = filteredCards.filter(
+            (c) => c.category === category.id
+          );
 
-            <p className="text-xs text-text-secondary mb-4">
-              Enter your Fireflies API key to connect. You can find it at{' '}
-              <span className="text-purple-400">Fireflies Dashboard &rarr; Integrations &rarr; Fireflies API</span>.
-              Only workspace admins can access the API key.
+          if (cardsInCategory.length === 0) return null;
+
+          return (
+            <section key={category.id} className="animate-section">
+              <div className="flex items-center gap-2 mb-4">
+                <CategoryIcon className="h-4 w-4 text-text-muted" />
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
+                  {category.label}
+                </h2>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {cardsInCategory.map((card) => (
+                  <IntegrationCard
+                    key={card.id}
+                    card={card}
+                    isConnected={isConnected(card.id)}
+                    loading={loading}
+                    syncing={
+                      card.id === 'github' ? githubSyncing : card.id === 'fireflies' ? firefliesSyncing : false
+                    }
+                    teamId={teamId}
+                    onConnect={handleConnect}
+                    onManage={handleManage}
+                    onSync={(id) => {
+                      if (id === 'github') handleGithubSync();
+                      else if (id === 'fireflies') handleFirefliesSync();
+                    }}
+                  />
+                ))}
+              </div>
+            </section>
+          );
+        })}
+
+        {filteredCards.length === 0 && searchQuery && (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <Search className="w-10 h-10 text-text-muted mb-3" />
+            <p className="text-sm text-text-secondary">
+              No integrations match &ldquo;{searchQuery}&rdquo;
             </p>
-
-            <div className="mb-4">
-              <label className="block text-xs font-medium text-text-muted mb-1.5">
-                API Key
-              </label>
-              <input
-                type="password"
-                value={firefliesApiKey}
-                onChange={(e) => setFirefliesApiKey(e.target.value)}
-                placeholder="Enter your Fireflies API key..."
-                className="w-full rounded-lg border border-border-primary bg-bg-secondary px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-purple-500 focus:outline-none"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleSaveFirefliesKey();
-                }}
-              />
-            </div>
-
-            <div className="flex items-center justify-end gap-3">
-              <button
-                onClick={() => setShowFirefliesModal(false)}
-                className="border border-border-primary bg-bg-card hover:bg-bg-elevated text-text-secondary rounded-lg px-4 py-2 text-sm font-medium transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveFirefliesKey}
-                disabled={firefliesConnecting || !firefliesApiKey.trim()}
-                className="flex items-center gap-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors"
-              >
-                {firefliesConnecting ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Check className="h-4 w-4" />
-                )}
-                {firefliesConnecting ? 'Verifying...' : 'Connect'}
-              </button>
-            </div>
           </div>
-        </div>
+        )}
+      </div>
+
+      {/* ===== Modals ===== */}
+
+      {/* Manage Modal */}
+      {managedCard && (
+        <ManageModal
+          card={managedCard}
+          oauthUser={oauthUser}
+          repos={repos}
+          lastSyncAt={managedCard.id === 'github' ? githubLastSyncAt : firefliesLastSyncAt}
+          syncing={managedCard.id === 'github' ? githubSyncing : firefliesSyncing}
+          onSync={managedCard.id === 'github' ? handleGithubSync : handleFirefliesSync}
+          onOpenRepoPicker={handleOpenRepoPicker}
+          onDisconnect={() => {
+            setManageModalId(null);
+            setConfirmDisconnect(managedCard.id);
+          }}
+          onClose={() => setManageModalId(null)}
+        />
+      )}
+
+      {/* Fireflies Connect Modal */}
+      {showFirefliesModal && (
+        <FirefliesConnectModal
+          apiKey={firefliesApiKey}
+          onApiKeyChange={setFirefliesApiKey}
+          connecting={firefliesConnecting}
+          onConnect={handleSaveFirefliesKey}
+          onClose={() => setShowFirefliesModal(false)}
+        />
       )}
 
       {/* Disconnect Confirmation Modal */}
-      {confirmDisconnect && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="bg-bg-card border border-border-primary rounded-lg p-6 w-full max-w-sm mx-4">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-900/30">
-                <Unplug className="h-5 w-5 text-red-400" />
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold text-text-primary">
-                  Disconnect {confirmDisconnect === 'github' ? 'GitHub' : 'Fireflies.ai'}?
-                </h3>
-                <p className="text-xs text-text-muted">
-                  This action can be undone by reconnecting.
-                </p>
-              </div>
-            </div>
-
-            <p className="text-xs text-text-secondary mb-5">
-              {confirmDisconnect === 'github'
-                ? 'This will stop tracking commits, pull requests, and code reviews from your GitHub repositories.'
-                : 'This will stop syncing meeting transcripts and extracting action items from Fireflies.ai.'}
-            </p>
-
-            <div className="flex items-center justify-end gap-3">
-              <button
-                onClick={() => setConfirmDisconnect(null)}
-                className="border border-border-primary bg-bg-card hover:bg-bg-elevated text-text-secondary rounded-lg px-4 py-2 text-sm font-medium transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleDisconnect(confirmDisconnect)}
-                className="flex items-center gap-2 bg-red-600 hover:bg-red-500 text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors"
-              >
-                <Unplug className="h-4 w-4" />
-                Disconnect
-              </button>
-            </div>
-          </div>
-        </div>
+      {confirmDisconnect && disconnectMessages[confirmDisconnect] && (
+        <DisconnectModal
+          providerName={disconnectMessages[confirmDisconnect].name}
+          description={disconnectMessages[confirmDisconnect].description}
+          onConfirm={() => handleDisconnect(confirmDisconnect)}
+          onClose={() => setConfirmDisconnect(null)}
+        />
       )}
 
       {/* Repository Picker Modal */}
       {showRepoPicker && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="bg-bg-card border border-border-primary rounded-lg w-full max-w-2xl mx-4 max-h-[85vh] flex flex-col">
-            {/* Header */}
-            <div className="flex items-center justify-between p-5 border-b border-border-primary shrink-0">
-              <div>
-                <h3 className="text-sm font-semibold text-text-primary">
-                  Select Repositories to Track
-                </h3>
-                <p className="text-xs text-text-muted mt-0.5">
-                  {selectedRepos.size} selected
-                  {oauthUser && (
-                    <span> &middot; connected as <span className="text-purple-400">{oauthUser}</span></span>
-                  )}
-                </p>
-              </div>
-              <button
-                onClick={() => setShowRepoPicker(false)}
-                className="text-text-muted hover:text-text-primary transition-colors"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            {/* Search */}
-            <div className="px-5 py-3 border-b border-border-primary shrink-0">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-text-muted" />
-                <input
-                  type="text"
-                  value={repoSearchQuery}
-                  onChange={(e) => setRepoSearchQuery(e.target.value)}
-                  placeholder="Search repositories..."
-                  className="w-full rounded-lg border border-border-primary bg-bg-secondary pl-9 pr-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-purple-500 focus:outline-none"
-                />
-              </div>
-            </div>
-
-            {/* Repo List */}
-            <div className="flex-1 overflow-y-auto p-5">
-              {repoPickerLoading ? (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <Loader2 className="h-6 w-6 animate-spin text-purple-400 mb-3" />
-                  <p className="text-sm text-text-secondary">Loading repositories from GitHub...</p>
-                </div>
-              ) : repoGroups.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <GitBranch className="w-10 h-10 text-text-muted mb-3" />
-                  <p className="text-sm text-text-secondary">No repositories found</p>
-                  <p className="text-xs text-text-muted mt-1">Make sure your GitHub account has accessible repositories</p>
-                </div>
-              ) : (
-                <div className="space-y-5">
-                  {repoGroups.map((group) => {
-                    const filtered = getFilteredRepos(group.repos);
-                    if (filtered.length === 0) return null;
-
-                    const allSelected = filtered.every((r) => selectedRepos.has(r.fullName));
-                    const someSelected = filtered.some((r) => selectedRepos.has(r.fullName));
-
-                    // Determine group icon
-                    const isOrgGroup = filtered[0]?.ownerType === 'Organization';
-                    const isCollabGroup = group.label === 'Collaborator Repositories';
-                    const GroupIcon = isOrgGroup ? Building2 : isCollabGroup ? Users : User;
-
-                    return (
-                      <div key={group.label}>
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <GroupIcon className="h-3.5 w-3.5 text-text-muted" />
-                            <h4 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
-                              {group.label} ({filtered.length})
-                            </h4>
-                          </div>
-                          <button
-                            onClick={() => toggleGroup(group)}
-                            className="text-[10px] text-purple-400 hover:text-purple-300 transition-colors"
-                          >
-                            {allSelected ? 'Deselect all' : 'Select all'}
-                          </button>
-                        </div>
-                        <div className="space-y-1">
-                          {filtered.map((repo) => (
-                            <label
-                              key={repo.fullName}
-                              className="flex items-center gap-3 rounded-md bg-bg-secondary px-3 py-2.5 cursor-pointer hover:bg-bg-elevated transition-colors group"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={selectedRepos.has(repo.fullName)}
-                                onChange={() => toggleRepo(repo.fullName)}
-                                className="h-3.5 w-3.5 rounded border-border-primary text-purple-500 focus:ring-purple-500 focus:ring-offset-0 bg-bg-card cursor-pointer accent-purple-500"
-                              />
-                              <Github className="h-3.5 w-3.5 text-text-muted shrink-0" />
-                              <div className="flex-1 min-w-0">
-                                <span className="text-sm text-text-primary truncate block">
-                                  {repo.fullName}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2 shrink-0">
-                                {repo.language && (
-                                  <span className="flex items-center gap-1 text-xs text-text-muted">
-                                    <span className={`h-2 w-2 rounded-full ${languageColors[repo.language] ?? 'bg-gray-400'}`} />
-                                    {repo.language}
-                                  </span>
-                                )}
-                                {repo.private && (
-                                  <span className="inline-flex items-center gap-0.5 rounded bg-yellow-900/30 px-1.5 py-0.5 text-[10px] text-yellow-400">
-                                    <Lock className="h-2.5 w-2.5" />
-                                    Private
-                                  </span>
-                                )}
-                              </div>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {totalFilteredRepos === 0 && repoSearchQuery && (
-                    <div className="flex flex-col items-center justify-center py-8 text-center">
-                      <Search className="w-8 h-8 text-text-muted mb-2" />
-                      <p className="text-sm text-text-secondary">No repositories match &ldquo;{repoSearchQuery}&rdquo;</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className="flex items-center justify-between p-5 border-t border-border-primary shrink-0 bg-bg-secondary/50">
-              <p className="text-xs text-text-muted">
-                {selectedRepos.size} repositor{selectedRepos.size === 1 ? 'y' : 'ies'} selected for tracking
-              </p>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setShowRepoPicker(false)}
-                  className="border border-border-primary bg-bg-card hover:bg-bg-elevated text-text-secondary rounded-lg px-4 py-2 text-sm font-medium transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSaveTrackedRepos}
-                  disabled={repoPickerSaving}
-                  className="flex items-center gap-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors"
-                >
-                  {repoPickerSaving ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Check className="h-4 w-4" />
-                  )}
-                  {repoPickerSaving ? 'Saving...' : 'Save Selection'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <RepoPickerModal
+          groups={repoGroups}
+          selectedRepos={selectedRepos}
+          searchQuery={repoSearchQuery}
+          loading={repoPickerLoading}
+          saving={repoPickerSaving}
+          oauthUser={oauthUser}
+          onSearchChange={setRepoSearchQuery}
+          onToggleRepo={toggleRepo}
+          onToggleGroup={toggleGroup}
+          onSave={handleSaveTrackedRepos}
+          onClose={() => setShowRepoPicker(false)}
+        />
       )}
-
-      {/* Integration Cards */}
-      <div className="grid gap-4">
-        {integrationCards.map((card) => {
-          const Icon = card.icon;
-          const isConnected =
-            (card.id === 'github' && isGitHubConnected) ||
-            (card.id === 'fireflies' && isFirefliesConnected);
-          const isAvailable = card.available;
-
-          return (
-            <div
-              key={card.id}
-              className="bg-bg-card border border-border-primary rounded-lg p-5 hover:border-border-hover transition-colors"
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex items-start gap-4">
-                  <div
-                    className={`flex h-10 w-10 items-center justify-center rounded-lg ${
-                      isConnected
-                        ? 'bg-emerald-900/30 text-emerald-400'
-                        : isAvailable
-                        ? 'bg-purple-900/30 text-purple-400'
-                        : 'bg-bg-elevated text-text-muted'
-                    }`}
-                  >
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-semibold text-text-primary">
-                        {card.name}
-                      </h3>
-                      {isConnected && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-900/30 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
-                          <Check className="h-3 w-3" />
-                          Connected
-                        </span>
-                      )}
-                      {!isAvailable && (
-                        <span className="inline-flex items-center rounded-full bg-bg-elevated px-2 py-0.5 text-[10px] font-medium text-text-muted">
-                          Coming Soon
-                        </span>
-                      )}
-                    </div>
-                    <p className="mt-0.5 text-xs text-text-muted">
-                      {card.description}
-                    </p>
-                    {card.id === 'github' && isConnected && oauthUser && (
-                      <p className="mt-1 text-xs text-text-muted">
-                        Authenticated as <span className="text-purple-400 font-medium">{oauthUser}</span>
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  {card.id === 'github' && !isConnected && isAvailable && (
-                    <button
-                      onClick={handleConnectGitHub}
-                      disabled={loading || !teamId}
-                      className="flex items-center gap-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors"
-                    >
-                      {loading ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Plug className="h-4 w-4" />
-                      )}
-                      Connect GitHub
-                    </button>
-                  )}
-                  {card.id === 'fireflies' && !isConnected && isAvailable && (
-                    <button
-                      onClick={handleConnectFireflies}
-                      disabled={loading || !teamId}
-                      className="flex items-center gap-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors"
-                    >
-                      {loading ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Key className="h-4 w-4" />
-                      )}
-                      Connect with API Key
-                    </button>
-                  )}
-                  {isConnected && isAvailable && (
-                    <button
-                      onClick={() => setConfirmDisconnect(card.id)}
-                      disabled={disconnecting === card.id}
-                      className="flex items-center gap-2 bg-red-900/30 hover:bg-red-900/50 disabled:opacity-50 disabled:cursor-not-allowed text-red-400 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors"
-                    >
-                      {disconnecting === card.id ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : (
-                        <Unplug className="h-3 w-3" />
-                      )}
-                      {disconnecting === card.id ? 'Disconnecting...' : 'Disconnect'}
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* GitHub Connected: Show tracked repos */}
-              {card.id === 'github' && isConnected && (
-                <div className="mt-4 border-t border-border-primary pt-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
-                      Tracked Repositories ({repos.length})
-                    </h4>
-                    <button
-                      onClick={handleOpenRepoPicker}
-                      className="flex items-center gap-1 text-[10px] text-purple-400 hover:text-purple-300 transition-colors"
-                    >
-                      <ExternalLink className="h-3 w-3" />
-                      Manage Repos
-                    </button>
-                  </div>
-                  {repos.length > 0 ? (
-                    <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                      {repos.map((repo) => (
-                        <div
-                          key={repo.fullName ?? repo.name}
-                          className="flex items-center gap-3 rounded-md bg-bg-secondary px-3 py-2"
-                        >
-                          <Github className="h-3.5 w-3.5 text-text-muted shrink-0" />
-                          <span className="text-sm text-text-primary truncate">
-                            {repo.fullName ?? repo.name}
-                          </span>
-                          {repo.language && (
-                            <span className="text-xs text-text-muted shrink-0">
-                              {repo.language}
-                            </span>
-                          )}
-                          {repo.private && (
-                            <span className="inline-flex items-center gap-0.5 rounded bg-yellow-900/30 px-1.5 py-0.5 text-[10px] text-yellow-400 shrink-0">
-                              <Lock className="h-2.5 w-2.5" />
-                              Private
-                            </span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-6 text-center">
-                      <GitBranch className="w-8 h-8 text-text-muted mb-2" />
-                      <p className="text-sm text-text-secondary">No repositories tracked yet</p>
-                      <button
-                        onClick={handleOpenRepoPicker}
-                        className="mt-2 text-xs text-purple-400 hover:text-purple-300 transition-colors"
-                      >
-                        Select repositories to track
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* GitHub sync controls */}
-              {card.id === 'github' && isConnected && repos.length > 0 && (
-                <div className="mt-4 border-t border-border-primary pt-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-xs font-semibold uppercase tracking-wider text-text-muted mb-1">
-                        Code Sync
-                      </h4>
-                      <p className="text-xs text-text-muted">
-                        {githubLastSyncAt
-                          ? `Last synced: ${new Date(githubLastSyncAt).toLocaleString()}`
-                          : 'Sync commits and PRs from your tracked repositories.'}
-                      </p>
-                    </div>
-                    <button
-                      onClick={handleGithubSync}
-                      disabled={githubSyncing}
-                      className="flex items-center gap-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors"
-                    >
-                      <RefreshCw className={`h-4 w-4 ${githubSyncing ? 'animate-spin' : ''}`} />
-                      {githubSyncing ? 'Syncing...' : 'Sync Now'}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Fireflies connected details */}
-              {card.id === 'fireflies' && isFirefliesConnected && (
-                <div className="mt-4 border-t border-border-primary pt-4">
-                  {/* Sync Controls */}
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <h4 className="text-xs font-semibold uppercase tracking-wider text-text-muted mb-1">
-                        Meeting Sync
-                      </h4>
-                      <p className="text-xs text-text-muted">
-                        {lastSyncAt
-                          ? `Last synced: ${new Date(lastSyncAt).toLocaleString()}`
-                          : 'Not synced yet — click Sync Now to pull meetings'}
-                      </p>
-                    </div>
-                    <button
-                      onClick={handleFirefliesSync}
-                      disabled={firefliesSyncing}
-                      className="flex items-center gap-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors"
-                    >
-                      <RefreshCw className={`h-4 w-4 ${firefliesSyncing ? 'animate-spin' : ''}`} />
-                      {firefliesSyncing ? 'Syncing...' : 'Sync Now'}
-                    </button>
-                  </div>
-
-                  {/* How It Works */}
-                  <div>
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-text-muted mb-2">
-                      How It Works
-                    </h4>
-                    <div className="space-y-1.5">
-                      <div className="flex items-start gap-2 text-xs text-text-secondary">
-                        <span className="text-purple-400 mt-0.5">1.</span>
-                        <span>Fireflies bot joins your meetings and transcribes them</span>
-                      </div>
-                      <div className="flex items-start gap-2 text-xs text-text-secondary">
-                        <span className="text-purple-400 mt-0.5">2.</span>
-                        <span>Click &quot;Sync Now&quot; to pull new meetings into EvaluateAI</span>
-                      </div>
-                      <div className="flex items-start gap-2 text-xs text-text-secondary">
-                        <span className="text-purple-400 mt-0.5">3.</span>
-                        <span>AI extracts action items and assigns to team members</span>
-                      </div>
-                      <div className="flex items-start gap-2 text-xs text-text-secondary">
-                        <span className="text-purple-400 mt-0.5">4.</span>
-                        <span>Track task delivery on the Meetings page</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }
