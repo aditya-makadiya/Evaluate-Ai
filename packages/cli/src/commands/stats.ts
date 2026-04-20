@@ -13,107 +13,77 @@ interface PeriodStats {
   antiPatterns: Record<string, number>;
 }
 
-interface SessionRow {
-  total_turns?: number;
-  total_input_tokens?: number;
-  total_output_tokens?: number;
-  total_cost_usd?: number;
-  avg_prompt_score?: number;
-  efficiency_score?: number;
-  started_at: string;
+interface ApiPeriodBucket {
+  sessions: number;
+  turns: number;
+  tokens: number;
+  cost: number;
+  avgScore: number | null;
+  efficiency: number | null;
 }
 
 interface StatsApiResponse {
-  sessionCount: number;
-  totalTurns: number;
-  totalTokens: number;
-  totalCost: number;
-  avgScore: number | null;
-  avgEfficiency: number | null;
-  antiPatterns: Record<string, number>;
+  today?: ApiPeriodBucket;
+  thisWeek?: ApiPeriodBucket;
+  thisMonth?: ApiPeriodBucket;
+  previousDay?: ApiPeriodBucket;
+  previousWeek?: ApiPeriodBucket;
+  previousMonth?: ApiPeriodBucket;
+  topAntiPatterns?: Array<{ pattern: string; count: number }>;
+}
+
+type PeriodKey = 'today' | 'week' | 'month';
+
+const EMPTY_STATS: PeriodStats = {
+  sessionCount: 0,
+  totalTurns: 0,
+  totalTokens: 0,
+  totalCost: 0,
+  avgScore: null,
+  avgEfficiency: null,
+  antiPatterns: {},
+};
+
+function toPeriodStats(
+  bucket: ApiPeriodBucket | undefined,
+  antiPatterns: Record<string, number>,
+): PeriodStats {
+  if (!bucket) return { ...EMPTY_STATS, antiPatterns };
+  return {
+    sessionCount: bucket.sessions ?? 0,
+    totalTurns: bucket.turns ?? 0,
+    totalTokens: bucket.tokens ?? 0,
+    totalCost: bucket.cost ?? 0,
+    avgScore: bucket.avgScore ?? null,
+    avgEfficiency: bucket.efficiency ?? null,
+    antiPatterns,
+  };
 }
 
 /**
- * Get the start-of-day ISO string for N days ago.
+ * Fetch stats from `/api/stats?period=...` and project the response shape
+ * (period buckets + top anti-patterns) onto the CLI's PeriodStats view.
+ * Returns both the current-period and previous-period aggregates so `--compare`
+ * can render without issuing a second request.
  */
-function daysAgo(n: number): string {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() - n);
-  return d.toISOString();
-}
+async function queryPeriodStats(periodKey: PeriodKey): Promise<{ current: PeriodStats; previous: PeriodStats }> {
+  const { ok, data } = await apiRequest<StatsApiResponse>(`/api/stats?period=${periodKey}`);
 
-/**
- * Fetch stats from the API. Falls back to aggregating sessions client-side
- * if the /api/stats endpoint doesn't return enough data.
- */
-async function queryPeriodStats(periodDays: number): Promise<PeriodStats> {
-  const since = daysAgo(periodDays === 1 ? 0 : periodDays);
-
-  // Try /api/stats endpoint first
-  const { ok, data } = await apiRequest<StatsApiResponse>(`/api/stats?since=${encodeURIComponent(since)}`);
-
-  if (ok && data && typeof data.sessionCount === 'number') {
-    return {
-      sessionCount: data.sessionCount,
-      totalTurns: data.totalTurns ?? 0,
-      totalTokens: data.totalTokens ?? 0,
-      totalCost: data.totalCost ?? 0,
-      avgScore: data.avgScore ?? null,
-      avgEfficiency: data.avgEfficiency ?? null,
-      antiPatterns: data.antiPatterns ?? {},
-    };
+  if (!ok || !data) {
+    return { current: { ...EMPTY_STATS }, previous: { ...EMPTY_STATS } };
   }
 
-  // Fallback: aggregate from sessions list
-  const { ok: sessOk, data: sessData } = await apiRequest<{ sessions: SessionRow[] }>(`/api/sessions?limit=1000`);
-
-  if (!sessOk || !sessData?.sessions) {
-    return {
-      sessionCount: 0,
-      totalTurns: 0,
-      totalTokens: 0,
-      totalCost: 0,
-      avgScore: null,
-      avgEfficiency: null,
-      antiPatterns: {},
-    };
+  const antiPatternMap: Record<string, number> = {};
+  for (const { pattern, count } of data.topAntiPatterns ?? []) {
+    if (pattern) antiPatternMap[pattern] = count;
   }
 
-  // Filter sessions by date
-  const sinceDate = new Date(since);
-  const rows = sessData.sessions.filter(s => new Date(s.started_at) >= sinceDate);
-
-  let totalTurns = 0;
-  let totalTokens = 0;
-  let totalCost = 0;
-  let scoreSum = 0;
-  let scoreCount = 0;
-  let effSum = 0;
-  let effCount = 0;
-
-  for (const s of rows) {
-    totalTurns += s.total_turns ?? 0;
-    totalTokens += (s.total_input_tokens ?? 0) + (s.total_output_tokens ?? 0);
-    totalCost += s.total_cost_usd ?? 0;
-    if (s.avg_prompt_score != null) {
-      scoreSum += s.avg_prompt_score;
-      scoreCount++;
-    }
-    if (s.efficiency_score != null) {
-      effSum += s.efficiency_score;
-      effCount++;
-    }
-  }
+  const currKey = periodKey === 'today' ? 'today' : periodKey === 'week' ? 'thisWeek' : 'thisMonth';
+  const prevKey = periodKey === 'today' ? 'previousDay' : periodKey === 'week' ? 'previousWeek' : 'previousMonth';
 
   return {
-    sessionCount: rows.length,
-    totalTurns,
-    totalTokens,
-    totalCost,
-    avgScore: scoreCount > 0 ? scoreSum / scoreCount : null,
-    avgEfficiency: effCount > 0 ? effSum / effCount : null,
-    antiPatterns: {},
+    current: toPeriodStats(data[currKey], antiPatternMap),
+    previous: toPeriodStats(data[prevKey], antiPatternMap),
   };
 }
 
@@ -170,36 +140,20 @@ export const statsCommand = new Command('stats')
   .option('--month', 'Show this month\'s stats')
   .option('--compare', 'Compare with previous period')
   .action(async (opts: { week?: boolean; month?: boolean; compare?: boolean }) => {
-    let periodDays: number;
+    let periodKey: PeriodKey;
     let label: string;
 
     if (opts.month) {
-      periodDays = 30;
+      periodKey = 'month';
       label = 'This Month';
     } else if (opts.week) {
-      periodDays = 7;
+      periodKey = 'week';
       label = 'This Week';
     } else {
-      periodDays = 1;
+      periodKey = 'today';
       label = 'Today';
     }
 
-    const stats = await queryPeriodStats(periodDays);
-
-    let prev: PeriodStats | undefined;
-    if (opts.compare) {
-      const prevStats = await queryPeriodStats(periodDays * 2);
-      // Subtract current period from the "since 2x ago" to get only previous period
-      prev = {
-        sessionCount: prevStats.sessionCount - stats.sessionCount,
-        totalTurns: prevStats.totalTurns - stats.totalTurns,
-        totalTokens: prevStats.totalTokens - stats.totalTokens,
-        totalCost: prevStats.totalCost - stats.totalCost,
-        avgScore: prevStats.avgScore,
-        avgEfficiency: prevStats.avgEfficiency,
-        antiPatterns: prevStats.antiPatterns,
-      };
-    }
-
-    printStats(label, stats, prev);
+    const { current, previous } = await queryPeriodStats(periodKey);
+    printStats(label, current, opts.compare ? previous : undefined);
   });

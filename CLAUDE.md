@@ -101,7 +101,9 @@ pnpm --filter evaluateai-dashboard dev # Start dashboard dev server
 
 # CLI
 pnpm install                          # Install all dependencies
-evalai init                           # Install Claude Code hooks
+evalai setup                          # One-command install: auth + Claude Code hooks
+evalai setup --token <token>          # Same, but zero-browser (CI/Docker/dashboard one-liner)
+evalai init                           # Install Claude Code hooks only (requires prior `evalai login`)
 evalai stats                          # Show usage stats
 ```
 

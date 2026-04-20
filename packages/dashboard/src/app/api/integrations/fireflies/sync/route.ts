@@ -5,6 +5,7 @@ import {
   extractTasksFromTranscript,
   persistExtractedTasks,
 } from '@/lib/services/task-extractor';
+import { guardApi } from '@/lib/auth';
 
 // ---------- Types ----------
 
@@ -271,6 +272,9 @@ export async function POST(request: NextRequest) {
     if (!teamId) {
       return NextResponse.json({ error: 'team_id is required' }, { status: 400 });
     }
+
+    const guard = await guardApi({ teamId, roles: ['owner', 'manager'] });
+    if (guard.response) return guard.response;
 
     const supabase = getSupabaseAdmin();
 

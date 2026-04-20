@@ -25,6 +25,12 @@ export async function GET(req: NextRequest) {
       query = query.eq('is_read', false);
     }
 
+    // Developers only see alerts that concern them (e.g. their own low score,
+    // their own cost spike). Team-wide alerts stay visible to managers/owners.
+    if (ctx.role === 'developer') {
+      query = query.eq('developer_id', ctx.memberId);
+    }
+
     const { data: alerts, error } = await query;
 
     if (error) {

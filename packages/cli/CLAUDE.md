@@ -74,11 +74,17 @@ Always prefer transcript data over estimates.
 
 ## Commands
 
-- `evalai init` — Install hooks, create data dir, init DB
-- `evalai init --check` — Verify hooks installed
+- `evalai setup` — One-command onboarding: authenticate (browser OAuth or `--token`) and install Claude Code hooks
+  - Flags: `--token <token>`, `--api-url <url>`, `--force`, `--skip-hooks`
+  - Implementation: `src/commands/setup.ts` — chains `runLogin()` + `runInit()`; both expose programmatic APIs for this reason
+- `evalai login [--token <t>] [--api-url <u>] [--force]` — Authenticate only
+- `evalai logout` — Clear stored credentials
+- `evalai whoami` — Show the currently logged-in user + team
+- `evalai init` — Install hooks, create data dir (does not authenticate)
+- `evalai init --check` — Verify hooks + auth status
 - `evalai init --uninstall` — Remove hooks
 - `evalai init --team <id>` — Associate with a team (planned)
-- `evalai stats [--week|--month|--compare]` — Usage stats
+- `evalai stats [--week|--month|--compare]` — Usage stats (reads `/api/stats?period=today|week|month`)
 - `evalai sessions [id]` — Browse/detail sessions
 - `evalai config [set key value]` — Configuration
 - `evalai export [--csv|--json]` — Export data

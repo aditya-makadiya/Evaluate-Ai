@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { NextRequest } from 'next/server';
 import { getValidToken, discoverAllRepos, getTrackedRepos } from '@/lib/github-oauth';
+import { guardApi } from '@/lib/auth';
 
 interface GroupedRepo {
   name: string;
@@ -31,6 +32,9 @@ export async function GET(request: NextRequest) {
     if (!teamId) {
       return NextResponse.json({ error: 'team_id is required' }, { status: 400 });
     }
+
+    const guard = await guardApi({ teamId, roles: ['owner', 'manager'] });
+    if (guard.response) return guard.response;
 
     const token = await getValidToken(teamId);
     const [allRepos, trackedRepos] = await Promise.all([

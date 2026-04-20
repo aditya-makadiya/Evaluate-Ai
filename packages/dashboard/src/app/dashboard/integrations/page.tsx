@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { useAuth } from '@/components/auth-provider';
+import { useAuth, useCanAccess } from '@/components/auth-provider';
 import {
   Github,
   Mic,
@@ -10,6 +10,7 @@ import {
   MessageSquare,
   Check,
   AlertCircle,
+  Info,
   Plug,
   Search,
   Code2,
@@ -102,6 +103,7 @@ function IntegrationsPage() {
   const searchParams = useSearchParams();
   const { user: authUser } = useAuth();
   const teamId = authUser?.teamId ?? '';
+  const canManage = useCanAccess('owner', 'manager');
 
   // Integration state
   const [githubIntegration, setGithubIntegration] = useState<Integration | null>(null);
@@ -233,7 +235,17 @@ function IntegrationsPage() {
 
   // ---------- Handlers ----------
 
+  const READ_ONLY_MSG = 'Only owners and managers can configure integrations.';
+
+  function guardWrite(): boolean {
+    if (canManage) return true;
+    setErrorMsg(READ_ONLY_MSG);
+    setTimeout(() => setErrorMsg(null), 4000);
+    return false;
+  }
+
   function handleConnect(id: string) {
+    if (!guardWrite()) return;
     if (id === 'github') {
       window.location.href = `/api/integrations/github/connect?team_id=${teamId}`;
     } else if (id === 'fireflies') {
@@ -247,6 +259,7 @@ function IntegrationsPage() {
   }
 
   async function handleOpenRepoPicker() {
+    if (!guardWrite()) return;
     setManageModalId(null);
     setShowRepoPicker(true);
     setRepoPickerLoading(true);
@@ -313,6 +326,7 @@ function IntegrationsPage() {
   }
 
   async function handleSaveTrackedRepos() {
+    if (!guardWrite()) return;
     setRepoPickerSaving(true);
     try {
       const res = await fetch('/api/integrations/github/track', {
@@ -346,6 +360,7 @@ function IntegrationsPage() {
   }
 
   async function handleSaveFirefliesKey() {
+    if (!guardWrite()) return;
     if (!firefliesApiKey.trim()) {
       setErrorMsg('Please enter your Fireflies API key');
       return;
@@ -388,6 +403,7 @@ function IntegrationsPage() {
   }
 
   async function handleDisconnect(provider: string) {
+    if (!guardWrite()) return;
     setConfirmDisconnect(null);
     setManageModalId(null);
     setDisconnecting(provider);
@@ -426,6 +442,7 @@ function IntegrationsPage() {
   }
 
   async function handleGithubSync() {
+    if (!guardWrite()) return;
     setGithubSyncing(true);
     setErrorMsg(null);
     try {
@@ -465,6 +482,7 @@ function IntegrationsPage() {
   }
 
   async function handleFirefliesSync() {
+    if (!guardWrite()) return;
     setFirefliesSyncing(true);
     setErrorMsg(null);
     try {
@@ -561,6 +579,19 @@ function IntegrationsPage() {
           />
         </div>
       </div>
+
+      {/* Read-only banner for developers */}
+      {!canManage && (
+        <div className="mb-6 flex items-start gap-3 rounded-lg border border-blue-800/50 bg-blue-900/20 px-4 py-3 text-sm text-blue-300">
+          <Info className="h-4 w-4 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-medium">Read-only access</p>
+            <p className="text-xs text-blue-400 mt-0.5">
+              Only owners and managers can connect, sync, or disconnect integrations. You can see which ones are active.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Messages */}
       {successMsg && (

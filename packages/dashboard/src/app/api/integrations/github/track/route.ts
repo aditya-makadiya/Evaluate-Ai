@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { NextRequest } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-server';
+import { guardApi } from '@/lib/auth';
 
 /**
  * POST /api/integrations/github/track
@@ -8,6 +9,7 @@ import { getSupabaseAdmin } from '@/lib/supabase-server';
  * Save the user's selected repositories to track.
  * Body: { team_id: string, repos: string[] }
  * Where repos is an array of full_name strings (e.g. ["org/repo-a", "user/repo-b"]).
+ * RBAC: owner and manager only.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -21,6 +23,9 @@ export async function POST(request: NextRequest) {
     if (!Array.isArray(repos)) {
       return NextResponse.json({ error: 'repos must be an array of repository full names' }, { status: 400 });
     }
+
+    const guard = await guardApi({ teamId, roles: ['owner', 'manager'] });
+    if (guard.response) return guard.response;
 
     const supabase = getSupabaseAdmin();
 

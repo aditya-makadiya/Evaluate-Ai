@@ -17,7 +17,7 @@ Hooks into Claude Code to automatically capture every AI interaction:
 
 ```bash
 npm install -g evaluateai
-evalai init
+evalai setup          # one-command install: auth + Claude Code hooks
 ```
 
 ### 2. Web Dashboard
@@ -140,12 +140,32 @@ SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=your-anon-key
 ```
 
-### 3. Install Hooks
+### 3. Authenticate and Install Hooks
+
+Use the one-command setup (recommended):
 
 ```bash
-evalai init
-evalai init --check    # verify hooks are installed
+evalai setup                  # browser OAuth + hook install in one step
+evalai setup --token <token>  # zero-browser install for CI/Docker/dashboard one-liner
+evalai init --check           # verify hooks + auth status
 ```
+
+Or run the steps manually if you prefer:
+
+```bash
+evalai login                  # authenticate with your team
+evalai init                   # install hooks into Claude Code
+evalai init --check           # verify hooks are installed
+```
+
+`evalai setup` flags:
+
+| Flag | Purpose |
+|------|---------|
+| `--token <token>` | Skip the browser; use an API token from your dashboard |
+| `--api-url <url>` | Override the API URL (for self-hosted dashboards) |
+| `--force` | Re-authenticate even if already logged in |
+| `--skip-hooks` | Only authenticate; install Claude Code hooks later with `evalai init` |
 
 ### 4. Link to a Team (Optional)
 
@@ -166,6 +186,7 @@ claude    # EvaluateAI captures everything automatically
 ```bash
 evalai stats              # CLI stats
 evalai stats --week       # weekly summary
+evalai stats --compare    # compare vs previous period
 evalai sessions           # browse sessions
 
 # Or start the dashboard

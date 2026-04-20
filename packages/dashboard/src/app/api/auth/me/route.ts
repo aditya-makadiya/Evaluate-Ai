@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAuthContext } from '@/lib/auth';
+import { getSupabaseAdmin } from '@/lib/supabase-server';
 
 export async function GET() {
   try {
@@ -8,7 +9,6 @@ export async function GET() {
     if (!ctx) {
       // Debug: log why auth context is null to diagnose onboarding redirect
       const { getSupabaseServer } = await import('@/lib/supabase-ssr');
-      const { getSupabaseAdmin } = await import('@/lib/supabase-server');
       try {
         const supabase = await getSupabaseServer();
         const { data: { user }, error: authErr } = await supabase.auth.getUser();
@@ -35,6 +35,24 @@ export async function GET() {
       return NextResponse.json({ user: null }, { status: 401 });
     }
 
+    // Look up platform-admin status in the same request so the layout doesn't
+    // need a separate /api/admin/me probe (which 403s for every developer and
+    // repeats on each auth refresh).
+    let platformRole: 'admin' | 'super_admin' | null = null;
+    try {
+      const admin = getSupabaseAdmin();
+      const { data } = await admin
+        .from('platform_roles')
+        .select('role')
+        .eq('user_id', ctx.userId)
+        .maybeSingle();
+      if (data?.role === 'admin' || data?.role === 'super_admin') {
+        platformRole = data.role;
+      }
+    } catch {
+      // Non-fatal: treat as non-admin.
+    }
+
     return NextResponse.json({
       user: {
         id: ctx.userId,
@@ -45,6 +63,8 @@ export async function GET() {
         teamCode: ctx.teamCode,
         role: ctx.role,
         memberId: ctx.memberId,
+        platformRole,
+        isPlatformAdmin: platformRole !== null,
       },
     });
   } catch (err) {

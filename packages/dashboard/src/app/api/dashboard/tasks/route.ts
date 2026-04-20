@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { NextRequest } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-server';
+import { guardApi } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,19 +10,26 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'team_id is required' }, { status: 400 });
     }
 
+    const guard = await guardApi({ teamId });
+    if (guard.response) return guard.response;
+    const ctx = guard.ctx;
+
     const page = parseInt(request.nextUrl.searchParams.get('page') ?? '1', 10);
     const limit = parseInt(request.nextUrl.searchParams.get('limit') ?? '50', 10);
     const offset = (page - 1) * limit;
 
-    // Optional filters
     const status = request.nextUrl.searchParams.get('status');
     const priority = request.nextUrl.searchParams.get('priority');
-    const assigneeId = request.nextUrl.searchParams.get('assignee_id');
+    const assigneeIdParam = request.nextUrl.searchParams.get('assignee_id');
     const project = request.nextUrl.searchParams.get('project');
+
+    // Developers only ever see tasks assigned to themselves. Managers/owners
+    // see all team tasks, optionally narrowed by the assignee_id filter.
+    const isDeveloper = ctx.role === 'developer';
+    const effectiveAssigneeId = isDeveloper ? ctx.memberId : assigneeIdParam;
 
     const supabase = getSupabaseAdmin();
 
-    // Build query
     let query = supabase
       .from('tasks')
       .select(
@@ -34,7 +42,7 @@ export async function GET(request: NextRequest) {
 
     if (status) query = query.eq('status', status);
     if (priority) query = query.eq('priority', priority);
-    if (assigneeId) query = query.eq('assignee_id', assigneeId);
+    if (effectiveAssigneeId) query = query.eq('assignee_id', effectiveAssigneeId);
     if (project) query = query.eq('project', project);
 
     const { data: tasks, count, error } = await query;

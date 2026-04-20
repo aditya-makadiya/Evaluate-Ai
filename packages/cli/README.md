@@ -13,20 +13,27 @@ npm install -g evaluateai
 ## Quick Start
 
 ```bash
-# 1. Install hooks into Claude Code
-evalai init
+# 1. One-command setup — authenticates and installs Claude Code hooks
+evalai setup
 
-# 2. (Optional) Link to your team
-evalai init --team <team-id>
-
-# 3. Use Claude Code normally -- EvaluateAI runs automatically
+# 2. Use Claude Code normally -- EvaluateAI runs automatically
 claude
 
-# 4. Check your stats
+# 3. Check your stats
 evalai stats
 ```
 
-After `evalai init`, every Claude Code session is tracked automatically. Data flows directly to Supabase.
+`evalai setup` opens a browser to log in, then installs hooks. For CI/CD or
+zero-browser installs, pass a token from your dashboard:
+
+```bash
+evalai setup --token <token>
+```
+
+Prefer manual steps? See [Commands → Setup](#setup) for `evalai login` +
+`evalai init` separately.
+
+After setup, every Claude Code session is tracked automatically. Data flows directly to Supabase.
 
 ## What It Does
 
@@ -107,10 +114,22 @@ Prompts are classified by **intent** and scored with tailored rules:
 ### Setup
 
 ```bash
-evalai init                  # Install hooks into Claude Code
-evalai init --check          # Verify hooks are installed
-evalai init --uninstall      # Remove hooks
-evalai init --team <id>      # Link to a team for manager dashboard
+# One-liner: authenticate + install hooks (recommended)
+evalai setup                       # Browser OAuth flow
+evalai setup --token <token>       # Use a token (CI/CD, Docker, or dashboard one-liner)
+evalai setup --api-url <url>       # Override API URL (self-hosted dashboard)
+evalai setup --force               # Re-authenticate even if already logged in
+evalai setup --skip-hooks          # Only authenticate, don't install hooks yet
+
+# Or run the steps manually
+evalai login                       # Authenticate with your team
+evalai logout                      # Clear stored credentials
+evalai whoami                      # Show the currently logged-in user
+
+evalai init                        # Install hooks into Claude Code
+evalai init --check                # Verify hooks + auth status
+evalai init --uninstall            # Remove hooks
+evalai init --team <id>            # Link to a team for manager dashboard
 ```
 
 ### Team

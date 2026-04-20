@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { headers } from 'next/headers';
+import { NextResponse } from 'next/server';
 import { getSupabaseServer } from './supabase-ssr';
 import { getSupabaseAdmin } from './supabase-server';
 
@@ -133,4 +134,49 @@ async function getAuthFromSession(teamId?: string): Promise<AuthContext | null> 
  */
 export function requireRole(ctx: AuthContext, ...allowed: TeamRole[]): boolean {
   return allowed.includes(ctx.role);
+}
+
+export interface GuardOptions {
+  /** If provided, the request is rejected unless this teamId matches ctx.teamId. */
+  teamId?: string | null;
+  /** If provided, only these roles are allowed. Empty/omitted allows any authenticated member. */
+  roles?: TeamRole[];
+}
+
+export type GuardResult =
+  | { ctx: AuthContext; response?: undefined }
+  | { ctx?: undefined; response: NextResponse };
+
+/**
+ * Single guard for API routes: authenticates, validates tenant, and enforces role.
+ *
+ * Usage:
+ *   const guard = await guardApi({ teamId, roles: ['owner', 'manager'] });
+ *   if (guard.response) return guard.response;
+ *   const ctx = guard.ctx;
+ */
+export async function guardApi(opts: GuardOptions = {}): Promise<GuardResult> {
+  const ctx = await getAuthContext();
+  if (!ctx) {
+    return {
+      response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+    };
+  }
+
+  if (opts.teamId && opts.teamId !== ctx.teamId) {
+    return {
+      response: NextResponse.json({ error: 'Forbidden: team mismatch' }, { status: 403 }),
+    };
+  }
+
+  if (opts.roles && opts.roles.length > 0 && !opts.roles.includes(ctx.role)) {
+    return {
+      response: NextResponse.json(
+        { error: `Forbidden: requires ${opts.roles.join(' or ')}` },
+        { status: 403 }
+      ),
+    };
+  }
+
+  return { ctx };
 }

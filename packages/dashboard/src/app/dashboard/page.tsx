@@ -19,6 +19,8 @@ import {
 
 interface OverviewData {
   greeting: string;
+  scope?: 'team' | 'self';
+  role?: 'owner' | 'manager' | 'developer';
   stats: {
     activeDevs: number;
     totalDevs: number;
@@ -205,13 +207,30 @@ export default function DashboardPage() {
     <div className="min-h-screen">
       {/* Header */}
       <header className="mb-8 animate-section">
-        <h1 className="text-2xl font-bold tracking-tight text-text-primary">
-          {data?.greeting ?? (authUser?.name ? `Good morning, ${authUser.name}` : 'Good morning')}
-        </h1>
-        <p className="mt-1 text-sm text-text-muted">
-          {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-          {' \u00B7 '}Team Overview
-        </p>
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-text-primary">
+              {data?.greeting ?? (authUser?.name ? `Good morning, ${authUser.name}` : 'Good morning')}
+            </h1>
+            <p className="mt-1 text-sm text-text-muted">
+              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+              {' \u00B7 '}
+              {data?.scope === 'self' ? 'Your activity' : 'Team Overview'}
+            </p>
+          </div>
+          {data?.scope && (
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium ${
+                data.scope === 'self'
+                  ? 'border-blue-800/50 bg-blue-900/20 text-blue-300'
+                  : 'border-purple-800/50 bg-purple-900/20 text-purple-300'
+              }`}
+            >
+              <span className={`h-1.5 w-1.5 rounded-full ${data.scope === 'self' ? 'bg-blue-400' : 'bg-purple-400'}`} />
+              {data.scope === 'self' ? 'Personal view' : 'Team view'}
+            </span>
+          )}
+        </div>
       </header>
 
       {noTeam && (
@@ -250,13 +269,15 @@ export default function DashboardPage() {
             <div className="flex-1 grid grid-cols-2 gap-4">
               <StatCard
                 icon={Users}
-                label="Active Devs"
-                value={`${data.stats.activeDevs}/${data.stats.totalDevs}`}
+                label={data.scope === 'self' ? 'Your Activity' : 'Active Devs'}
+                value={data.scope === 'self'
+                  ? (data.stats.activeDevs > 0 ? 'Active' : 'Idle')
+                  : `${data.stats.activeDevs}/${data.stats.totalDevs}`}
                 color="text-[#8b5cf6]"
               />
               <StatCard
                 icon={CheckCircle2}
-                label="Tasks Done"
+                label={data.scope === 'self' ? 'Your Tasks Done' : 'Tasks Done'}
                 value={`${data.stats.tasksDone}/${data.stats.tasksTotal}`}
                 color="text-emerald-400"
               />

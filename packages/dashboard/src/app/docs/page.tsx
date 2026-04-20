@@ -17,6 +17,7 @@ import {
   Zap,
   Shield,
   Lightbulb,
+  Rocket,
 } from 'lucide-react';
 
 interface CommandDoc {
@@ -30,11 +31,29 @@ interface CommandDoc {
 
 const CLI_COMMANDS: CommandDoc[] = [
   {
+    name: 'setup',
+    description: 'One-command onboarding: authenticates with EvaluateAI and installs Claude Code hooks in a single step. Recommended for new installs.',
+    usage: 'evalai setup [options]',
+    flags: [
+      { flag: '--token <token>', description: 'Skip browser OAuth and authenticate with an API token (for CI/CD, Docker, or the dashboard one-liner)' },
+      { flag: '--api-url <url>', description: 'Override the API URL (for self-hosted dashboards)' },
+      { flag: '--force', description: 'Re-authenticate even if already logged in' },
+      { flag: '--skip-hooks', description: 'Only authenticate; install Claude Code hooks later with `evalai init`' },
+    ],
+    examples: [
+      'evalai setup',
+      'evalai setup --token eai_abc123...',
+      'evalai setup --skip-hooks',
+      'evalai setup --force',
+    ],
+    notes: 'Equivalent to running `evalai login` then `evalai init`. Generate the token under Profile > CLI & API Keys, then use the `--token` form for zero-browser installs.',
+  },
+  {
     name: 'init',
-    description: 'Install EvaluateAI hooks into Claude Code. This sets up automatic session tracking, prompt scoring, and usage monitoring.',
+    description: 'Install EvaluateAI hooks into Claude Code. This sets up automatic session tracking, prompt scoring, and usage monitoring. Use `evalai setup` if you also need to authenticate.',
     usage: 'evalai init',
     flags: [
-      { flag: '--check', description: 'Verify hook installation status without modifying anything' },
+      { flag: '--check', description: 'Verify hook installation + auth status without modifying anything' },
       { flag: '--uninstall', description: 'Remove all EvaluateAI hooks from Claude Code' },
     ],
     examples: [
@@ -42,7 +61,7 @@ const CLI_COMMANDS: CommandDoc[] = [
       'evalai init --check',
       'evalai init --uninstall',
     ],
-    notes: 'Run this once after installing the CLI. Hooks are installed into ~/.claude/settings.json.',
+    notes: 'Run this once after installing the CLI. Hooks are installed into ~/.claude/settings.json. Requires a prior `evalai login` (or use `evalai setup` for a one-step install).',
   },
   {
     name: 'login',
@@ -55,7 +74,7 @@ const CLI_COMMANDS: CommandDoc[] = [
       'evalai login',
       'evalai login --token eai_abc123...',
     ],
-    notes: 'API keys can be generated from Settings > CLI & API Keys in the dashboard.',
+    notes: 'API keys can be generated from Profile > CLI & API Keys in the dashboard.',
   },
   {
     name: 'logout',
@@ -162,6 +181,7 @@ function CodeBlock({ code, className = '' }: { code: string; className?: string 
 }
 
 const COMMAND_ICONS: Record<string, typeof Terminal> = {
+  setup: Rocket,
   init: Play,
   login: LogIn,
   logout: LogIn,
@@ -258,11 +278,29 @@ export default function DocsPage() {
           {/* Initial Setup */}
           <section id="setup" className="bg-bg-card border border-border-primary rounded-lg p-6">
             <div className="flex items-center gap-2.5 mb-4">
-              <Play className="w-5 h-5 text-emerald-400" />
+              <Rocket className="w-5 h-5 text-emerald-400" />
               <h2 className="text-lg font-semibold text-text-primary">Initial Setup</h2>
             </div>
             <p className="text-sm text-text-secondary mb-4 leading-relaxed">
-              After installing, run these commands to connect EvaluateAI to your Claude Code workflow:
+              Use the one-command <code className="text-text-primary bg-bg-elevated px-1.5 py-0.5 rounded text-xs font-mono">evalai setup</code> to authenticate and install Claude Code hooks in a single step:
+            </p>
+            <div className="space-y-3">
+              <div>
+                <p className="text-xs text-text-muted mb-1.5 font-medium">Recommended — one command, browser OAuth</p>
+                <CodeBlock code="evalai setup" />
+              </div>
+              <div>
+                <p className="text-xs text-text-muted mb-1.5 font-medium">Zero-browser install (CI/CD, Docker, dashboard one-liner)</p>
+                <CodeBlock code="evalai setup --token eai_your_token_here" />
+              </div>
+              <div>
+                <p className="text-xs text-text-muted mb-1.5 font-medium">Verify everything is working</p>
+                <CodeBlock code="evalai init --check" />
+              </div>
+            </div>
+
+            <p className="text-sm text-text-secondary mt-6 mb-3 leading-relaxed">
+              Prefer running the steps manually? Use <code className="text-text-primary bg-bg-elevated px-1.5 py-0.5 rounded text-xs font-mono">login</code> + <code className="text-text-primary bg-bg-elevated px-1.5 py-0.5 rounded text-xs font-mono">init</code>:
             </p>
             <div className="space-y-3">
               <div>
@@ -273,15 +311,12 @@ export default function DocsPage() {
                 <p className="text-xs text-text-muted mb-1.5 font-medium">2. Install Claude Code hooks</p>
                 <CodeBlock code="evalai init" />
               </div>
-              <div>
-                <p className="text-xs text-text-muted mb-1.5 font-medium">3. Verify everything is working</p>
-                <CodeBlock code="evalai init --check" />
-              </div>
             </div>
+
             <div className="mt-4 bg-purple-900/10 border border-purple-800/30 rounded-lg p-4 flex items-start gap-3">
               <Lightbulb className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
               <p className="text-xs text-text-secondary leading-relaxed">
-                After setup, EvaluateAI automatically tracks every Claude Code session. No further configuration needed. View your data on this dashboard or via <code className="text-text-primary bg-bg-elevated px-1 py-0.5 rounded font-mono">evalai stats</code>.
+                After setup, EvaluateAI automatically tracks every Claude Code session. No further configuration needed. View your data on this dashboard or via <code className="text-text-primary bg-bg-elevated px-1 py-0.5 rounded font-mono">evalai stats</code>. Generate a one-liner token in <strong className="text-text-primary">Profile → CLI &amp; API Keys</strong>.
               </p>
             </div>
           </section>

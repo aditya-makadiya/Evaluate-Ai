@@ -14,10 +14,6 @@ import {
   XCircle,
   AlertTriangle,
   Settings,
-  Key,
-  Copy,
-  Check,
-  Plus,
 } from 'lucide-react';
 
 // --------------- Types ---------------
@@ -125,21 +121,13 @@ export default function SettingsPage() {
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
-  // CLI tokens state
-  const [cliTokens, setCliTokens] = useState<Array<{ id: string; prefix: string; name: string; lastUsedAt: string | null; createdAt: string; isRevoked: boolean }>>([]);
-  const [newToken, setNewToken] = useState<string | null>(null);
-  const [copiedToken, setCopiedToken] = useState(false);
-  const [generatingToken, setGeneratingToken] = useState(false);
-
   useEffect(() => {
     if (!authUser) return;
     setLoading(true);
 
-    Promise.all([
-      fetch('/api/config').then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))),
-      fetch('/api/cli/tokens').then(r => r.ok ? r.json() : { tokens: [] }),
-    ])
-      .then(([raw, tokensData]) => {
+    fetch('/api/config')
+      .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
+      .then((raw) => {
         const getValue = (key: string, fallback: string) => {
           const entry = raw[key];
           if (!entry) return fallback;
@@ -150,46 +138,10 @@ export default function SettingsPage() {
           scoring: getValue('scoring', 'llm') as ScoringMode,
           threshold: parseInt(getValue('threshold', '50'), 10),
         });
-        setCliTokens(tokensData.tokens ?? []);
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [authUser]);
-
-  async function handleGenerateToken() {
-    setGeneratingToken(true);
-    try {
-      const res = await fetch('/api/cli/tokens', { method: 'POST' });
-      if (!res.ok) throw new Error('Failed to generate token');
-      const data = await res.json();
-      setNewToken(data.token);
-      // Refresh token list
-      const listRes = await fetch('/api/cli/tokens');
-      if (listRes.ok) {
-        const listData = await listRes.json();
-        setCliTokens(listData.tokens ?? []);
-      }
-    } catch {
-      showToast('error', 'Failed to generate API key');
-    } finally {
-      setGeneratingToken(false);
-    }
-  }
-
-  async function handleRevokeToken(tokenId: string) {
-    try {
-      const res = await fetch('/api/cli/tokens', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tokenId }),
-      });
-      if (!res.ok) throw new Error('Failed to revoke token');
-      setCliTokens(prev => prev.map(t => t.id === tokenId ? { ...t, isRevoked: true } : t));
-      showToast('success', 'API key revoked');
-    } catch {
-      showToast('error', 'Failed to revoke API key');
-    }
-  }
 
   const showToast = useCallback(
     (type: 'success' | 'error', message: string) => {
@@ -425,82 +377,6 @@ export default function SettingsPage() {
                 <span>50</span>
                 <span>100 (always)</span>
               </div>
-            </div>
-          </SectionCard>
-
-          {/* CLI & API Keys */}
-          <SectionCard
-            title="CLI & API Keys"
-            icon={<Key className="w-4 h-4 text-orange-400" />}
-            description="Manage API keys for the CLI and CI/CD integrations"
-          >
-            <div className="space-y-4">
-              {/* Newly generated token (show once) */}
-              {newToken && (
-                <div className="bg-yellow-900/10 border border-yellow-800/30 rounded-lg p-4">
-                  <p className="text-xs font-medium text-yellow-400 mb-2">
-                    Copy this token now — it won&apos;t be shown again
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <code className="flex-1 text-xs font-mono text-text-primary bg-bg-primary border border-border-primary rounded px-3 py-2 break-all">
-                      {newToken}
-                    </code>
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(newToken);
-                        setCopiedToken(true);
-                        setTimeout(() => setCopiedToken(false), 2000);
-                      }}
-                      className="h-9 w-9 shrink-0 flex items-center justify-center rounded-lg border border-border-primary text-text-muted hover:text-text-primary hover:bg-bg-elevated transition-colors"
-                    >
-                      {copiedToken ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Token list */}
-              {cliTokens.length > 0 && (
-                <div className="divide-y divide-border-primary">
-                  {cliTokens.map(token => (
-                    <div key={token.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
-                      <Key className="h-3.5 w-3.5 text-text-muted shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-mono text-text-primary">
-                          {token.prefix}...
-                          {token.isRevoked && <span className="ml-2 text-red-400 font-sans">(revoked)</span>}
-                        </p>
-                        <p className="text-[10px] text-text-muted">
-                          Created {new Date(token.createdAt).toLocaleDateString()}
-                          {token.lastUsedAt && ` · Last used ${new Date(token.lastUsedAt).toLocaleDateString()}`}
-                        </p>
-                      </div>
-                      {!token.isRevoked && (
-                        <button
-                          onClick={() => handleRevokeToken(token.id)}
-                          className="text-[10px] px-2 py-1 rounded border border-red-900/40 text-red-400/80 hover:text-red-400 hover:bg-red-900/10 transition-colors"
-                        >
-                          Revoke
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Generate button */}
-              <button
-                onClick={handleGenerateToken}
-                disabled={generatingToken}
-                className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium border border-border-primary rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-elevated hover:border-border-hover transition-all disabled:opacity-50"
-              >
-                {generatingToken ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                Generate New API Key
-              </button>
-
-              <p className="text-xs text-text-muted">
-                Use API keys with <code className="text-text-secondary bg-bg-elevated px-1.5 py-0.5 rounded text-[11px] font-mono">evalai login --token &lt;key&gt;</code> for CI/CD environments.
-              </p>
             </div>
           </SectionCard>
 

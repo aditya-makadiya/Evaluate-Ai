@@ -13,6 +13,8 @@ export async function middleware(request: NextRequest) {
     pathname === '/' ||
     PUBLIC_ROUTES.some(route => pathname.startsWith(route)) ||
     pathname.startsWith('/api/cli/') ||
+    pathname.startsWith('/api/auth/signup') ||
+    pathname.startsWith('/api/teams/join') ||
     pathname.startsWith('/api/integrations/github/webhook') ||
     pathname.startsWith('/api/integrations/github/callback') ||
     pathname.startsWith('/api/integrations/fireflies/webhook') ||

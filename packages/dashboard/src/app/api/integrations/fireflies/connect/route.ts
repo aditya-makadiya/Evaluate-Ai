@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import { NextRequest } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-server';
+import { guardApi } from '@/lib/auth';
 
 /**
  * POST /api/integrations/fireflies/connect
  * Saves the Fireflies API key and verifies it by calling their GraphQL API.
  *
  * Body: { team_id: string, api_key: string }
+ * RBAC: owner and manager only.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -19,6 +21,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const guard = await guardApi({ teamId, roles: ['owner', 'manager'] });
+    if (guard.response) return guard.response;
 
     // Verify the API key by calling Fireflies GraphQL API
     // Note: Fireflies user query supports: name, user_id, integrations (not email)

@@ -20,6 +20,7 @@ import {
   loginCommand,
   logoutCommand,
   whoamiCommand,
+  setupCommand,
   CLI_VERSION,
 } from '../dist/index.js';
 
@@ -36,6 +37,7 @@ program.addCommand(logoutCommand);
 program.addCommand(whoamiCommand);
 
 // Setup & team commands
+program.addCommand(setupCommand);
 program.addCommand(initCommand);
 program.addCommand(teamCommand);
 

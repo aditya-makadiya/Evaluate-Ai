@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { UserPlus, Mail, Lock, User, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { UserPlus, Mail, Lock, User, AlertCircle, Eye, EyeOff, MailCheck } from 'lucide-react';
 import { getSupabaseBrowser } from '@/lib/supabase-browser';
 
 export default function SignupPage() {
@@ -14,6 +14,7 @@ export default function SignupPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [awaitingConfirm, setAwaitingConfirm] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,7 +24,7 @@ export default function SignupPage() {
     try {
       const supabase = getSupabaseBrowser();
 
-      const { error: authError } = await supabase.auth.signUp({
+      const { data, error: authError } = await supabase.auth.signUp({
         email,
         password,
         options: { data: { name } },
@@ -34,7 +35,15 @@ export default function SignupPage() {
         return;
       }
 
-      // Account created — redirect to onboarding to create/join team
+      // If Supabase email-confirmation is enabled, signUp returns no session.
+      // Show a confirmation screen instead of sending the user to onboarding,
+      // where authenticated API calls would fail.
+      if (!data.session) {
+        setAwaitingConfirm(true);
+        return;
+      }
+
+      // Session is active (email confirmation disabled) — continue to onboarding.
       router.push('/onboarding');
       router.refresh();
     } catch {
@@ -51,6 +60,50 @@ export default function SignupPage() {
     'focus:border-border-focus focus:outline-none',
     'transition-colors',
   ].join(' ');
+
+  if (awaitingConfirm) {
+    return (
+      <div className="animate-section">
+        <div className="flex flex-col items-center mb-8">
+          <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-[#8b5cf6] to-[#6d28d9] flex items-center justify-center shadow-[0_0_24px_rgba(139,92,246,0.3)] mb-4">
+            <MailCheck className="h-6 w-6 text-white" />
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-text-primary">
+            Check your email
+          </h1>
+          <p className="text-sm text-text-secondary mt-1 text-center">
+            We sent a confirmation link to
+          </p>
+          <p className="text-sm font-medium text-text-primary mt-0.5">{email}</p>
+        </div>
+
+        <div className="bg-bg-card border border-border-primary rounded-lg p-6 space-y-4">
+          <p className="text-sm text-text-secondary">
+            Click the link in the email to verify your account, then come back and sign in to continue setting up your team.
+          </p>
+          <div className="bg-bg-elevated border border-border-primary rounded-lg px-4 py-3 text-xs text-text-muted">
+            Didn&apos;t get it? Check your spam folder, or wait a minute and try signing up again with the same email.
+          </div>
+          <Link
+            href="/auth/login"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-purple-600 hover:bg-purple-500 px-4 py-2.5 text-sm font-medium text-white transition-colors"
+          >
+            Go to sign in
+          </Link>
+        </div>
+
+        <p className="text-center text-sm text-text-muted mt-6">
+          Wrong email?{' '}
+          <button
+            onClick={() => setAwaitingConfirm(false)}
+            className="text-[#8b5cf6] hover:text-[#a78bfa] transition-colors"
+          >
+            Start over
+          </button>
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="animate-section">

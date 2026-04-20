@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import { NextRequest } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-server';
+import { guardApi } from '@/lib/auth';
 
 /**
  * POST /api/integrations/disconnect
  * Disconnects an integration by marking it as revoked.
  *
  * Body: { team_id: string, provider: 'github' | 'fireflies' }
+ * RBAC: owner and manager only.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -26,6 +28,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const guard = await guardApi({ teamId, roles: ['owner', 'manager'] });
+    if (guard.response) return guard.response;
 
     const supabase = getSupabaseAdmin();
 

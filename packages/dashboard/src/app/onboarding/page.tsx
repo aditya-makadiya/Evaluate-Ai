@@ -65,9 +65,16 @@ export default function OnboardingPage() {
   const [githubConnected, setGithubConnected] = useState(false);
   const [copiedInstall, setCopiedInstall] = useState(false);
   const [copiedInit, setCopiedInit] = useState(false);
+  const [copiedSetup, setCopiedSetup] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // CLI setup token — provisioned once when user reaches Step 4
+  const [cliToken, setCliToken] = useState<string | null>(null);
+  const [cliTokenError, setCliTokenError] = useState('');
+  const [cliTokenLoading, setCliTokenLoading] = useState(false);
+  const [showAdvancedCli, setShowAdvancedCli] = useState(false);
 
   const slug = teamName
     .toLowerCase()
@@ -102,6 +109,14 @@ export default function OnboardingPage() {
     }
   };
 
+  const parseJsonSafe = async (res: Response): Promise<Record<string, unknown> | null> => {
+    try {
+      return await res.json();
+    } catch {
+      return null;
+    }
+  };
+
   const handleLookupTeam = async () => {
     if (!joinCode.trim()) return;
     setLookupLoading(true);
@@ -109,14 +124,24 @@ export default function OnboardingPage() {
     setFoundTeam(null);
     try {
       const res = await fetch(`/api/teams/join?code=${encodeURIComponent(joinCode.trim())}`);
-      const data = await res.json();
+      const data = await parseJsonSafe(res);
+
       if (!res.ok) {
-        setLookupError(data.error || 'Team not found');
+        if (res.status === 401) {
+          setLookupError('Please confirm your email and sign in to continue.');
+          return;
+        }
+        setLookupError((data?.error as string) || `Team not found (code ${res.status})`);
         return;
       }
-      setFoundTeam(data.team);
+
+      if (!data?.team) {
+        setLookupError('Unexpected response from server. Please try again.');
+        return;
+      }
+      setFoundTeam(data.team as FoundTeam);
     } catch {
-      setLookupError('Network error. Please try again.');
+      setLookupError('Could not reach the server. Check your connection and retry.');
     } finally {
       setLookupLoading(false);
     }
@@ -132,18 +157,25 @@ export default function OnboardingPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: joinCode.trim() }),
       });
-      const data = await res.json();
+      const data = await parseJsonSafe(res);
+
       if (!res.ok) {
-        setError(data.error || 'Failed to join team');
+        if (res.status === 401) {
+          setError('Your session has expired. Please sign in again to join this team.');
+          return;
+        }
+        setError((data?.error as string) || 'Failed to join team');
         return;
       }
-      setTeamId(data.team?.id || '');
-      setTeamName(data.team?.name || '');
+
+      const team = data?.team as { id?: string; name?: string } | undefined;
+      setTeamId(team?.id || '');
+      setTeamName(team?.name || '');
       await refresh();
       // Skip step 2 (share code) for joiners — go to GitHub
       setStep(3);
     } catch {
-      setError('Network error. Please try again.');
+      setError('Could not reach the server. Check your connection and retry.');
     } finally {
       setLoading(false);
     }
@@ -174,6 +206,35 @@ export default function OnboardingPage() {
     window.open(`/api/integrations/github/connect?team=${teamId}`, '_blank');
     setGithubConnected(true);
   };
+
+  // Provision a CLI token exactly once when the user first reaches Step 4.
+  useEffect(() => {
+    if (step !== 4 || cliToken || cliTokenLoading) return;
+    let cancelled = false;
+    setCliTokenLoading(true);
+    setCliTokenError('');
+    (async () => {
+      try {
+        const res = await fetch('/api/cli/tokens', { method: 'POST' });
+        const data = await res.json();
+        if (cancelled) return;
+        if (!res.ok || !data?.token) {
+          setCliTokenError(data?.error || 'Could not generate setup token');
+          return;
+        }
+        setCliToken(data.token as string);
+      } catch {
+        if (!cancelled) setCliTokenError('Network error. You can still use the manual steps below.');
+      } finally {
+        if (!cancelled) setCliTokenLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [step, cliToken, cliTokenLoading]);
+
+  const setupOneLiner = cliToken ? `npx evaluateai@latest setup --token=${cliToken}` : '';
 
   const copyToClipboard = useCallback(
     (text: string, setter: (v: boolean) => void) => {
@@ -262,14 +323,14 @@ export default function OnboardingPage() {
           </div>
           <div className="h-1 bg-bg-elevated rounded-full overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-purple-600 to-purple-400 rounded-full transition-all duration-500"
+              className="h-full bg-linear-to-r from-purple-600 to-purple-400 rounded-full transition-all duration-500"
               style={{ width: `${progressPct}%` }}
             />
           </div>
         </div>
 
         {/* Card */}
-        <div className="bg-white/[0.03] backdrop-blur-sm border border-border-primary rounded-2xl p-8">
+        <div className="bg-white/3 backdrop-blur-sm border border-border-primary rounded-2xl p-8">
           {/* ── Step 1: Create or Join Team ── */}
           {step === 1 && !mode && (
             <div className="animate-[slideUp_0.4s_ease-out]">
@@ -353,7 +414,7 @@ export default function OnboardingPage() {
               <div className="flex gap-3 mt-8">
                 <button
                   onClick={() => { setMode(null); setError(''); }}
-                  className="h-10 w-10 shrink-0 flex items-center justify-center border border-border-primary bg-white/[0.03] rounded-xl text-text-muted hover:text-text-primary hover:bg-white/[0.06] transition-all"
+                  className="h-10 w-10 shrink-0 flex items-center justify-center border border-border-primary bg-white/3 rounded-xl text-text-muted hover:text-text-primary hover:bg-white/6 transition-all"
                 >
                   <ArrowLeft className="h-4 w-4" />
                 </button>
@@ -439,7 +500,7 @@ export default function OnboardingPage() {
               <div className="flex gap-3 mt-8">
                 <button
                   onClick={() => { setMode(null); setError(''); setLookupError(''); setFoundTeam(null); }}
-                  className="h-10 w-10 shrink-0 flex items-center justify-center border border-border-primary bg-white/[0.03] rounded-xl text-text-muted hover:text-text-primary hover:bg-white/[0.06] transition-all"
+                  className="h-10 w-10 shrink-0 flex items-center justify-center border border-border-primary bg-white/3 rounded-xl text-text-muted hover:text-text-primary hover:bg-white/6 transition-all"
                 >
                   <ArrowLeft className="h-4 w-4" />
                 </button>
@@ -538,7 +599,7 @@ export default function OnboardingPage() {
               <div className="flex gap-3 mt-8">
                 <button
                   onClick={() => setStep(3)}
-                  className="flex-1 border border-border-primary bg-white/[0.03] text-text-secondary hover:bg-white/[0.06] hover:text-text-primary rounded-xl px-4 py-3 text-sm font-medium transition-all"
+                  className="flex-1 border border-border-primary bg-white/3 text-text-secondary hover:bg-white/6 hover:text-text-primary rounded-xl px-4 py-3 text-sm font-medium transition-all"
                 >
                   Skip
                 </button>
@@ -592,7 +653,7 @@ export default function OnboardingPage() {
               <div className="flex gap-3 mt-4">
                 <button
                   onClick={() => setStep(mode === 'join' ? 1 : 2)}
-                  className="h-10 w-10 shrink-0 flex items-center justify-center border border-border-primary bg-white/[0.03] rounded-xl text-text-muted hover:text-text-primary hover:bg-white/[0.06] transition-all"
+                  className="h-10 w-10 shrink-0 flex items-center justify-center border border-border-primary bg-white/3 rounded-xl text-text-muted hover:text-text-primary hover:bg-white/6 transition-all"
                 >
                   <ArrowLeft className="h-4 w-4" />
                 </button>
@@ -601,7 +662,7 @@ export default function OnboardingPage() {
                   className={`flex-1 flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-all ${
                     githubConnected
                       ? 'bg-purple-600 hover:bg-purple-500 text-white'
-                      : 'border border-border-primary bg-white/[0.03] text-text-secondary hover:bg-white/[0.06]'
+                      : 'border border-border-primary bg-white/3 text-text-secondary hover:bg-white/6'
                   }`}
                 >
                   {githubConnected ? 'Continue' : 'Skip'}
@@ -618,55 +679,101 @@ export default function OnboardingPage() {
                 Install CLI on Developer Machines
               </h2>
               <p className="text-sm text-text-secondary mb-8">
-                Have each developer run these two commands.
+                Copy this one-liner. Each developer runs it once — no login step needed.
               </p>
 
-              <div className="space-y-4">
-                <div>
-                  <label className="text-xs font-medium text-text-muted mb-1.5 block">
-                    1. Install the CLI
-                  </label>
-                  <div className="flex items-center gap-2 bg-bg-secondary border border-border-primary rounded-xl px-4 py-3">
-                    <code className="flex-1 text-sm font-mono text-purple-400">
-                      npm install -g evaluateai
-                    </code>
-                    <button
-                      onClick={() => copyToClipboard('npm install -g evaluateai', setCopiedInstall)}
-                      className="h-8 w-8 shrink-0 flex items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-elevated transition-colors"
-                    >
-                      {copiedInstall ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
-                    </button>
-                  </div>
-                </div>
+              <div>
+                <label className="text-xs font-medium text-text-muted mb-1.5 block">
+                  Setup command (token pre-authenticated)
+                </label>
 
-                <div>
-                  <label className="text-xs font-medium text-text-muted mb-1.5 block">
-                    2. Login and initialize
-                  </label>
+                {cliTokenLoading && (
+                  <div className="flex items-center gap-2 bg-bg-secondary border border-border-primary rounded-xl px-4 py-3 animate-pulse">
+                    <div className="h-4 bg-bg-elevated rounded w-full" />
+                  </div>
+                )}
+
+                {!cliTokenLoading && cliToken && (
                   <div className="flex items-center gap-2 bg-bg-secondary border border-border-primary rounded-xl px-4 py-3">
-                    <code className="flex-1 text-sm font-mono text-purple-400">
-                      evalai login && evalai init
+                    <code className="flex-1 text-sm font-mono text-purple-400 break-all">
+                      {setupOneLiner}
                     </code>
                     <button
-                      onClick={() => copyToClipboard('evalai login && evalai init', setCopiedInit)}
+                      onClick={() => copyToClipboard(setupOneLiner, setCopiedSetup)}
                       className="h-8 w-8 shrink-0 flex items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-elevated transition-colors"
                     >
-                      {copiedInit ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
+                      {copiedSetup ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
                     </button>
                   </div>
-                </div>
+                )}
+
+                {!cliTokenLoading && !cliToken && cliTokenError && (
+                  <div className="flex items-center gap-2 bg-red-900/20 border border-red-800/50 rounded-xl px-4 py-3 text-red-300 text-xs">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    {cliTokenError}
+                  </div>
+                )}
+
+                <p className="text-xs text-text-muted mt-2">
+                  Installs the CLI, authenticates, and registers Claude Code hooks in one step.
+                </p>
               </div>
+
+              <button
+                onClick={() => setShowAdvancedCli((v) => !v)}
+                className="mt-6 text-xs text-text-muted hover:text-text-secondary transition-colors"
+              >
+                {showAdvancedCli ? '− Hide manual steps' : '+ Show manual steps (advanced)'}
+              </button>
+
+              {showAdvancedCli && (
+                <div className="mt-3 space-y-3 animate-[slideUp_0.2s_ease-out]">
+                  <div>
+                    <label className="text-xs font-medium text-text-muted mb-1.5 block">
+                      1. Install the CLI
+                    </label>
+                    <div className="flex items-center gap-2 bg-bg-secondary border border-border-primary rounded-xl px-4 py-3">
+                      <code className="flex-1 text-sm font-mono text-purple-400">
+                        npm install -g evaluateai
+                      </code>
+                      <button
+                        onClick={() => copyToClipboard('npm install -g evaluateai', setCopiedInstall)}
+                        className="h-8 w-8 shrink-0 flex items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-elevated transition-colors"
+                      >
+                        {copiedInstall ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium text-text-muted mb-1.5 block">
+                      2. Login and initialize
+                    </label>
+                    <div className="flex items-center gap-2 bg-bg-secondary border border-border-primary rounded-xl px-4 py-3">
+                      <code className="flex-1 text-sm font-mono text-purple-400">
+                        evalai login && evalai init
+                      </code>
+                      <button
+                        onClick={() => copyToClipboard('evalai login && evalai init', setCopiedInit)}
+                        className="h-8 w-8 shrink-0 flex items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-elevated transition-colors"
+                      >
+                        {copiedInit ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="flex gap-3 mt-8">
                 <button
                   onClick={() => setStep(3)}
-                  className="h-10 w-10 shrink-0 flex items-center justify-center border border-border-primary bg-white/[0.03] rounded-xl text-text-muted hover:text-text-primary hover:bg-white/[0.06] transition-all"
+                  className="h-10 w-10 shrink-0 flex items-center justify-center border border-border-primary bg-white/3 rounded-xl text-text-muted hover:text-text-primary hover:bg-white/6 transition-all"
                 >
                   <ArrowLeft className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => setStep(5)}
-                  className="flex-1 border border-border-primary bg-white/[0.03] text-text-secondary hover:bg-white/[0.06] hover:text-text-primary rounded-xl px-4 py-3 text-sm font-medium transition-all"
+                  className="flex-1 border border-border-primary bg-white/3 text-text-secondary hover:bg-white/6 hover:text-text-primary rounded-xl px-4 py-3 text-sm font-medium transition-all"
                 >
                   I&apos;ll do this later
                 </button>

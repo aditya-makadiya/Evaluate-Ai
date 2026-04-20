@@ -15,9 +15,17 @@ const HOOK_EVENTS = [
   'SessionEnd',
 ] as const;
 
-/**
- * Build the hooks object that should be merged into settings.json.
- */
+export interface InitOptions {
+  /** When true, suppress the init command's own header/output (caller owns UX). */
+  silent?: boolean;
+}
+
+export interface InitResult {
+  success: boolean;
+  hooksInstalled: number;
+  reason?: string;
+}
+
 function buildHooksConfig(): Record<string, unknown> {
   const hooks: Record<string, unknown> = {};
   for (const event of HOOK_EVENTS) {
@@ -36,9 +44,6 @@ function buildHooksConfig(): Record<string, unknown> {
   return hooks;
 }
 
-/**
- * Read the existing Claude Code settings.json, or return an empty object.
- */
 function readSettings(path: string): Record<string, unknown> {
   if (!existsSync(path)) return {};
   try {
@@ -48,16 +53,10 @@ function readSettings(path: string): Record<string, unknown> {
   }
 }
 
-/**
- * Write settings back to disk.
- */
 function writeSettings(path: string, settings: Record<string, unknown>): void {
   writeFileSync(path, JSON.stringify(settings, null, 2) + '\n', 'utf-8');
 }
 
-/**
- * Check which hooks are installed, returning status per event.
- */
 function checkHooks(settings: Record<string, unknown>): Map<string, boolean> {
   const result = new Map<string, boolean>();
   const hooks = (settings.hooks ?? {}) as Record<string, unknown>;
@@ -66,7 +65,6 @@ function checkHooks(settings: Record<string, unknown>): Map<string, boolean> {
     let installed = false;
 
     if (Array.isArray(hookEntry)) {
-      // Correct format: [{ hooks: [{ type: "command", command: "evalai hook ..." }] }]
       installed = hookEntry.some((entry: Record<string, unknown>) => {
         const innerHooks = entry.hooks;
         if (Array.isArray(innerHooks)) {
@@ -75,7 +73,6 @@ function checkHooks(settings: Record<string, unknown>): Map<string, boolean> {
               typeof h.command === 'string' && (h.command as string).includes('evalai hook')
           );
         }
-        // Also check flat format: { type: "command", command: "..." }
         return typeof entry.command === 'string' && (entry.command as string).includes('evalai hook');
       });
     }
@@ -85,18 +82,12 @@ function checkHooks(settings: Record<string, unknown>): Map<string, boolean> {
   return result;
 }
 
-/**
- * Remove all EvaluateAI hooks from settings.
- */
 function removeHooks(settings: Record<string, unknown>): Record<string, unknown> {
   const hooks = (settings.hooks ?? {}) as Record<string, unknown>;
-  // Iterate ALL hook events in settings (not just HOOK_EVENTS) to clean up
-  // deprecated hooks like PreToolUse/PostToolUse from older versions.
   for (const event of Object.keys(hooks)) {
     const hookEntry = hooks[event];
 
     if (Array.isArray(hookEntry)) {
-      // Filter out entries that contain our evalai hooks
       const remaining = hookEntry.filter((entry: Record<string, unknown>) => {
         const innerHooks = entry.hooks;
         if (Array.isArray(innerHooks)) {
@@ -105,7 +96,6 @@ function removeHooks(settings: Record<string, unknown>): Record<string, unknown>
               typeof h.command === 'string' && (h.command as string).includes('evalai hook')
           );
         }
-        // Also handle flat format
         return !(typeof entry.command === 'string' && (entry.command as string).includes('evalai hook'));
       });
       if (remaining.length === 0) {
@@ -123,6 +113,29 @@ function removeHooks(settings: Record<string, unknown>): Record<string, unknown>
   return settings;
 }
 
+/**
+ * Run init programmatically — creates the data dir and installs hooks into
+ * Claude Code's settings.json. Returns a structured result instead of printing.
+ */
+export async function runInit(_opts: InitOptions = {}): Promise<InitResult> {
+  try {
+    ensureDataDir();
+    const settingsPath = getClaudeSettingsPath();
+    const settings = readSettings(settingsPath);
+    const existingHooks = (settings.hooks ?? {}) as Record<string, unknown>;
+    const newHooks = buildHooksConfig();
+    settings.hooks = { ...existingHooks, ...newHooks };
+    writeSettings(settingsPath, settings);
+    return { success: true, hooksInstalled: HOOK_EVENTS.length };
+  } catch (err) {
+    return {
+      success: false,
+      hooksInstalled: 0,
+      reason: err instanceof Error ? err.message : 'Unknown error during init',
+    };
+  }
+}
+
 export const initCommand = new Command('init')
   .description('Initialize EvaluateAI: install hooks and verify configuration')
   .option('--check', 'Verify that all hooks are installed')
@@ -130,7 +143,6 @@ export const initCommand = new Command('init')
   .action(async (opts: { check?: boolean; uninstall?: boolean }) => {
     const settingsPath = getClaudeSettingsPath();
 
-    // --- --check: verify installation ---
     if (opts.check) {
       printHeader('Hook Status');
       const settings = readSettings(settingsPath);
@@ -148,7 +160,6 @@ export const initCommand = new Command('init')
         console.log(chalk.yellow('  Some hooks are missing. Run `evalai init` to install them.'));
       }
 
-      // Check CLI auth status (token-based flow)
       console.log('');
       printHeader('Auth Status');
       const { readCredentials, getApiUrl } = await import('../utils/credentials.js');
@@ -161,7 +172,6 @@ export const initCommand = new Command('init')
         console.log(chalk.dim(`    Team:    ${creds.teamName || 'unknown'}`));
         console.log(chalk.dim(`    API URL: ${getApiUrl()}`));
 
-        // Verify token is still valid
         try {
           const res = await fetch(`${getApiUrl()}/api/cli/verify`, {
             headers: { Authorization: `Bearer ${creds.token}` },
@@ -181,7 +191,6 @@ export const initCommand = new Command('init')
       return;
     }
 
-    // --- --uninstall: remove hooks ---
     if (opts.uninstall) {
       printHeader('Uninstalling Hooks');
       const settings = readSettings(settingsPath);
@@ -191,15 +200,16 @@ export const initCommand = new Command('init')
       return;
     }
 
-    // --- Default: full init ---
     printHeader('EvaluateAI Init');
 
-    // 1. Create data directory
     console.log('  Creating data directory...');
-    ensureDataDir();
+    const result = await runInit();
+    if (!result.success) {
+      console.log(chalk.red(`  ✗ ${result.reason || 'Init failed'}`));
+      process.exit(1);
+    }
     console.log(chalk.green('  ✓ ~/.evaluateai-v2/ ready'));
 
-    // 2. Check login status
     const { readCredentials } = await import('../utils/credentials.js');
     const creds = readCredentials();
     if (!creds?.token) {
@@ -209,18 +219,7 @@ export const initCommand = new Command('init')
       console.log(chalk.green(`  ✓ Logged in as ${creds.email || 'unknown'} (${creds.teamName || 'unknown team'})`));
     }
 
-    // 3. Install hooks into Claude Code settings
-    console.log('  Installing hooks into Claude Code...');
-    const settings = readSettings(settingsPath);
-    const existingHooks = (settings.hooks ?? {}) as Record<string, unknown>;
-    const newHooks = buildHooksConfig();
-
-    // Merge: add our hooks, preserve any others the user has
-    settings.hooks = { ...existingHooks, ...newHooks };
-    writeSettings(settingsPath, settings);
-    console.log(chalk.green(`  ✓ ${HOOK_EVENTS.length} hooks installed`));
-
-    // 4. Summary
+    console.log(chalk.green(`  ✓ ${result.hooksInstalled} hooks installed`));
     console.log('');
     console.log(chalk.bold('  Setup complete!'));
     console.log(chalk.dim('  Run `evalai init --check` to verify.'));

@@ -14,6 +14,8 @@ export interface AuthUser {
   teamCode: string;
   role: 'owner' | 'manager' | 'developer';
   memberId: string;
+  platformRole?: 'admin' | 'super_admin' | null;
+  isPlatformAdmin?: boolean;
 }
 
 interface AuthState {
@@ -54,6 +56,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isPublicPage = pathname === '/' || pathname.startsWith('/auth') || pathname.startsWith('/onboarding');
 
   const fetchUserContext = useCallback(async () => {
+    // Prevent concurrent invocations. The Supabase browser client serializes
+    // auth calls through navigator.locks; two overlapping getUser() calls race
+    // and the second uses steal:true, rejecting the first with an AbortError.
+    if (fetchingRef.current) return;
     fetchingRef.current = true;
     try {
       const supabase = getSupabaseBrowser();
@@ -78,9 +84,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       // For 500 / network errors: keep existing user state to avoid false redirect.
       // The next fetchUserContext call (token refresh, tab focus) will retry.
-    } catch {
-      // Network error — keep existing state. Don't redirect to onboarding
-      // just because one API call failed.
+    } catch (err) {
+      // AbortError from navigator.locks ("Lock broken by another request with
+      // the 'steal' option") is benign — a newer call took over; let it finish.
+      if (!(err instanceof Error) || err.name !== 'AbortError') {
+        // Other errors: keep existing state to avoid a false onboarding redirect
+        // on transient network failures.
+      }
     } finally {
       fetchingRef.current = false;
       setLoading(false);
@@ -92,7 +102,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     fetchUserContext();
 
     const supabase = getSupabaseBrowser();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      // INITIAL_SESSION fires immediately on subscribe with the current session.
+      // The initial fetchUserContext() above already handles it; skipping here
+      // avoids a concurrent auth.getUser() that would race the Web-Locks-based
+      // auth client and trigger an AbortError on lock steal.
+      if (event === 'INITIAL_SESSION') return;
+
       if (!session) {
         // Only clear state if no fetch is in progress. During initialization,
         // onAuthStateChange may fire with null before getUser() resolves.

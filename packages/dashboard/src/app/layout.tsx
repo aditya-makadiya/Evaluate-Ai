@@ -66,7 +66,12 @@ function AppShell({ children }: { children: React.ReactNode }) {
   });
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
   const [syncMessage, setSyncMessage] = useState('');
-  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
+
+  // Platform admin status comes from /api/auth/me now — no separate probe.
+  // Previously this ran a useEffect fetching /api/admin/me on every `user`
+  // reference change, which re-fired on every auth refresh and returned 403
+  // for non-admin accounts (spamming the network tab for developers).
+  const isPlatformAdmin = !!user?.isPlatformAdmin;
 
   const isAuthPage = pathname.startsWith('/auth');
   const isMarketingPage = pathname === '/';
@@ -78,17 +83,6 @@ function AppShell({ children }: { children: React.ReactNode }) {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('evaluateai-theme', theme);
   }, [theme]);
-
-  // Check platform admin status (non-blocking, fire-and-forget)
-  useEffect(() => {
-    if (!user) {
-      setIsPlatformAdmin(false);
-      return;
-    }
-    fetch('/api/admin/me')
-      .then((res) => setIsPlatformAdmin(res.ok))
-      .catch(() => setIsPlatformAdmin(false));
-  }, [user]);
 
   const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
 
