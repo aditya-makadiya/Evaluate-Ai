@@ -4,10 +4,12 @@
 
 The `evaluateai` npm package — a CLI tool that:
 1. Installs Claude Code hooks to capture prompts/responses
-2. Scores prompts with intent-aware heuristic engine
+2. Scores prompts with intent-aware heuristic engine (from `evaluateai-core`)
 3. Shows suggestions for low-scoring prompts
-4. Syncs data to Supabase for manager dashboard
-5. Provides stats/sessions/config commands
+4. Posts events to the dashboard's `/api/cli/ingest` HTTP endpoint (CLI-token auth)
+5. Provides stats/sessions/config commands that call dashboard API routes
+
+The CLI **does not** talk to Supabase directly and **does not** need Supabase credentials. All persistence happens server-side in the dashboard.
 
 ## Binary
 
@@ -25,7 +27,7 @@ Hooks are called by Claude Code on every prompt/response. They MUST:
 3. **NEVER output to stdout** unless returning JSON to Claude Code
 4. **Use stderr** for user-visible feedback (suggestions, tips)
 5. **Exit 0 always** — exit code 2 blocks the prompt (we don't do this)
-6. **Fire-and-forget** for async work (LLM scoring, Supabase sync)
+6. **Fire-and-forget** for async work (LLM scoring, API ingest, queue flush)
 
 ### Hook Format in settings.json
 
@@ -65,12 +67,14 @@ This file contains exact API response data:
 
 Always prefer transcript data over estimates.
 
-### Database
-- All data writes go directly to Supabase — no local SQLite
-- Hooks write to Supabase on every event (session-start, prompt-submit, stop, session-end)
-- Tool usage is computed from transcript at Stop/SessionEnd (no per-tool API calls)
-- If Supabase is unreachable, log error but never crash (exit 0)
-- Requires SUPABASE_URL and SUPABASE_ANON_KEY in ~/.evaluateai-v2/.env
+### Data flow
+- All writes go to the dashboard's `/api/cli/ingest` endpoint over HTTP.
+- Authentication is a CLI token (`eai_...`) loaded from `~/.evaluateai-v2/credentials.json`.
+  The CLI does **not** read Supabase env vars — the dashboard server does that.
+- Hooks POST one event per Claude Code event (`session_start`, `prompt_submit`, `session_update` on Stop, `session_end`).
+- Tool usage is computed from the transcript at Stop/SessionEnd (no per-tool API calls).
+- Failed events are appended to `~/.evaluateai-v2/queue.jsonl` and replayed on the next hook fire (offline-resilient).
+- If the API is unreachable, log to `~/.evaluateai-v2/logs/` but never crash (exit 0).
 
 ## Commands
 

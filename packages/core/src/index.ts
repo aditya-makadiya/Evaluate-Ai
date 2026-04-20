@@ -1,35 +1,16 @@
-// @evaluateai/core — public API
+// evaluateai-core — public API
+//
+// Pure, stateless library: prompt scoring (heuristic + LLM), token estimation,
+// model pricing, session analysis, and Claude Code transcript parsing.
+//
+// No database, no network persistence. Persistence is the caller's concern
+// (dashboard API routes → Supabase; CLI hooks → HTTP ingest endpoint).
 
 export * from './types.js';
 
-// Supabase client
-export { getSupabase, initSupabase } from './db/client.js';
-
-// Data access layer
-export {
-  createSession,
-  updateSession,
-  getSession,
-  getSessions,
-  createTurn,
-  updateTurn,
-  getTurnsForSession,
-  getTurnByHash,
-  createToolEvent,
-  updateToolEvent,
-  getToolEventsForSession,
-  addTimelineEvent,
-  createScoringCall,
-  createApiCall,
-  getStats,
-  getDeveloperStats,
-  checkSupabaseConnection,
-} from './db/supabase.js';
-export type { Stats, DeveloperStats } from './db/supabase.js';
-
 // Scoring
 export { scoreHeuristic } from './scoring/heuristic.js';
-export { scoreLLM, scoreLLMAndUpdate } from './scoring/llm-scorer.js';
+export { scoreLLM } from './scoring/llm-scorer.js';
 export { calculateEfficiency } from './scoring/efficiency.js';
 
 // Tokens & pricing

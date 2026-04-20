@@ -1,6 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { Session, Turn, SessionAnalysis } from '../types.js';
-import { updateSession } from '../db/supabase.js';
 
 const ANALYSIS_MODEL = 'claude-haiku-4-5-20251001';
 
@@ -19,7 +18,9 @@ function getClient(): Anthropic {
 
 /**
  * Analyze a completed session using Haiku.
- * Updates the session record in Supabase with analysis results.
+ *
+ * Pure function: returns the analysis result; the caller decides whether and
+ * where to persist it. Returns null on failure so callers can fall back.
  */
 export async function analyzeSession(
   session: Session,
@@ -80,7 +81,7 @@ Return JSON:
       .join('');
 
     const parsed = JSON.parse(text);
-    const analysis: SessionAnalysis = {
+    return {
       efficiencyScore: parsed.efficiency_score ?? 0,
       summary: parsed.summary ?? '',
       wastedTurns: parsed.wasted_turns ?? [],
@@ -91,14 +92,6 @@ Return JSON:
       rewrittenFirstPrompt: parsed.rewritten_first_prompt ?? '',
       topTip: parsed.top_tip ?? '',
     };
-
-    // Update session with analysis via Supabase
-    await updateSession(session.id, {
-      analysis: JSON.stringify(analysis),
-      analyzedAt: new Date().toISOString(),
-    });
-
-    return analysis;
   } catch {
     // Analysis failure is non-critical
     return null;

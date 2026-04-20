@@ -71,15 +71,15 @@ evalai stats
 EvaluateAI uses Claude Code's native **hook system**. After `evalai init`, hooks are registered in `~/.claude/settings.json`. Claude Code calls them automatically on every event:
 
 ```
-SessionStart      -> Create session in Supabase
-UserPromptSubmit  -> Score prompt, show suggestion if low, write turn to Supabase
-Stop              -> Update tokens/cost/tool counts from transcript
-SessionEnd        -> Finalize session with tool usage summary from transcript
+SessionStart      -> POST session_start    to /api/cli/ingest
+UserPromptSubmit  -> Score prompt, show suggestion if low, POST prompt_submit
+Stop              -> POST session_update   with tokens/cost/tool counts from transcript
+SessionEnd        -> POST session_end      with final tool usage summary
 ```
 
-All data goes directly to Supabase. There is no local SQLite database.
+All events go to the dashboard's `/api/cli/ingest` endpoint over HTTPS, authenticated with a CLI token (`eai_...`). Failed events are queued locally in `~/.evaluateai-v2/queue.jsonl` and replayed on the next hook fire — so brief network outages never lose data.
 
-**Zero overhead.** Hooks run in <50ms. Your Claude Code workflow is unchanged.
+**Zero overhead.** Hooks run in <50ms. Your Claude Code workflow is unchanged. The CLI doesn't talk to any database itself — it's a thin client for the dashboard API.
 
 ## Scoring Guide
 
@@ -179,7 +179,7 @@ evalai export --json         # Export as JSON
 
 ## Team Features
 
-When linked to a team, EvaluateAI sends your session data to the team's Supabase project. This powers the **manager dashboard** where leads can see:
+When linked to a team, EvaluateAI posts your session data to your team's dashboard. Managers see:
 
 - Developer activity timelines
 - Prompt quality trends across the team
@@ -194,15 +194,15 @@ evalai init --team <team-id>
 evalai team link <team-id>
 ```
 
-Your data flows to the team's Supabase instance. The manager dashboard reads from the same database to show team-wide analytics.
+Your data is POSTed to the dashboard's `/api/cli/ingest` endpoint, which writes to the team's database with your CLI token as the auth credential.
 
 ## Privacy
 
-All data is stored in Supabase (your team's cloud database). There is no local SQLite storage.
+Data is stored in your team's dashboard database (Supabase on the server side). The CLI keeps nothing persistent locally apart from an offline retry queue.
 
 | Setting | What's Stored |
 |---------|--------------|
-| `default` | Full prompt text in Supabase |
+| `default` | Full prompt text |
 | `hash` | Only SHA256 hashes (no readable text) |
 | `off` | Only scores and metadata (no prompts) |
 
@@ -210,20 +210,23 @@ Configure with `evalai config set privacy <mode>`.
 
 ## Environment Setup
 
-Add credentials to `~/.evaluateai-v2/.env`:
+The CLI stores its auth token + dashboard URL in `~/.evaluateai-v2/credentials.json`. That file is created automatically by `evalai setup` / `evalai login` — no manual editing needed, no Supabase keys required.
 
-```
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_ANON_KEY=your-anon-key
+If you want to override the dashboard URL (e.g. self-hosted):
+
+```bash
+evalai setup --api-url https://dashboard.your-company.com
+# or once-off for a single command:
+EVALUATEAI_API_URL=https://dashboard.your-company.com evalai stats
 ```
 
 These are required for EvaluateAI to function. All data is stored in Supabase.
 
 ## Requirements
 
-- Node.js 18+
+- Node.js 20+
 - Claude Code CLI installed
-- Supabase project with EvaluateAI schema applied
+- An EvaluateAI dashboard to post events to (self-hosted or team-hosted)
 - Anthropic API key (only if using LLM scoring mode)
 
 ## Links

@@ -107,7 +107,7 @@
 | npm CLI | Published v1.1.0 | npmjs.com/package/evaluateai |
 | npm Core | Published v1.1.0 | npmjs.com/package/evaluateai-core |
 | Dashboard | Local only | localhost:3456 |
-| Supabase | Live | udrnzlpchqbvbhcofxqo.supabase.co |
+| Supabase | Live | (project URL stored in `packages/dashboard/.env`, not committed) |
 | GitHub repo | Live | github.com/adityamakadiya/Evaluate-Ai |
 
 ---

@@ -1,0 +1,4 @@
+# Supabase CLI internal state — must NEVER be committed.
+# These files leak your project ref, pooler URL, and infra versions.
+.temp/
+.branches/
