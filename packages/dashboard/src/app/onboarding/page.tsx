@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Users,
@@ -40,9 +40,16 @@ export default function OnboardingPage() {
   const [step, setStep] = useState(1);
   const [mode, setMode] = useState<'create' | 'join' | null>(null);
 
-  // Redirect users who already have a team to dashboard
+  // Redirect users who ALREADY had a team when they landed on this page.
+  // This must only fire once per mount — otherwise `refresh()` after
+  // create/join populates `user.teamId` and self-evicts the user from the
+  // wizard before Steps 3–5 render.
+  const hasCheckedInitialRedirectRef = useRef(false);
   useEffect(() => {
-    if (!authLoading && user?.teamId) {
+    if (authLoading) return;
+    if (hasCheckedInitialRedirectRef.current) return;
+    hasCheckedInitialRedirectRef.current = true;
+    if (user?.teamId) {
       router.replace('/dashboard');
     }
   }, [authLoading, user, router]);
@@ -63,18 +70,10 @@ export default function OnboardingPage() {
     { email: '', name: '', role: 'developer' },
   ]);
   const [githubConnected, setGithubConnected] = useState(false);
-  const [copiedInstall, setCopiedInstall] = useState(false);
-  const [copiedInit, setCopiedInit] = useState(false);
   const [copiedSetup, setCopiedSetup] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
-  // CLI setup token — provisioned once when user reaches Step 4
-  const [cliToken, setCliToken] = useState<string | null>(null);
-  const [cliTokenError, setCliTokenError] = useState('');
-  const [cliTokenLoading, setCliTokenLoading] = useState(false);
-  const [showAdvancedCli, setShowAdvancedCli] = useState(false);
 
   const slug = teamName
     .toLowerCase()
@@ -172,8 +171,10 @@ export default function OnboardingPage() {
       setTeamId(team?.id || '');
       setTeamName(team?.name || '');
       await refresh();
-      // Skip step 2 (share code) for joiners — go to GitHub
-      setStep(3);
+      // Joiners skip Step 2 (share code — irrelevant) AND Step 3 (GitHub —
+      // a team-level connection owned by the manager/owner). Jump straight
+      // to the CLI install step so they get their personal setup one-liner.
+      setStep(4);
     } catch {
       setError('Could not reach the server. Check your connection and retry.');
     } finally {
@@ -207,34 +208,10 @@ export default function OnboardingPage() {
     setGithubConnected(true);
   };
 
-  // Provision a CLI token exactly once when the user first reaches Step 4.
-  useEffect(() => {
-    if (step !== 4 || cliToken || cliTokenLoading) return;
-    let cancelled = false;
-    setCliTokenLoading(true);
-    setCliTokenError('');
-    (async () => {
-      try {
-        const res = await fetch('/api/cli/tokens', { method: 'POST' });
-        const data = await res.json();
-        if (cancelled) return;
-        if (!res.ok || !data?.token) {
-          setCliTokenError(data?.error || 'Could not generate setup token');
-          return;
-        }
-        setCliToken(data.token as string);
-      } catch {
-        if (!cancelled) setCliTokenError('Network error. You can still use the manual steps below.');
-      } finally {
-        if (!cancelled) setCliTokenLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [step, cliToken, cliTokenLoading]);
-
-  const setupOneLiner = cliToken ? `npx evaluateai@latest setup --token=${cliToken}` : '';
+  // Install + setup command. `evalai setup` runs browser OAuth itself, so no
+  // pre-provisioned token is needed — users can always generate one later
+  // from Profile → CLI & API Keys for zero-browser environments.
+  const setupOneLiner = 'npm install -g evaluateai && evalai setup';
 
   const copyToClipboard = useCallback(
     (text: string, setter: (v: boolean) => void) => {
@@ -676,97 +653,39 @@ export default function OnboardingPage() {
           {step === 4 && (
             <div className="animate-[slideUp_0.4s_ease-out]">
               <h2 className="text-2xl font-bold tracking-tight mb-2">
-                Install CLI on Developer Machines
+                Install the CLI
               </h2>
               <p className="text-sm text-text-secondary mb-8">
-                Copy this one-liner. Each developer runs it once — no login step needed.
+                Run this on your machine. It installs the CLI, opens a browser to
+                authenticate, and registers the Claude Code hooks.
               </p>
 
               <div>
                 <label className="text-xs font-medium text-text-muted mb-1.5 block">
-                  Setup command (token pre-authenticated)
+                  Setup command
                 </label>
-
-                {cliTokenLoading && (
-                  <div className="flex items-center gap-2 bg-bg-secondary border border-border-primary rounded-xl px-4 py-3 animate-pulse">
-                    <div className="h-4 bg-bg-elevated rounded w-full" />
-                  </div>
-                )}
-
-                {!cliTokenLoading && cliToken && (
-                  <div className="flex items-center gap-2 bg-bg-secondary border border-border-primary rounded-xl px-4 py-3">
-                    <code className="flex-1 text-sm font-mono text-purple-400 break-all">
-                      {setupOneLiner}
-                    </code>
-                    <button
-                      onClick={() => copyToClipboard(setupOneLiner, setCopiedSetup)}
-                      className="h-8 w-8 shrink-0 flex items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-elevated transition-colors"
-                    >
-                      {copiedSetup ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
-                    </button>
-                  </div>
-                )}
-
-                {!cliTokenLoading && !cliToken && cliTokenError && (
-                  <div className="flex items-center gap-2 bg-red-900/20 border border-red-800/50 rounded-xl px-4 py-3 text-red-300 text-xs">
-                    <AlertCircle className="h-4 w-4 shrink-0" />
-                    {cliTokenError}
-                  </div>
-                )}
-
+                <div className="flex items-center gap-2 bg-bg-secondary border border-border-primary rounded-xl px-4 py-3">
+                  <code className="flex-1 text-sm font-mono text-purple-400 break-all">
+                    {setupOneLiner}
+                  </code>
+                  <button
+                    onClick={() => copyToClipboard(setupOneLiner, setCopiedSetup)}
+                    className="h-8 w-8 shrink-0 flex items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-elevated transition-colors"
+                    title="Copy command"
+                  >
+                    {copiedSetup ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
                 <p className="text-xs text-text-muted mt-2">
-                  Installs the CLI, authenticates, and registers Claude Code hooks in one step.
+                  Need a headless install (CI, Docker)? Generate an API token from
+                  <span className="text-text-secondary"> Profile → CLI &amp; API Keys </span>
+                  and run <code className="font-mono text-text-secondary">evalai setup --token &lt;key&gt;</code>.
                 </p>
               </div>
 
-              <button
-                onClick={() => setShowAdvancedCli((v) => !v)}
-                className="mt-6 text-xs text-text-muted hover:text-text-secondary transition-colors"
-              >
-                {showAdvancedCli ? '− Hide manual steps' : '+ Show manual steps (advanced)'}
-              </button>
-
-              {showAdvancedCli && (
-                <div className="mt-3 space-y-3 animate-[slideUp_0.2s_ease-out]">
-                  <div>
-                    <label className="text-xs font-medium text-text-muted mb-1.5 block">
-                      1. Install the CLI
-                    </label>
-                    <div className="flex items-center gap-2 bg-bg-secondary border border-border-primary rounded-xl px-4 py-3">
-                      <code className="flex-1 text-sm font-mono text-purple-400">
-                        npm install -g evaluateai
-                      </code>
-                      <button
-                        onClick={() => copyToClipboard('npm install -g evaluateai', setCopiedInstall)}
-                        className="h-8 w-8 shrink-0 flex items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-elevated transition-colors"
-                      >
-                        {copiedInstall ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-medium text-text-muted mb-1.5 block">
-                      2. Login and initialize
-                    </label>
-                    <div className="flex items-center gap-2 bg-bg-secondary border border-border-primary rounded-xl px-4 py-3">
-                      <code className="flex-1 text-sm font-mono text-purple-400">
-                        evalai login && evalai init
-                      </code>
-                      <button
-                        onClick={() => copyToClipboard('evalai login && evalai init', setCopiedInit)}
-                        className="h-8 w-8 shrink-0 flex items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-elevated transition-colors"
-                      >
-                        {copiedInit ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
               <div className="flex gap-3 mt-8">
                 <button
-                  onClick={() => setStep(3)}
+                  onClick={() => setStep(mode === 'join' ? 1 : 3)}
                   className="h-10 w-10 shrink-0 flex items-center justify-center border border-border-primary bg-white/3 rounded-xl text-text-muted hover:text-text-primary hover:bg-white/6 transition-all"
                 >
                   <ArrowLeft className="h-4 w-4" />
