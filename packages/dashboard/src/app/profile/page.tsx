@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/components/auth-provider';
 import { getSupabaseBrowser } from '@/lib/supabase-browser';
+import { LinkedIdentitiesSection } from '@/components/auth/linked-identities-section';
 
 interface CliToken {
   id: string;
@@ -579,6 +580,11 @@ export default function ProfilePage() {
               </div>
             </form>
           </section>
+
+          {/* Connected accounts — shows linked auth providers and lets users
+              add Google / unlink. Requires "Allow manual linking" to be on
+              in the Supabase dashboard. */}
+          <LinkedIdentitiesSection />
 
           {/* CLI & API Keys */}
           <section className="rounded-xl border border-border-primary bg-bg-card p-6">

@@ -32,9 +32,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/api/cli/') ||
     pathname.startsWith('/api/auth/signup') ||
     pathname.startsWith('/api/teams/join') ||
-    pathname.startsWith('/api/integrations/github/webhook') ||
     pathname.startsWith('/api/integrations/github/callback') ||
-    pathname.startsWith('/api/integrations/fireflies/webhook') ||
     pathname.startsWith('/api/integrations/fireflies/callback') ||
     (pathname.startsWith('/api/') && hasBearerToken);
 

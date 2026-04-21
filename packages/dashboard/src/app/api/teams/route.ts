@@ -109,10 +109,17 @@ export async function POST(request: Request) {
     const slug = slugify(name);
     const teamCode = generateTeamCode(name);
 
-    // Create team with team_code
+    // Create team with team_code. New teams default to the per-user
+    // integrations flow — setting it explicitly (rather than relying on
+    // the runtime default) keeps opt-in state visible in SQL audits.
     const { data: team, error: teamError } = await admin
       .from('teams')
-      .insert({ name, slug, team_code: teamCode })
+      .insert({
+        name,
+        slug,
+        team_code: teamCode,
+        settings: { multi_user_integrations_enabled: true },
+      })
       .select()
       .single();
 

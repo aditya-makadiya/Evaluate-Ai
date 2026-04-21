@@ -23,6 +23,9 @@ import {
   DisconnectModal,
 } from '@/components/integrations/connect-modals';
 import { RepoPickerModal } from '@/components/integrations/repo-picker-modal';
+import { TeamCoverageRoster } from '@/components/integrations/team-coverage-roster';
+import { SyncProgress } from '@/components/integrations/sync-progress';
+import { OnboardingNudge } from '@/components/integrations/onboarding-nudge';
 import type {
   Integration,
   IntegrationCardDef,
@@ -103,7 +106,18 @@ function IntegrationsPage() {
   const searchParams = useSearchParams();
   const { user: authUser } = useAuth();
   const teamId = authUser?.teamId ?? '';
+  const userId = authUser?.id ?? '';
   const canManage = useCanAccess('owner', 'manager');
+
+  // Per-team feature flag: when v2 is on, any team member can connect their own
+  // accounts; the read-only banner is suppressed; coverage roster + job-based
+  // sync progress replace the legacy in-request sync.
+  const [isV2, setIsV2] = useState<boolean | null>(null);
+  const [activeSyncJob, setActiveSyncJob] = useState<{
+    provider: 'github' | 'fireflies';
+    jobId: string;
+  } | null>(null);
+  const [rosterRefreshKey, setRosterRefreshKey] = useState(0);
 
   // Integration state
   const [githubIntegration, setGithubIntegration] = useState<Integration | null>(null);
@@ -190,36 +204,129 @@ function IntegrationsPage() {
 
     async function fetchIntegrations() {
       try {
-        const ghReposRes = await fetch(`/api/integrations/github/repos?team_id=${teamId}`);
-        if (ghReposRes.ok) {
-          const data = await ghReposRes.json();
-          setRepos(data.repos ?? []);
-          setOauthUser(data.oauthUser ?? null);
-          setGithubIntegration({
-            id: 'github',
-            provider: 'github',
-            status: 'active',
-            config: {},
-            lastSyncAt: null,
-          });
+        // Detect v2 up front so the rest of the UI can branch consistently.
+        // Under v2, per-user state also comes from this same payload — saves
+        // an extra round-trip and avoids the previous bug where the legacy
+        // `/github/repos` endpoint (team-scoped, owner/manager-visible) made
+        // developers see the manager's connection as if it were their own.
+        let statusBody: {
+          flow: 'v2' | 'legacy';
+          providers: Record<
+            'github' | 'fireflies',
+            {
+              connected?: boolean;
+              members?: Array<{
+                userId: string;
+                status: string;
+                externalAccountHandle: string | null;
+                lastSyncAt: string | null;
+                accessibleRepoCount?: number;
+              }>;
+              oauthUser?: string | null;
+              lastSyncAt?: string | null;
+              trackedRepoCount?: number;
+            }
+          >;
+        } | null = null;
 
-          if ((data.repos ?? []).length === 0) {
-            handleOpenRepoPicker();
+        try {
+          const statusRes = await fetch(`/api/integrations/status?team_id=${teamId}`);
+          if (statusRes.ok) {
+            statusBody = await statusRes.json();
+            setIsV2(statusBody?.flow === 'v2');
+          } else {
+            setIsV2(false);
           }
+        } catch {
+          setIsV2(false);
         }
 
-        const ffRes = await fetch(`/api/integrations/fireflies/status?team_id=${teamId}`);
-        if (ffRes.ok) {
-          const data = await ffRes.json();
-          if (data.connected) {
+        if (statusBody?.flow === 'v2') {
+          // -------------- v2: per-user state from status members list --------------
+          const myGh = statusBody.providers.github.members?.find(
+            (m) => m.userId === userId && m.status === 'active'
+          );
+          if (myGh) {
+            setGithubIntegration({
+              id: 'github',
+              provider: 'github',
+              status: 'active',
+              config: {},
+              lastSyncAt: myGh.lastSyncAt ?? null,
+            });
+            setOauthUser(myGh.externalAccountHandle ?? null);
+            setGithubLastSyncAt(myGh.lastSyncAt ?? null);
+          } else {
+            setGithubIntegration(null);
+            setRepos([]);
+            setOauthUser(null);
+          }
+
+          const myFf = statusBody.providers.fireflies.members?.find(
+            (m) => m.userId === userId && m.status === 'active'
+          );
+          if (myFf) {
             setFirefliesIntegration({
               id: 'fireflies',
               provider: 'fireflies',
               status: 'active',
-              config: { connected_at: data.connectedAt },
-              lastSyncAt: data.lastSyncAt,
+              config: {},
+              lastSyncAt: myFf.lastSyncAt ?? null,
             });
-            setFirefliesLastSyncAt(data.lastSyncAt ?? null);
+            setFirefliesLastSyncAt(myFf.lastSyncAt ?? null);
+          } else {
+            setFirefliesIntegration(null);
+            setFirefliesLastSyncAt(null);
+          }
+
+          // Managers/owners who have connected personally can still open the
+          // team-tracked-repos picker. Fetch the picker data only for them —
+          // the discover endpoint is role-gated (403 for devs), and devs
+          // don't manage team repos anyway.
+          if (canManage && myGh) {
+            try {
+              const ghReposRes = await fetch(`/api/integrations/github/repos?team_id=${teamId}`);
+              if (ghReposRes.ok) {
+                const repoData = await ghReposRes.json();
+                setRepos(repoData.repos ?? []);
+              }
+            } catch {
+              // Non-critical; picker can still be opened manually.
+            }
+          }
+        } else {
+          // -------------- Legacy: team-wide connection state --------------
+          const ghReposRes = await fetch(`/api/integrations/github/repos?team_id=${teamId}`);
+          if (ghReposRes.ok) {
+            const data = await ghReposRes.json();
+            setRepos(data.repos ?? []);
+            setOauthUser(data.oauthUser ?? null);
+            setGithubIntegration({
+              id: 'github',
+              provider: 'github',
+              status: 'active',
+              config: {},
+              lastSyncAt: null,
+            });
+
+            if ((data.repos ?? []).length === 0 && canManage) {
+              handleOpenRepoPicker();
+            }
+          }
+
+          const ffRes = await fetch(`/api/integrations/fireflies/status?team_id=${teamId}`);
+          if (ffRes.ok) {
+            const data = await ffRes.json();
+            if (data.connected) {
+              setFirefliesIntegration({
+                id: 'fireflies',
+                provider: 'fireflies',
+                status: 'active',
+                config: { connected_at: data.connectedAt },
+                lastSyncAt: data.lastSyncAt,
+              });
+              setFirefliesLastSyncAt(data.lastSyncAt ?? null);
+            }
           }
         }
       } catch {
@@ -237,8 +344,13 @@ function IntegrationsPage() {
 
   const READ_ONLY_MSG = 'Only owners and managers can configure integrations.';
 
+  /**
+   * In v1, only owners/managers can write. In v2, any team member can
+   * connect their own accounts or trigger a sync — per-user access rules
+   * are enforced server-side. The client only gates the legacy flow.
+   */
   function guardWrite(): boolean {
-    if (canManage) return true;
+    if (isV2 || canManage) return true;
     setErrorMsg(READ_ONLY_MSG);
     setTimeout(() => setErrorMsg(null), 4000);
     return false;
@@ -458,6 +570,13 @@ function IntegrationsPage() {
         return;
       }
 
+      // v2 returns 202 with a jobId — SyncProgress will poll and announce
+      // completion; the in-page button state clears in onComplete.
+      if (res.status === 202 && data.jobId) {
+        setActiveSyncJob({ provider: 'github', jobId: data.jobId });
+        return;
+      }
+
       setGithubLastSyncAt(data.syncedAt);
 
       const parts: string[] = [];
@@ -477,7 +596,9 @@ function IntegrationsPage() {
     } catch {
       setErrorMsg('Failed to sync GitHub data. Please try again.');
     } finally {
-      setGithubSyncing(false);
+      // v2 path keeps the spinner until SyncProgress resolves; we only
+      // clear here for the legacy synchronous path.
+      if (!activeSyncJob) setGithubSyncing(false);
     }
   }
 
@@ -495,6 +616,11 @@ function IntegrationsPage() {
       const data = await res.json();
       if (!res.ok) {
         setErrorMsg(data.error ?? 'Sync failed');
+        return;
+      }
+
+      if (res.status === 202 && data.jobId) {
+        setActiveSyncJob({ provider: 'fireflies', jobId: data.jobId });
         return;
       }
 
@@ -519,8 +645,63 @@ function IntegrationsPage() {
     } catch {
       setErrorMsg('Failed to sync meetings. Please try again.');
     } finally {
-      setFirefliesSyncing(false);
+      if (!activeSyncJob) setFirefliesSyncing(false);
     }
+  }
+
+  /** Called by SyncProgress once the background job resolves. */
+  function handleSyncJobComplete(job: {
+    status: 'pending' | 'running' | 'done' | 'failed';
+    progress: Record<string, unknown>;
+    error: string | null;
+  }): void {
+    if (!activeSyncJob) return;
+    const { provider } = activeSyncJob;
+    if (provider === 'github') {
+      setGithubSyncing(false);
+      setGithubLastSyncAt(new Date().toISOString());
+    } else {
+      setFirefliesSyncing(false);
+      setFirefliesLastSyncAt(new Date().toISOString());
+    }
+    setActiveSyncJob(null);
+    setRosterRefreshKey((k) => k + 1);
+
+    // Surface a message so fast-completing syncs don't flicker silently.
+    if (job.status === 'failed') {
+      setErrorMsg(job.error ?? 'Sync failed');
+      setTimeout(() => setErrorMsg(null), 8000);
+      return;
+    }
+
+    const p = job.progress as Record<string, number | undefined>;
+    const parts: string[] = [];
+    if (provider === 'github') {
+      const synced = p.reposSynced ?? 0;
+      const total = p.reposTotal ?? 0;
+      const skipped = p.reposSkipped304 ?? 0;
+      const uncovered = p.reposUncovered ?? 0;
+      const commits = p.commitsInserted ?? 0;
+      const prs = p.prsInserted ?? 0;
+      parts.push(`Synced ${synced} of ${total} repo${total === 1 ? '' : 's'}`);
+      if (skipped > 0) parts.push(`${skipped} unchanged`);
+      if (uncovered > 0) parts.push(`${uncovered} need coverage`);
+      if (commits > 0) parts.push(`${commits} new commit${commits === 1 ? '' : 's'}`);
+      if (prs > 0) parts.push(`${prs} new PR${prs === 1 ? '' : 's'}`);
+    } else {
+      const meetings = p.meetingsInserted ?? 0;
+      const usersTotal = p.usersTotal ?? 0;
+      const usersFailed = p.usersFailed ?? 0;
+      parts.push(
+        meetings > 0
+          ? `Captured ${meetings} new meeting${meetings === 1 ? '' : 's'}`
+          : 'No new meetings'
+      );
+      if (usersTotal > 0) parts.push(`across ${usersTotal} connected user${usersTotal === 1 ? '' : 's'}`);
+      if (usersFailed > 0) parts.push(`${usersFailed} failed`);
+    }
+    setSuccessMsg(parts.join(' · '));
+    setTimeout(() => setSuccessMsg(null), 8000);
   }
 
   // Get data for the manage modal
@@ -580,8 +761,10 @@ function IntegrationsPage() {
         </div>
       </div>
 
-      {/* Read-only banner for developers */}
-      {!canManage && (
+      {/* Read-only banner only applies under the legacy flow. Under v2, any
+          team member can connect their own accounts and trigger syncs, so
+          the banner would be misleading. */}
+      {!canManage && isV2 === false && (
         <div className="mb-6 flex items-start gap-3 rounded-lg border border-blue-800/50 bg-blue-900/20 px-4 py-3 text-sm text-blue-300">
           <Info className="h-4 w-4 shrink-0 mt-0.5" />
           <div>
@@ -590,6 +773,26 @@ function IntegrationsPage() {
               Only owners and managers can connect, sync, or disconnect integrations. You can see which ones are active.
             </p>
           </div>
+        </div>
+      )}
+
+      {/* V2 onboarding nudge: dismissible; only renders for users on v2 teams
+          who haven't connected any provider yet. */}
+      {isV2 && teamId && userId && (
+        <OnboardingNudge teamId={teamId} currentUserId={userId} />
+      )}
+
+      {/* Active sync progress (v2). Rendered at the top so users don't have to
+          scroll to see that their click actually did something. */}
+      {activeSyncJob && (
+        <div className="mb-6 rounded-lg border border-purple-800/40 bg-purple-900/10 px-4 py-3">
+          <div className="text-[11px] font-semibold text-purple-300 uppercase tracking-wider mb-1.5">
+            {activeSyncJob.provider === 'github' ? 'GitHub' : 'Fireflies'} sync in progress
+          </div>
+          <SyncProgress
+            jobId={activeSyncJob.jobId}
+            onComplete={handleSyncJobComplete}
+          />
         </div>
       )}
 
@@ -643,6 +846,13 @@ function IntegrationsPage() {
                       if (id === 'github') handleGithubSync();
                       else if (id === 'fireflies') handleFirefliesSync();
                     }}
+                    // Under v2, Manage targets team-tracked-repos which is
+                    // owner/manager-only. Developers get a Disconnect button
+                    // in its place so they can revoke their own credential.
+                    // Legacy path (canManage-only users already on the page)
+                    // keeps showing Manage for parity.
+                    showManage={isV2 ? canManage : true}
+                    onDisconnect={(id) => setConfirmDisconnect(id)}
                   />
                 ))}
               </div>
@@ -657,6 +867,30 @@ function IntegrationsPage() {
               No integrations match &ldquo;{searchQuery}&rdquo;
             </p>
           </div>
+        )}
+
+        {/* V2 team coverage roster — owner/manager-only view. Developers see
+            only their own card and have no actionable items in the roster
+            (can't revoke teammates, can't add members); surfacing it to them
+            is informational-only, so we scope it to the role that actually
+            owns team-wide coverage. rosterRefreshKey triggers a re-fetch
+            after a sync so last-sync badges stay fresh. */}
+        {isV2 && teamId && canManage && (
+          <section className="pt-2">
+            <div className="flex items-center gap-2 mb-4">
+              <Plug className="h-4 w-4 text-text-muted" />
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
+                Team coverage
+              </h2>
+            </div>
+            <TeamCoverageRoster
+              key={rosterRefreshKey}
+              teamId={teamId}
+              canManage={canManage}
+              currentUserId={userId}
+              onAfterRevoke={() => setRosterRefreshKey((k) => k + 1)}
+            />
+          </section>
         )}
       </div>
 
