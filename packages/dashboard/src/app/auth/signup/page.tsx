@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { UserPlus, Mail, Lock, User, AlertCircle, Eye, EyeOff, MailCheck } from 'lucide-react';
 import { getSupabaseBrowser } from '@/lib/supabase-browser';
+import { GoogleSignInButton } from '@/components/auth/google-sign-in-button';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -125,6 +126,19 @@ export default function SignupPage() {
 
       {/* Card */}
       <div className="bg-bg-card border border-border-primary rounded-lg p-6">
+        {/* Google OAuth. Signup specifically routes to /onboarding after
+            callback so brand-new Google users immediately enter the team
+            setup wizard instead of landing on an empty dashboard. */}
+        <GoogleSignInButton verb="Sign up" redirectTo="/onboarding" />
+
+        <div className="flex items-center gap-3 my-5" aria-hidden="true">
+          <div className="h-px flex-1 bg-border-primary" />
+          <span className="text-[11px] font-medium uppercase tracking-wider text-text-muted">
+            or
+          </span>
+          <div className="h-px flex-1 bg-border-primary" />
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
             <div className="flex items-center gap-2 bg-red-900/20 border border-red-800/50 rounded-lg px-4 py-3 text-red-300 text-sm">

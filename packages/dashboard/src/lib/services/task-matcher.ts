@@ -208,7 +208,7 @@ export async function matchBranchToTask(
  * Uses keyword matching first, then AI for refinement.
  * Updates both tasks.matched_changes and code_changes.matched_task_ids.
  *
- * Called from GitHub webhook after inserting a code_change.
+ * Called from the GitHub sync handler after inserting a code_change.
  */
 export async function matchCodeChangeToTasks(
   codeChangeId: string,

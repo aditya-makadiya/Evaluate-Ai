@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, Plug, Key, Loader2, RefreshCw, Settings } from 'lucide-react';
+import { Check, Plug, Key, Loader2, RefreshCw, Settings, LogOut } from 'lucide-react';
 import type { IntegrationCardDef } from './types';
 
 interface IntegrationCardProps {
@@ -12,6 +12,18 @@ interface IntegrationCardProps {
   onConnect: (id: string) => void;
   onManage: (id: string) => void;
   onSync: (id: string) => void;
+  /**
+   * Whether to render the Manage button. Hide for v2 developers — Manage
+   * mutates team-tracked-repos which is owner/manager-only and would
+   * surface a 403 at the API layer.
+   */
+  showManage?: boolean;
+  /**
+   * Self-disconnect handler. When showManage is false, rendered in place
+   * of Manage so a connected developer has a way to revoke their own
+   * credential without needing access to the legacy Manage modal.
+   */
+  onDisconnect?: (id: string) => void;
 }
 
 export function IntegrationCard({
@@ -23,6 +35,8 @@ export function IntegrationCard({
   onConnect,
   onManage,
   onSync,
+  showManage = true,
+  onDisconnect,
 }: IntegrationCardProps) {
   const Icon = card.icon;
   const isAvailable = card.available;
@@ -85,13 +99,23 @@ export function IntegrationCard({
             <RefreshCw className={`h-3.5 w-3.5 ${syncing ? 'animate-spin' : ''}`} />
             {syncing ? 'Syncing...' : 'Sync'}
           </button>
-          <button
-            onClick={() => onManage(card.id)}
-            className="flex-1 flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg px-3 py-2 text-sm font-medium transition-colors"
-          >
-            <Settings className="h-3.5 w-3.5" />
-            Manage
-          </button>
+          {showManage ? (
+            <button
+              onClick={() => onManage(card.id)}
+              className="flex-1 flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+            >
+              <Settings className="h-3.5 w-3.5" />
+              Manage
+            </button>
+          ) : onDisconnect ? (
+            <button
+              onClick={() => onDisconnect(card.id)}
+              className="flex-1 flex items-center justify-center gap-2 border border-border-primary bg-bg-elevated hover:border-red-800/60 hover:text-red-400 text-text-secondary rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              Disconnect
+            </button>
+          ) : null}
         </div>
       ) : isAvailable ? (
         <button

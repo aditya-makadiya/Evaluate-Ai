@@ -8,13 +8,15 @@ Developer Productivity Intelligence Platform. Connects meeting decisions → ass
 1. `evaluateai` npm package — CLI that hooks into Claude Code to capture AI prompts, responses, tokens, costs
 2. Web dashboard — Manager-facing platform showing team productivity, AI usage, and developer activity timeline
 
+For current architecture deep dives see [`docs/`](./docs/) — specifically `docs/architecture.md`, `docs/integrations.md`, `docs/deployment.md`.
+
 ## Architecture
 
 ```
 packages/
-  core/        — Scoring engine, DB (Supabase), transcript parser, types
+  core/        — Scoring engine, pricing, transcript parser, types (pure, no I/O)
   cli/         — CLI commands + Claude Code hook handlers
-  dashboard/   — Next.js 15 web dashboard
+  dashboard/   — Next.js 16 web dashboard + API routes + Supabase migrations
   proxy/       — API proxy for non-Claude tools (planned)
   mcp-server/  — MCP server (planned)
 ```
@@ -24,15 +26,15 @@ packages/
 - **Runtime**: Node.js 20+, TypeScript 5.x, ESM modules
 - **Monorepo**: pnpm workspaces + Turborepo
 - **Database**: Supabase PostgreSQL only (no local SQLite)
-- **Frontend**: Next.js 15, Tailwind CSS 4, Recharts, lucide-react
-- **AI**: @anthropic-ai/sdk (Claude Haiku for analysis)
-- **Auth**: Supabase Auth
-- **Notifications**: Slack API, Resend (email)
+- **Frontend**: Next.js 16, React 19, Tailwind CSS 4, Recharts, lucide-react
+- **Auth**: Supabase Auth — email + password, Google OAuth, identity linking via `supabase.auth.linkIdentity()`
+- **AI**: `@anthropic-ai/sdk` — Claude Haiku for prompt scoring and meeting-task extraction
+- **Encryption at rest**: Node AES-256-GCM for integration tokens (`src/lib/integrations/crypto.ts`)
 
 ## Key Conventions
 
 ### TypeScript
-- ESM only — use `.js` extensions in all imports (even for .ts files)
+- ESM only — use `.js` extensions in imports (even for `.ts` files)
 - Strict mode enabled
 - Use `interface` for object shapes, `type` for unions/aliases
 - No `any` unless absolutely necessary — use `unknown` + type narrowing
@@ -43,9 +45,8 @@ packages/
 - Dashboard API routes query Supabase directly using the service-role key.
 - The **CLI** posts events to the dashboard's `/api/cli/ingest` endpoint over HTTPS — it does **not** hold Supabase credentials.
 - The **core** package is pure/stateless — no Supabase client, no persistence.
-- Schema lives in `packages/dashboard/supabase/migrations/*.sql`.
+- Schema lives in `packages/dashboard/supabase/migrations/*.sql` (currently through `014`).
 - All table/column names: snake_case in DB, camelCase in TypeScript (transformed at the API boundary).
-- Dashboard requires `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`. The CLI requires none of those.
 
 ### CLI Hooks
 - Every hook handler MUST exit 0 — never break Claude Code.
@@ -55,6 +56,15 @@ packages/
 - Failed ingest events are appended to `~/.evaluateai-v2/queue.jsonl` and replayed on the next hook fire.
 - Transcript parsing reads from `~/.claude/projects/`.
 
+### Integrations (per-user flow)
+
+Per-user OAuth for GitHub + Fireflies. Every team member connects their own account; sync picks one token per tracked repo, preferring the member with the most rate-limit budget. ETag-cached conditional fetches mean unchanged repos cost zero rate limit.
+
+- Adapters live in `src/lib/integrations/providers/{github,fireflies}.ts` behind a common `ProviderAdapter` interface
+- Sync is button-driven only — no cron, no webhooks. Button → `POST /api/integrations/:provider/sync` returns 202 + `jobId`; work runs via Next.js `after()` and the frontend polls `/sync-jobs/[jobId]`
+- Feature flag: `teams.settings.multi_user_integrations_enabled` (default **true**; only explicit `false` opts out to the legacy flow which is still in the codebase but receives no new traffic)
+- Full spec + runbook in [`docs/integrations.md`](./docs/integrations.md)
+
 ### Scoring Engine
 - Intent-aware: classify prompt → apply intent-specific rules
 - 7 intents: research, debug, feature, refactor, review, generate, config
@@ -63,9 +73,10 @@ packages/
 
 ### Testing
 - Vitest for unit tests
-- Tests in `src/__tests__/` directories
-- 88 tests in `evaluateai-core` across 3 files (scoring, pricing, tokens)
-- Core tests are pure — no network, no DB, no env vars
+- Core: `packages/core/src/__tests__/` — 88 tests across 3 files (scoring, pricing, tokens). Pure — no network, no DB, no env vars.
+- Dashboard: `packages/dashboard/src/lib/integrations/__tests__/` — 59 tests across 7 files (crypto, oauth-state, planner, attribution, sync-jobs, feature-flag, time-ago)
+- Run core: `pnpm --filter evaluateai-core test`
+- Run dashboard: `pnpm --filter evaluateai-dashboard exec vitest run`
 
 ## File Naming
 
@@ -84,28 +95,32 @@ packages/cli/src/
 
 packages/dashboard/
   src/components/       — React components
+  src/components/auth/  — Google sign-in button, linked-identities section
+  src/components/integrations/ — Integration cards, sync progress, coverage roster, onboarding nudge
   src/app/              — Next.js pages and API routes
-  src/lib/              — Shared dashboard utilities, Supabase clients, auth
-  supabase/migrations/  — SQL schema migrations
+  src/lib/              — Shared dashboard utilities
+  src/lib/integrations/ — Provider registry, adapters, sync planner, crypto, attribution, feature flag
+  supabase/migrations/  — SQL schema migrations (000 through 014)
 ```
 
 ## Common Commands
 
 ```bash
 # Build
-pnpm run build                        # Build all packages (Turborepo handles dependency order)
-pnpm --filter evaluateai-core build   # Build core only
-pnpm --filter evaluateai build        # Build CLI only
+pnpm run build                           # Build all packages (Turborepo handles dependency order)
+pnpm --filter evaluateai-core build      # Build core only
+pnpm --filter evaluateai build           # Build CLI only
 pnpm --filter evaluateai-dashboard build # Build dashboard only
 
 # Lint
 pnpm --filter evaluateai-dashboard exec npx eslint src/ --ext .ts,.tsx  # Lint dashboard
 
 # Test
-pnpm --filter evaluateai-core test    # Run core tests
+pnpm --filter evaluateai-core test       # 88 core tests
+pnpm --filter evaluateai-dashboard exec vitest run  # 59 dashboard tests
 
 # Dev
-pnpm --filter evaluateai-dashboard dev # Start dashboard dev server
+pnpm --filter evaluateai-dashboard dev   # Start dashboard dev server on :3456
 
 # CLI
 pnpm install                          # Install all dependencies
@@ -120,13 +135,25 @@ evalai stats                          # Show usage stats
 **Dashboard** (`packages/dashboard/.env`):
 
 ```
-SUPABASE_URL=https://xxx.supabase.co          # Supabase project URL
-SUPABASE_ANON_KEY=eyJ...                      # Supabase anon key (client-safe)
-SUPABASE_SERVICE_ROLE_KEY=eyJ...              # Supabase service-role key (server-only, RLS-bypass)
-ANTHROPIC_API_KEY=sk-ant-...                  # For LLM scoring + session analysis (optional)
-GITHUB_OAUTH_CLIENT_ID=...                    # For GitHub integration
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co         # Client + server
+SUPABASE_URL=https://xxx.supabase.co                     # Server alias (some routes read this)
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...                     # Client-safe, RLS-scoped
+SUPABASE_ANON_KEY=eyJ...                                 # Server alias
+SUPABASE_SERVICE_ROLE_KEY=eyJ...                         # Server-only, RLS-bypass — NEVER prefix with NEXT_PUBLIC_
+
+# Integration tokens are encrypted with AES-256-GCM. Must be identical
+# across environments (dev / preview / production) or stored tokens are
+# unreadable. Generate: node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+EVALUATEAI_ENCRYPTION_KEY=<32-byte-base64-string>
+
+# Per-user GitHub integration OAuth App
+GITHUB_OAUTH_CLIENT_ID=...
 GITHUB_OAUTH_CLIENT_SECRET=...
-NPM_TOKEN=npm_...                             # For publishing (CI only)
+
+# Optional
+ANTHROPIC_API_KEY=sk-ant-...                  # LLM scoring + session analysis
+NPM_TOKEN=npm_...                             # Publishing (CI only)
 ```
 
 **CLI** (no `.env` required): the CLI stores its auth in `~/.evaluateai-v2/credentials.json` (written by `evalai setup` / `evalai login`). No Supabase keys. Optional overrides:
@@ -134,27 +161,43 @@ NPM_TOKEN=npm_...                             # For publishing (CI only)
 ```
 EVALUATEAI_API_URL=https://dashboard.your-company.com   # override stored dashboard URL
 EVALUATEAI_TOKEN=eai_...                                # override stored CLI token
-EVALUATEAI_TEAM_ID=...                                  # (user-level preference in ~/.evaluateai-v2/.env)
+EVALUATEAI_TEAM_ID=...                                  # user-level preference in ~/.evaluateai-v2/.env
 ```
 
 ## Dashboard Features
 
-### Analytics Page (`/analytics`)
+### Auth (`/auth/login`, `/auth/signup`)
+- Email + password (with email confirmation)
+- Google OAuth — button on both login and signup; callback at `/auth/callback`
+- Friendly error when a Google-origin user tries password login
+- `/auth/callback` routes new users (no `team_members` row) to `/onboarding` regardless of requested redirect
+
+### Profile (`/profile`)
+- Change display name, change password, manage CLI tokens
+- **Connected Accounts** section lists linked auth identities via `supabase.auth.getUserIdentities()`; users can add Google via `linkIdentity()` or unlink via `unlinkIdentity()` (Supabase server-side prevents unlinking the last identity)
+
+### Integrations (`/dashboard/integrations`)
+- Per-user card per provider: Connect / Sync / Disconnect (developers) or Connect / Sync / Manage (managers+owners)
+- **Onboarding nudge** banner when current user hasn't connected a provider
+- **Sync in progress** banner with live counts from `sync_jobs` polling when a sync is running
+- **Team coverage roster** (managers+owners only) — per-provider member list with status, handle, repo count, last-sync badge, revoke button
+
+### Analytics (`/analytics`)
 - **Period selector**: today/week/month/quarter — filters all charts via `?period=` param
-- **Intent distribution**: Real data from `ai_turns.intent` — shows research/debug/feature/etc breakdown
-- **Token waste**: Computed from `ai_turns.was_retry` — shows retry rate, wasted tokens
+- **Intent distribution**: Real data from `ai_turns.intent`
+- **Token waste**: Computed from `ai_turns.was_retry`
 - **Model optimization**: Cross-references `ai_sessions.model` with `work_category` intent to recommend cheaper models with dollar savings
 - **Cost/score trends**: Area and line charts filtered by selected period
 - **Score distribution**: Histogram of prompt quality scores
 
-### Developer Detail Page (`/dashboard/developers/[id]`)
+### Developer Detail (`/dashboard/developers/[id]`)
 - **5 tabs**: Sessions, Timeline, Work, AI Usage, Insights
-- **Coaching tips**: Personalized tips based on top anti-patterns from `heuristic.ts` hints — shows pattern name, count, severity, and actionable advice
-- **Session duration**: Computed from `ended_at - started_at`, displayed on session cards
+- **Coaching tips**: Personalized tips based on top anti-patterns from `heuristic.ts` hints
+- **Session duration**: Computed from `ended_at - started_at`
 
-### Tasks Page (`/dashboard/tasks`)
-- **AI cost per task**: Shows total AI spend via `ai_sessions.matched_task_id` join — visible in task list and detail panel
-- **Auto-status updates**: Tasks auto-transition pending→in_progress→completed based on code changes
+### Tasks (`/dashboard/tasks`)
+- **AI cost per task**: Total AI spend via `ai_sessions.matched_task_id` join
+- **Auto-status updates**: Tasks auto-transition pending→in_progress→completed when matched commits land
 
 ### Session Detail (`/sessions/[id]`)
 - **Prompt replay**: Side-by-side before/after comparison of original first prompt vs AI-rewritten version from `SessionAnalysis.rewrittenFirstPrompt`
@@ -166,10 +209,23 @@ EVALUATEAI_TEAM_ID=...                                  # (user-level preference
 - `/api/dashboard/developers/[id]` returns: `coachingTips`, `durationMin` per session
 - `/api/dashboard/tasks` returns: `aiCost`, `aiSessions` per task
 - `/api/sessions/[id]` returns: `durationMin` in session object
+- `/api/integrations/status?team_id=…` returns `{ flow: 'v2' | 'legacy', providers: {...} }` — frontend branches on `flow`
+- `/api/integrations/:provider/sync` returns 202 + `{ jobId }`; poll `/api/integrations/sync-jobs/[jobId]` for progress
 
 ## Git Workflow
 
 - Main branch: `main`
-- Commit messages: conventional format (feat:, fix:, docs:, refactor:, test:)
+- Commit messages: descriptive titles (not strictly conventional-commits). Recent examples:
+  - `Add per-user integrations flow and Google OAuth sign-in`
+  - `Consolidate root planning docs into docs/`
 - Always run `pnpm run build` before committing
-- Run `pnpm --filter evaluateai-core test` to verify tests pass
+- Run tests: `pnpm --filter evaluateai-core test` + `pnpm --filter evaluateai-dashboard exec vitest run`
+
+## Deliberate non-goals
+
+Listed here so a future contributor doesn't reintroduce removed features:
+
+- **No webhooks** — all sync is user-triggered. `github/webhook` and `fireflies/webhook` routes were deleted in the per-user integrations rework.
+- **No cron** — sync is manual-button-only. If freshness becomes a problem, add cron to the adapter loop, not to the user-initiated flow.
+- **No Fathom** — previously integrated, removed. Don't resurrect without product discussion.
+- **Multiple databases** — single Supabase Postgres. No read replicas, no caching layer. Revisit when metrics demand.

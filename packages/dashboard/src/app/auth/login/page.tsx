@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { LogIn, Mail, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { getSupabaseBrowser } from '@/lib/supabase-browser';
+import { GoogleSignInButton } from '@/components/auth/google-sign-in-button';
 
 function LoginForm() {
   const router = useRouter();
@@ -30,7 +31,18 @@ function LoginForm() {
       });
 
       if (authError) {
-        setError(authError.message);
+        // Supabase returns "Invalid login credentials" for both wrong-password
+        // AND for accounts that only have an OAuth identity (no password set).
+        // We can't distinguish the two without probing — but we can offer the
+        // hint, which is low-cost and usually solves it for Google-origin users.
+        const msg = authError.message;
+        if (/invalid\s+login\s+credentials/i.test(msg)) {
+          setError(
+            'Invalid email or password. If you signed up with Google, click "Sign in with Google" above.'
+          );
+        } else {
+          setError(msg);
+        }
         return;
       }
 
@@ -71,6 +83,19 @@ function LoginForm() {
 
       {/* Card */}
       <div className="bg-bg-card border border-border-primary rounded-lg p-6">
+        {/* Google OAuth — above the email form because it's the fastest
+            path for users who've already associated Google with this
+            address. */}
+        <GoogleSignInButton verb="Sign in" redirectTo={redirect} />
+
+        <div className="flex items-center gap-3 my-5" aria-hidden="true">
+          <div className="h-px flex-1 bg-border-primary" />
+          <span className="text-[11px] font-medium uppercase tracking-wider text-text-muted">
+            or
+          </span>
+          <div className="h-px flex-1 bg-border-primary" />
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
             <div className="flex items-center gap-2 bg-red-900/20 border border-red-800/50 rounded-lg px-4 py-3 text-red-300 text-sm">

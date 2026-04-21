@@ -22,7 +22,11 @@ export async function GET(request: NextRequest) {
     let teamsQuery = admin.from('teams').select('id', { count: 'exact', head: true });
     let usersQuery = admin.from('team_members').select('id', { count: 'exact', head: true });
     let activeQuery = admin.from('ai_sessions').select('developer_id').gte('started_at', todayStart);
-    let reposQuery = admin.from('integrations').select('id', { count: 'exact', head: true }).eq('provider', 'github').eq('status', 'active');
+    // Select team_id rather than counting rows — during the per-user integrations
+    // migration (Phase 2+), a single team can have multiple user_integrations rows
+    // for the same provider. We dedupe on team_id to keep the "teams with GitHub
+    // connected" semantic stable across the v1/v2 dual-path window.
+    let reposQuery = admin.from('integrations').select('team_id').eq('provider', 'github').eq('status', 'active');
     let sessionsQuery = admin.from('ai_sessions').select('id', { count: 'exact', head: true }).gte('started_at', todayStart);
     let monthlyCostQuery = admin.from('ai_sessions').select('total_cost_usd').gte('started_at', monthStart);
     let dailyTrendQuery = admin.from('ai_sessions').select('started_at, total_cost_usd, model, developer_id').gte('started_at', thirtyDaysAgo).order('started_at', { ascending: true });
@@ -42,6 +46,10 @@ export async function GET(request: NextRequest) {
     const [teamsRes, usersRes, activeUsersRes, reposRes, sessionsRes, monthlyCostRes, dailyTrendRes, recentSessionsRes] = await Promise.all([
       teamsQuery, usersQuery, activeQuery, reposQuery, sessionsQuery, monthlyCostQuery, dailyTrendQuery, recentSessionsQuery,
     ]);
+
+    const connectedTeamCount = new Set(
+      (reposRes.data ?? []).map((r: { team_id: string }) => r.team_id)
+    ).size;
 
     // Active developers today
     const activeDevIds = new Set(
@@ -117,7 +125,7 @@ export async function GET(request: NextRequest) {
       totalTeams: teamsRes.count ?? 0,
       totalUsers: usersRes.count ?? 0,
       activeUsersToday: activeDevIds.size,
-      connectedRepos: reposRes.count ?? 0,
+      connectedRepos: connectedTeamCount,
       sessionsToday: sessionsRes.count ?? 0,
       monthlySpend: monthlyCost,
       dailyTrend,
