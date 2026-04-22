@@ -22,11 +22,12 @@ export async function GET(request: NextRequest) {
     let teamsQuery = admin.from('teams').select('id', { count: 'exact', head: true });
     let usersQuery = admin.from('team_members').select('id', { count: 'exact', head: true });
     let activeQuery = admin.from('ai_sessions').select('developer_id').gte('started_at', todayStart);
-    // Select team_id rather than counting rows — during the per-user integrations
-    // migration (Phase 2+), a single team can have multiple user_integrations rows
-    // for the same provider. We dedupe on team_id to keep the "teams with GitHub
-    // connected" semantic stable across the v1/v2 dual-path window.
-    let reposQuery = admin.from('integrations').select('team_id').eq('provider', 'github').eq('status', 'active');
+    // Two queries unioned by team_id: legacy `integrations` and per-user
+    // `user_integrations`. "Teams with GitHub connected" is the distinct
+    // union — a team counts once whether it's on the legacy flow, the
+    // per-user flow, or both mid-migration.
+    let legacyReposQuery = admin.from('integrations').select('team_id').eq('provider', 'github').eq('status', 'active');
+    let v2ReposQuery = admin.from('user_integrations').select('team_id').eq('provider', 'github').eq('status', 'active');
     let sessionsQuery = admin.from('ai_sessions').select('id', { count: 'exact', head: true }).gte('started_at', todayStart);
     let monthlyCostQuery = admin.from('ai_sessions').select('total_cost_usd').gte('started_at', monthStart);
     let dailyTrendQuery = admin.from('ai_sessions').select('started_at, total_cost_usd, model, developer_id').gte('started_at', thirtyDaysAgo).order('started_at', { ascending: true });
@@ -36,20 +37,22 @@ export async function GET(request: NextRequest) {
       teamsQuery = teamsQuery.eq('id', teamId);
       usersQuery = usersQuery.eq('team_id', teamId);
       activeQuery = activeQuery.eq('team_id', teamId);
-      reposQuery = reposQuery.eq('team_id', teamId);
+      legacyReposQuery = legacyReposQuery.eq('team_id', teamId);
+      v2ReposQuery = v2ReposQuery.eq('team_id', teamId);
       sessionsQuery = sessionsQuery.eq('team_id', teamId);
       monthlyCostQuery = monthlyCostQuery.eq('team_id', teamId);
       dailyTrendQuery = dailyTrendQuery.eq('team_id', teamId);
       recentSessionsQuery = recentSessionsQuery.eq('team_id', teamId);
     }
 
-    const [teamsRes, usersRes, activeUsersRes, reposRes, sessionsRes, monthlyCostRes, dailyTrendRes, recentSessionsRes] = await Promise.all([
-      teamsQuery, usersQuery, activeQuery, reposQuery, sessionsQuery, monthlyCostQuery, dailyTrendQuery, recentSessionsQuery,
+    const [teamsRes, usersRes, activeUsersRes, legacyReposRes, v2ReposRes, sessionsRes, monthlyCostRes, dailyTrendRes, recentSessionsRes] = await Promise.all([
+      teamsQuery, usersQuery, activeQuery, legacyReposQuery, v2ReposQuery, sessionsQuery, monthlyCostQuery, dailyTrendQuery, recentSessionsQuery,
     ]);
 
-    const connectedTeamCount = new Set(
-      (reposRes.data ?? []).map((r: { team_id: string }) => r.team_id)
-    ).size;
+    const connectedTeamCount = new Set([
+      ...(legacyReposRes.data ?? []).map((r: { team_id: string }) => r.team_id),
+      ...(v2ReposRes.data ?? []).map((r: { team_id: string }) => r.team_id),
+    ]).size;
 
     // Active developers today
     const activeDevIds = new Set(

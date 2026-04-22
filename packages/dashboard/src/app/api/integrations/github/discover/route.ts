@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { NextRequest } from 'next/server';
-import { getValidToken, discoverAllRepos, getTrackedRepos } from '@/lib/github-oauth';
+import { discoverAllRepos, getTrackedRepos as getLegacyTrackedRepos } from '@/lib/github-oauth';
 import { guardApi } from '@/lib/auth';
+import { getSupabaseAdmin } from '@/lib/supabase-server';
+import { isMultiUserEnabled } from '@/lib/integrations/feature-flag';
+import { resolveCurrentUserToken, TokenUnavailableError } from '@/lib/integrations/token-resolver';
+import { listTeamTrackedRepos, migrateLegacyTrackedReposIfNeeded } from '@/lib/integrations/tracked-repos';
 
 interface GroupedRepo {
   name: string;
@@ -25,6 +29,11 @@ interface RepoGroup {
  *
  * Discover ALL repositories accessible to the authenticated GitHub user.
  * Returns repos grouped by: owned, collaborator, organization.
+ *
+ * Token source branches on the per-team feature flag:
+ *   - v2 (default): the requester's own user_integrations token. Each
+ *     manager sees *their* repos, which is what "Manage Repos" expects.
+ *   - Legacy (opt-out): the team-scoped `integrations` token — unchanged.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -35,16 +44,42 @@ export async function GET(request: NextRequest) {
 
     const guard = await guardApi({ teamId, roles: ['owner', 'manager'] });
     if (guard.response) return guard.response;
+    const ctx = guard.ctx;
 
-    const token = await getValidToken(teamId);
-    const [allRepos, trackedRepos] = await Promise.all([
-      discoverAllRepos(token),
-      getTrackedRepos(teamId),
-    ]);
+    const admin = getSupabaseAdmin();
+    const multiUser = await isMultiUserEnabled(admin, teamId);
 
+    let token: string;
+    try {
+      const resolved = await resolveCurrentUserToken({
+        admin,
+        teamId,
+        userId: ctx.userId,
+        provider: 'github',
+      });
+      token = resolved.accessToken;
+    } catch (err) {
+      if (err instanceof TokenUnavailableError) {
+        return NextResponse.json({ error: err.userFacingMessage, groups: [] }, { status: 404 });
+      }
+      throw err;
+    }
+
+    // Tracked-repo set tells the UI which checkboxes should start ticked.
+    // Source differs per flow: v2 uses team_tracked_repos (authoritative);
+    // legacy reads from integrations.config.tracked_repos.
+    let trackedRepos: string[];
+    if (multiUser) {
+      await migrateLegacyTrackedReposIfNeeded(admin, teamId, 'github');
+      const rows = await listTeamTrackedRepos(admin, teamId, 'github');
+      trackedRepos = rows.map((r) => r.repo_full_name);
+    } else {
+      trackedRepos = await getLegacyTrackedRepos(teamId);
+    }
+
+    const allRepos = await discoverAllRepos(token);
     const trackedSet = new Set(trackedRepos);
 
-    // Group repos by affiliation
     const owned: GroupedRepo[] = [];
     const collaborator: GroupedRepo[] = [];
     const orgMap = new Map<string, GroupedRepo[]>();
@@ -67,22 +102,18 @@ export async function GET(request: NextRequest) {
         if (!orgMap.has(orgName)) orgMap.set(orgName, []);
         orgMap.get(orgName)!.push(mapped);
       } else if (repo.permissions?.admin) {
-        // User owns this repo
         owned.push(mapped);
       } else {
-        // User is a collaborator
         collaborator.push(mapped);
       }
     }
 
-    // Build grouped response
     const groups: RepoGroup[] = [];
 
     if (owned.length > 0) {
       groups.push({ label: 'Your Repositories', repos: owned });
     }
 
-    // Sort org groups alphabetically
     const sortedOrgs = [...orgMap.entries()].sort(([a], [b]) => a.localeCompare(b));
     for (const [orgName, repos] of sortedOrgs) {
       groups.push({ label: orgName, repos });

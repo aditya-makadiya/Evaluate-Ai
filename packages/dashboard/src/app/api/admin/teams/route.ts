@@ -22,14 +22,21 @@ export async function GET() {
 
     const teamIds = teams.map((t) => t.id);
 
-    // Fetch all related data in parallel
-    const [membersRes, integrationsRes, sessionsRes] = await Promise.all([
+    // Fetch all related data in parallel. Integrations is two queries —
+    // legacy `integrations` (team-scoped) and `user_integrations` (per-user).
+    // Per team we count distinct active providers across both tables so a
+    // team that has GitHub on v2 *and* Fireflies on legacy reports 2, not 3.
+    const [membersRes, legacyIntegrationsRes, v2IntegrationsRes, sessionsRes] = await Promise.all([
       admin
         .from('team_members')
         .select('team_id, is_active')
         .in('team_id', teamIds),
       admin
         .from('integrations')
+        .select('team_id, provider, status')
+        .in('team_id', teamIds),
+      admin
+        .from('user_integrations')
         .select('team_id, provider, status')
         .in('team_id', teamIds),
       admin
@@ -47,11 +54,22 @@ export async function GET() {
       membersByTeam.set(m.team_id, entry);
     }
 
+    const providersByTeam = new Map<string, Set<string>>();
+    for (const i of legacyIntegrationsRes.data ?? []) {
+      if (i.status !== 'active') continue;
+      const set = providersByTeam.get(i.team_id) ?? new Set<string>();
+      set.add(i.provider);
+      providersByTeam.set(i.team_id, set);
+    }
+    for (const i of v2IntegrationsRes.data ?? []) {
+      if (i.status !== 'active') continue;
+      const set = providersByTeam.get(i.team_id) ?? new Set<string>();
+      set.add(i.provider);
+      providersByTeam.set(i.team_id, set);
+    }
     const integrationsByTeam = new Map<string, number>();
-    for (const i of integrationsRes.data ?? []) {
-      if (i.status === 'active') {
-        integrationsByTeam.set(i.team_id, (integrationsByTeam.get(i.team_id) ?? 0) + 1);
-      }
+    for (const [tid, set] of providersByTeam) {
+      integrationsByTeam.set(tid, set.size);
     }
 
     const costByTeam = new Map<string, { cost: number; sessions: number; lastActive: string }>();
