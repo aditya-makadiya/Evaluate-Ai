@@ -27,14 +27,20 @@ export async function GET(
       return NextResponse.json({ error: 'Team not found' }, { status: 404 });
     }
 
-    // Parallel fetches
-    const [membersRes, integrationsRes, sessionsRes, tasksRes, codeChangesRes, recentSessionsRes] = await Promise.all([
+    // Parallel fetches. `integrations` (legacy, team-scoped) and
+    // `user_integrations` (v2, per-user) are queried side-by-side and merged
+    // below so the admin view shows the full connection picture regardless
+    // of which flow the team is on.
+    const [membersRes, legacyIntegrationsRes, v2IntegrationsRes, sessionsRes, tasksRes, codeChangesRes, recentSessionsRes] = await Promise.all([
       admin.from('team_members')
         .select('id, name, email, role, github_username, evaluateai_installed, is_active, joined_at, last_ai_sync_at')
         .eq('team_id', id)
         .order('joined_at', { ascending: true }),
       admin.from('integrations')
         .select('id, provider, status, last_sync_at, created_at')
+        .eq('team_id', id),
+      admin.from('user_integrations')
+        .select('id, provider, status, last_sync_at, created_at, user_id, external_account_handle')
         .eq('team_id', id),
       admin.from('ai_sessions')
         .select('id, developer_id, model, total_cost_usd, total_turns, total_input_tokens, total_output_tokens, avg_prompt_score, work_category, started_at, ended_at')
@@ -58,7 +64,30 @@ export async function GET(
     ]);
 
     const members = membersRes.data ?? [];
-    const integrations = integrationsRes.data ?? [];
+    const legacyIntegrations = legacyIntegrationsRes.data ?? [];
+    const v2Integrations = v2IntegrationsRes.data ?? [];
+    const integrations = [
+      ...legacyIntegrations.map((i) => ({
+        id: i.id as string,
+        provider: i.provider as string,
+        status: i.status as string,
+        lastSyncAt: i.last_sync_at as string | null,
+        createdAt: i.created_at as string,
+        flow: 'legacy' as const,
+        userId: null as string | null,
+        externalAccountHandle: null as string | null,
+      })),
+      ...v2Integrations.map((i) => ({
+        id: i.id as string,
+        provider: i.provider as string,
+        status: i.status as string,
+        lastSyncAt: i.last_sync_at as string | null,
+        createdAt: i.created_at as string,
+        flow: 'v2' as const,
+        userId: (i.user_id as string) ?? null,
+        externalAccountHandle: (i.external_account_handle as string) ?? null,
+      })),
+    ];
     const allSessions = sessionsRes.data ?? [];
     const tasks = tasksRes.data ?? [];
     const codeChanges = codeChangesRes.data ?? [];
@@ -191,7 +220,9 @@ export async function GET(
       stats: {
         memberCount: members.length,
         activeMembers: members.filter(m => m.is_active).length,
-        integrationCount: integrations.filter(i => i.status === 'active').length,
+        integrationCount: new Set(
+          integrations.filter(i => i.status === 'active').map(i => i.provider)
+        ).size,
         totalSessions: allSessions.length,
         totalCost,
         totalTokens,
@@ -206,8 +237,11 @@ export async function GET(
         id: i.id,
         provider: i.provider,
         status: i.status,
-        lastSyncAt: i.last_sync_at,
-        createdAt: i.created_at,
+        lastSyncAt: i.lastSyncAt,
+        createdAt: i.createdAt,
+        flow: i.flow,
+        userId: i.userId,
+        externalAccountHandle: i.externalAccountHandle,
       })),
       modelUsage: Array.from(modelMap.entries())
         .map(([model, stats]) => ({ model, ...stats }))

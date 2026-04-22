@@ -147,6 +147,29 @@ export async function getActiveUserIntegrations(
   return (data ?? []) as UserIntegrationRow[];
 }
 
+/**
+ * Fetch a single active user_integrations row for (team, user, provider).
+ * Returns null when the user hasn't connected — callers decide whether that's
+ * a user-facing 4xx or a silent no-op.
+ */
+export async function getActiveUserIntegration(
+  admin: SupabaseClient,
+  teamId: string,
+  userId: string,
+  provider: ProviderSlug
+): Promise<UserIntegrationRow | null> {
+  const { data, error } = await admin
+    .from('user_integrations')
+    .select('*')
+    .eq('team_id', teamId)
+    .eq('user_id', userId)
+    .eq('provider', provider)
+    .eq('status', 'active')
+    .maybeSingle();
+  if (error) throw new Error(`getActiveUserIntegration: ${error.message}`);
+  return (data ?? null) as UserIntegrationRow | null;
+}
+
 export async function markIntegrationStatus(
   admin: SupabaseClient,
   id: string,
